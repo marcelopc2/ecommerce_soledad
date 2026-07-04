@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import './App.css'
+import Landing from './pages/Landing'
 import Catalog from './pages/Catalog'
 import Checkout from './pages/Checkout'
 import CheckoutSuccess from './pages/CheckoutSuccess'
@@ -14,7 +15,8 @@ import RequireAuth from './components/RequireAuth'
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Catalog />} />
+      <Route path="/" element={<Landing />} />
+      <Route path="/tienda" element={<Catalog />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/checkout/success" element={<CheckoutSuccess />} />
       <Route path="/checkout/failed" element={<CheckoutFailed />} />
