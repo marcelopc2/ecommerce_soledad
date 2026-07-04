@@ -187,17 +187,18 @@ const FAQS = [
 
 /* ---------- Secciones ---------- */
 
-function LandingHeader() {
+function LandingHeader({ active }) {
   const { user } = useAuth()
+  const cls = (id) => (active === id ? 'active' : undefined)
   return (
     <header className="lp-header">
       <Link to="/" className="lp-logo"><img src={logo} alt="Ingenio Blocks" /></Link>
       <nav className="lp-nav">
-        <a href="#como-funciona" className="active">Cómo funciona</a>
-        <a href="#beneficios">Beneficios</a>
-        <a href="#kits">Kits</a>
-        <a href="#quienes-somos">Quiénes somos</a>
-        <a href="#contacto">Contacto</a>
+        <a href="#como-funciona" className={cls('como-funciona')}>Cómo funciona</a>
+        <a href="#beneficios" className={cls('beneficios')}>Beneficios</a>
+        <a href="#kits" className={cls('kits')}>Kits</a>
+        <a href="#quienes-somos" className={cls('quienes-somos')}>Quiénes somos</a>
+        <a href="#contacto" className={cls('contacto')}>Contacto</a>
       </nav>
       <div className="lp-header-right">
         <Link to="/tienda" className="lp-cart" aria-label="Tienda"><IconCart /></Link>
@@ -212,11 +213,11 @@ function LandingHeader() {
   )
 }
 
-function Hero() {
+function Hero({ activeSection }) {
   return (
     <section className="lp-hero">
       <div className="lp-hero-grid" aria-hidden="true" />
-      <LandingHeader />
+      <LandingHeader active={activeSection} />
       <div className="lp-hero-inner">
         <div className="lp-hero-copy">
           <span className="lp-chip lp-chip-hero">⚡ despierta su ingenio</span>
@@ -236,15 +237,25 @@ function Hero() {
           <StickerBadge />
         </div>
       </div>
-      {/* decoraciones */}
-      <Sparkle size={26} style={{ top: '17%', right: '3.5%' }} />
-      <Sparkle size={22} color="rgba(255,255,255,0.7)" style={{ top: '48%', left: '39%' }} />
-      <PlusDeco style={{ top: '21%', left: '9%' }} />
-      <PlusDeco style={{ top: '48%', right: '4%' }} color="rgba(255,203,0,0.7)" />
-      <PlusDeco style={{ top: '62%', left: '61%' }} />
-      <svg className="lp-deco" width="20" height="20" viewBox="0 0 20 20" style={{ top: '43%', left: '2.5%' }} aria-hidden="true">
+      {/* decoraciones flotantes */}
+      <Sparkle size={26} style={{ top: '17%', right: '3.5%', '--dur': '5s' }} />
+      <Sparkle size={22} color="rgba(255,255,255,0.7)" style={{ top: '48%', left: '39%', '--dur': '7s', '--delay': '1.2s' }} />
+      <Sparkle size={16} style={{ top: '70%', left: '12%', '--dur': '6s', '--delay': '0.5s' }} />
+      <Sparkle size={18} color="rgba(255,255,255,0.55)" style={{ top: '12%', left: '30%', '--dur': '8s', '--delay': '2s' }} />
+      <PlusDeco style={{ top: '21%', left: '9%', '--dur': '9s' }} />
+      <PlusDeco style={{ top: '48%', right: '4%', '--dur': '6.5s', '--delay': '1.8s' }} color="rgba(255,203,0,0.7)" />
+      <PlusDeco style={{ top: '62%', left: '61%', '--dur': '7.5s', '--delay': '0.8s' }} />
+      <PlusDeco style={{ top: '82%', left: '28%', '--dur': '8.5s', '--delay': '2.4s' }} color="rgba(255,203,0,0.55)" />
+      <PlusDeco style={{ top: '9%', right: '22%', '--dur': '10s', '--delay': '1s' }} />
+      <svg className="lp-deco" width="20" height="20" viewBox="0 0 20 20" style={{ top: '43%', left: '2.5%', '--dur': '7s' }} aria-hidden="true">
         <polygon points="3,2 17,10 3,18" fill="#ffcb00" />
       </svg>
+      <svg className="lp-deco" width="14" height="14" viewBox="0 0 20 20" style={{ top: '26%', left: '55%', '--dur': '9s', '--delay': '3s' }} aria-hidden="true">
+        <polygon points="3,2 17,10 3,18" fill="rgba(255,255,255,0.5)" transform="rotate(120 10 10)" />
+      </svg>
+      <span className="lp-deco lp-deco-dot" style={{ top: '20%', left: '52%', '--dur': '6s' }} aria-hidden="true" />
+      <span className="lp-deco lp-deco-dot" style={{ top: '74%', left: '3%', '--dur': '8s', '--delay': '1.5s' }} aria-hidden="true" />
+      <span className="lp-deco lp-deco-dot lp-deco-dot-yellow" style={{ top: '34%', right: '46%', '--dur': '7s', '--delay': '2.2s' }} aria-hidden="true" />
     </section>
   )
 }
@@ -649,9 +660,27 @@ function LandingFooter() {
 }
 
 export default function Landing() {
+  const [activeSection, setActiveSection] = useState('')
+
+  // scrollspy: marca en el navbar la sección visible
+  useEffect(() => {
+    const ids = ['como-funciona', 'beneficios', 'kits', 'quienes-somos', 'contacto']
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(e => { if (e.isIntersecting) setActiveSection(e.target.id) })
+      },
+      { rootMargin: '-30% 0px -60% 0px' }
+    )
+    ids.forEach(id => {
+      const el = document.getElementById(id)
+      if (el) observer.observe(el)
+    })
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <div className="lp">
-      <Hero />
+      <Hero activeSection={activeSection} />
       <ComoFunciona />
       <Beneficios />
       <Kits />
