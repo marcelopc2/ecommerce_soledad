@@ -662,20 +662,30 @@ function LandingFooter() {
 export default function Landing() {
   const [activeSection, setActiveSection] = useState('')
 
-  // scrollspy: marca en el navbar la sección visible
+  // scrollspy: marca en el navbar la última sección cuyo inicio pasó el 40% del viewport
   useEffect(() => {
     const ids = ['como-funciona', 'beneficios', 'kits', 'quienes-somos', 'contacto']
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(e => { if (e.isIntersecting) setActiveSection(e.target.id) })
-      },
-      { rootMargin: '-30% 0px -60% 0px' }
-    )
-    ids.forEach(id => {
-      const el = document.getElementById(id)
-      if (el) observer.observe(el)
-    })
-    return () => observer.disconnect()
+    let raf = 0
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const line = window.innerHeight * 0.4
+        let current = ''
+        for (const id of ids) {
+          const el = document.getElementById(id)
+          if (el && el.getBoundingClientRect().top <= line) current = id
+        }
+        setActiveSection(current)
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    onScroll()
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
   }, [])
 
   return (
