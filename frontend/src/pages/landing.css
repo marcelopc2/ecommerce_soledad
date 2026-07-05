@@ -299,15 +299,16 @@
 }
 .lp-paso { position: relative; }
 .lp-paso-foto {
-  /* foto de 420px dentro de la columna de 458 (como el Figma) */
   position: relative;
-  width: 91.7%;
-  margin: 0 auto 46px;
+  width: 96%;
+  margin: 0 auto 56px;
 }
 .lp-paso-foto::before {
+  /* el cuadro de color es apenas más grande que la foto:
+     asoma sobre todo en las esquinas por la rotación */
   content: '';
   position: absolute;
-  inset: -17px -10px;
+  inset: -6px -4px;
   background: var(--tilt-color);
   border-radius: 18px;
   transform: rotate(-3.4deg);
@@ -326,26 +327,30 @@
 }
 .lp-paso-body { position: relative; }
 .lp-paso-num {
-  /* Quicksand Bold 200 — el número baja por detrás del título y el párrafo */
+  /* Quicksand Bold 200 (escala con el viewport para que no se apriete);
+     los desplazamientos van en em para escalar junto al número */
   position: absolute;
-  top: -73px;
-  left: -20px;
+  top: -0.52em;
+  left: -0.09em;
   font-family: var(--lp-heading);
   font-weight: 700;
-  font-size: 200px;
+  font-size: min(200px, 10.4vw);
   line-height: 1.21;
-  color: #eaeaea;
+  color: #ececec;
   z-index: 0;
   user-select: none;
 }
 .lp-paso-dot {
   position: relative;
   z-index: 1;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  color: #fff;
 }
 .lp-paso-body h3 {
   position: relative;
@@ -366,10 +371,11 @@
 .lp-paso-arrow {
   /* flechas alineadas con la fila del número, al final de la columna */
   position: absolute;
-  top: -12px;
-  right: 6px;
+  top: -6px;
+  right: 2%;
   z-index: 1;
 }
+.lp-paso-arrow svg { width: min(66px, 3.4vw); height: auto; }
 
 .lp-btn-play svg { color: #2f0053; }
 

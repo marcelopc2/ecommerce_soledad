@@ -123,19 +123,36 @@ const StickerBadge = () => (
 
 /* ---------- Datos estáticos del diseño ---------- */
 
+const IconoPasoKit = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9" cy="21" r="1.5" /><circle cx="19" cy="21" r="1.5" />
+    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+  </svg>
+)
+const IconoPasoAula = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
+  </svg>
+)
+const IconoPasoJuega = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <polygon points="6 3 21 12 6 21 6 3" />
+  </svg>
+)
+
 const PASOS = [
   {
-    num: '01', color: '#6a3093', foto: paso1,
+    num: '01', color: '#6a3093', foto: paso1, icono: <IconoPasoKit />,
     titulo: 'Adquiere tu Kit Ingenio Blocks',
     texto: 'Recibe en casa tu set de bloques físicos de alta calidad y prepárate para abrir la puerta a un mundo de creatividad tangible para tu hijo.',
   },
   {
-    num: '02', color: '#00a63e', foto: paso2,
+    num: '02', color: '#00a63e', foto: paso2, icono: <IconoPasoAula />,
     titulo: 'Ingresa a nuestra Aula Virtual',
     texto: 'Desbloquea tu acceso exclusivo a la plataforma interactiva. Encuentra cientos de guías visuales paso a paso, retos divertidos y proyectos nuevos que se actualizan constantemente.',
   },
   {
-    num: '03', color: '#ff6101', foto: paso3,
+    num: '03', color: '#ff6101', foto: paso3, icono: <IconoPasoJuega />,
     titulo: 'Juega y disfruta',
     texto: 'Observa cómo tu pequeño da vida a sus propias ideas. Aprende jugando de forma autónoma, fomenta su concentración y desarrolla habilidades clave mientras se divierte.',
   },
@@ -274,7 +291,7 @@ function ComoFunciona() {
             </div>
             <div className="lp-paso-body">
               <span className="lp-paso-num">{paso.num}</span>
-              <span className="lp-paso-dot" style={{ background: paso.color }} />
+              <span className="lp-paso-dot" style={{ background: paso.color }}>{paso.icono}</span>
               <h3>{paso.titulo}</h3>
               <p>{paso.texto}</p>
               {i < 2 && <span className="lp-paso-arrow"><ChevronsRight /></span>}
