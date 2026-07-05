@@ -315,6 +315,7 @@
 .lp-paso:nth-child(2) .lp-paso-foto::before { transform: rotate(2.8deg); }
 .lp-paso:nth-child(3) .lp-paso-foto::before { transform: rotate(-2.6deg); }
 .lp-paso-foto img {
+  /* la foto va derecha; lo rotado es solo el cuadro de color de atrás */
   position: relative;
   width: 100%;
   aspect-ratio: 420 / 260;
@@ -322,21 +323,18 @@
   border-radius: 16px;
   display: block;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-  transform: rotate(-1.8deg);
 }
-.lp-paso:nth-child(2) .lp-paso-foto img { transform: rotate(1.5deg); }
-.lp-paso:nth-child(3) .lp-paso-foto img { transform: rotate(-1.5deg); }
-.lp-paso-body { position: relative; padding-top: 52px; }
+.lp-paso-body { position: relative; }
 .lp-paso-num {
+  /* Quicksand Bold 200 — el número baja por detrás del título y el párrafo */
   position: absolute;
-  top: -64px;
-  left: -14px;
-  font-family: var(--lp-font);
-  font-weight: 200;
+  top: -73px;
+  left: -20px;
+  font-family: var(--lp-heading);
+  font-weight: 700;
   font-size: 200px;
-  line-height: 1;
-  letter-spacing: -4px;
-  color: #e9e9e9;
+  line-height: 1.21;
+  color: #eaeaea;
   z-index: 0;
   user-select: none;
 }
