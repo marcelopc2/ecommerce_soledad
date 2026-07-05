@@ -103,8 +103,8 @@ const PlusDeco = ({ style, color = 'rgba(255,255,255,0.5)' }) => (
 )
 
 const ChevronsRight = () => (
-  <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 5 13 12 6 19" /><polyline points="13 5 20 12 13 19" />
+  <svg width="66" height="52" viewBox="0 0 33 26" fill="none" stroke="#dfe3ea" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="4 3 14 13 4 23" /><polyline points="18 3 28 13 18 23" />
   </svg>
 )
 
@@ -277,8 +277,8 @@ function ComoFunciona() {
               <span className="lp-paso-dot" style={{ background: paso.color }} />
               <h3>{paso.titulo}</h3>
               <p>{paso.texto}</p>
+              {i < 2 && <span className="lp-paso-arrow"><ChevronsRight /></span>}
             </div>
-            {i < 2 && <span className="lp-paso-arrow"><ChevronsRight /></span>}
           </div>
         ))}
       </div>
