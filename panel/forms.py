@@ -56,18 +56,18 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
         ]
         labels = {
             'name': 'Nombre',
-            'slug': 'Slug (URL)',
+            'slug': 'Dirección web (se genera sola desde el título)',
             'description': 'Descripción',
             'price': 'Precio (CLP)',
             'is_digital': 'Producto digital (no requiere envío)',
             'is_active': 'Visible en la tienda',
             'courses': 'Cursos que otorga esta compra',
-            'access_months': 'Meses de acceso al LMS',
+            'access_months': 'Meses de acceso al Aula Virtual',
             'weight_kg': 'Peso (kg)',
             'width_cm': 'Ancho (cm)',
             'height_cm': 'Alto (cm)',
             'length_cm': 'Largo (cm)',
-            'is_on_sale': 'En oferta (muestra ribbon rojo)',
+            'is_on_sale': 'En oferta (muestra una cinta roja en la portada)',
             'sale_price': 'Precio de oferta (CLP)',
             'is_coming_soon': 'Próximamente (no se puede comprar aún)',
             'requires_login': 'Solo para alumnos (exige iniciar sesión para comprarlo)',
@@ -146,7 +146,7 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
         fields = ['title', 'slug', 'description', 'image_url', 'is_active']
         labels = {
             'title': 'Título',
-            'slug': 'Slug (URL)',
+            'slug': 'Dirección web (se genera sola desde el título)',
             'description': 'Descripción',
             'image_url': 'Imagen de portada (URL)',
             'is_active': 'Curso activo',
@@ -173,24 +173,59 @@ class LessonForm(BootstrapFormMixin, forms.ModelForm):
         model = Lesson
         fields = ['title', 'lesson_type', 'description', 'video_embed_url', 'pdf_file', 'image_file']
         labels = {
-            'title': 'Título del recurso',
-            'lesson_type': 'Tipo de recurso',
-            'description': 'Descripción (acompaña al recurso)',
-            'video_embed_url': 'URL de YouTube/Vimeo',
+            'title': 'Título del paso',
+            'lesson_type': 'Tipo de paso',
+            'description': 'Descripción (acompaña al paso)',
+            'video_embed_url': 'Link del video de YouTube',
             'pdf_file': 'Archivo PDF',
             'image_file': 'Imagen',
         }
+        help_texts = {
+            'video_embed_url': 'Pega el link tal como aparece en la barra del '
+                               'navegador de YouTube. Nosotros lo convertimos.',
+        }
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Instrucciones o paso a paso que acompañan a este recurso…'}),
-            'video_embed_url': forms.TextInput(attrs={'placeholder': 'https://www.youtube.com/embed/...'}),
+            'video_embed_url': forms.TextInput(
+                attrs={'placeholder': 'https://www.youtube.com/watch?v=...'}),
         }
+
+    def clean_video_embed_url(self):
+        """Acepta cualquier formato de link de YouTube y lo normaliza a /embed/.
+
+        Antes el campo exigía el formato /embed/ pero no lo validaba: si la
+        clienta pegaba el link normal de la barra del navegador (que es lo que
+        hace cualquiera), se guardaba tal cual y el iframe quedaba EN BLANCO
+        para el alumno, sin ningún error visible en el panel. La clienta no
+        tenía forma de enterarse salvo entrando como alumna.
+
+        Es la misma normalización que ya se aplicaba a los videos de la portada.
+        """
+        url = (self.cleaned_data.get('video_embed_url') or '').strip()
+        if not url:
+            return url
+
+        video_id = extract_youtube_id(url)
+        if video_id:
+            return f'https://www.youtube.com/embed/{video_id}'
+
+        # Vimeo y otros proveedores se dejan pasar tal cual: solo sabemos
+        # reconocer YouTube, y rechazar lo demás sería peor.
+        if 'vimeo.com' in url or '/embed/' in url:
+            return url
+
+        raise forms.ValidationError(
+            'No reconocimos ese link de YouTube. Copia la dirección desde la '
+            'barra del navegador mientras ves el video (o usa el botón '
+            'Compartir de YouTube).'
+        )
 
     def clean(self):
         data = super().clean()
         lesson_type = data.get('lesson_type')
         new = not self.instance.pk
         if lesson_type == 'VIDEO' and not data.get('video_embed_url'):
-            self.add_error('video_embed_url', 'Los recursos de video necesitan la URL.')
+            self.add_error('video_embed_url', 'Los pasos de video necesitan el link.')
         if lesson_type == 'PDF' and not data.get('pdf_file') and new:
             self.add_error('pdf_file', 'Los recursos PDF necesitan un archivo.')
         if lesson_type == 'IMAGE' and not data.get('image_file') and new:

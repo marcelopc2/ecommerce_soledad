@@ -180,8 +180,27 @@ def product_form(request, pk=None):
 @staff_required
 @require_POST
 def product_delete(request, pk):
+    """Elimina un producto, salvo que ya se haya vendido.
+
+    `Order.products` es un M2M sin modelo intermedio: al borrar el producto
+    desaparecen las filas de la tabla de unión y los pedidos históricos quedan
+    con su total pero SIN líneas. Eso destruye el historial de ventas y hace
+    imposible re-emitir una boleta. Un producto vendido se desactiva, no se borra.
+    """
     product = get_object_or_404(Product, pk=pk)
     name = product.name
+
+    pedidos = product.orders.count()
+    if pedidos:
+        messages.error(
+            request,
+            f'No se puede eliminar "{name}": aparece en {pedidos} pedido'
+            f'{"s" if pedidos != 1 else ""} y se perdería ese historial de '
+            f'ventas. Si ya no lo vendes, desmarca "Activo": deja de aparecer '
+            f'en la tienda y los pedidos quedan intactos.'
+        )
+        return redirect('panel:products')
+
     product.delete()
     if is_htmx(request):
         # devolvemos vacío: la fila se desvanece (swap con animación)
@@ -312,8 +331,30 @@ def course_form(request, pk=None):
 @staff_required
 @require_POST
 def course_delete(request, pk):
+    """Elimina un curso, salvo que ya lo tengan alumnos.
+
+    Borrar el curso arrastra en cascada sus lecciones, el CourseProgress y el
+    LessonProgress de TODOS los alumnos que lo tengan: gente que pagó pierde su
+    avance, de forma irreversible y con un solo clic en un botón que tiene el
+    mismo peso visual que "Editar". Se prefiere ocultarlo (is_active=False),
+    que saca el curso de la vista del alumno sin destruir nada.
+    """
     course = get_object_or_404(Course, pk=pk)
     title = course.title
+
+    alumnos = Membership.objects.filter(courses=course).count()
+    if alumnos:
+        messages.error(
+            request,
+            f'No se puede eliminar "{title}": {alumnos} alumno'
+            f'{"s lo tienen" if alumnos != 1 else " lo tiene"} asignado y se '
+            f'perdería su avance. Si ya no quieres mostrarlo, desmarca '
+            f'"Activo" en el curso: deja de aparecer y no se borra nada.'
+        )
+        # Se redirige (y no se devuelve vacío) también en htmx, para que la
+        # fila NO desaparezca de la tabla y se vea el mensaje.
+        return redirect('panel:courses')
+
     course.delete()
     if is_htmx(request):
         return HttpResponse('')
