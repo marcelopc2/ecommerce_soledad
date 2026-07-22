@@ -69,19 +69,31 @@ def _build_boleta_payload(order):
 
     detalle = []
     line = 0
-    for product in order.products.all():
-        line += 1
-        # effective_price y NO price: es lo que realmente se le cobró. Con
-        # `price` la boleta de un producto en oferta salía por el valor de
-        # lista y el detalle no cuadraba con el MntTotal.
-        price = int(product.effective_price)
-        detalle.append({
-            'NroLinDet': line,
-            'NmbItem': product.name[:80],
-            'QtyItem': 1,
-            'PrcItem': price,
-            'MontoItem': price,
-        })
+    # OrderItem trae el nombre y el precio CONGELADOS al momento de la compra:
+    # es lo que realmente se cobró, no el precio actual del producto. Las
+    # órdenes creadas antes de que existiera OrderItem caen al M2M (fallback).
+    items = list(order.items.all())
+    if items:
+        for item in items:
+            line += 1
+            detalle.append({
+                'NroLinDet': line,
+                'NmbItem': item.name[:80],
+                'QtyItem': item.quantity,
+                'PrcItem': int(item.unit_price),
+                'MontoItem': item.subtotal,
+            })
+    else:
+        for product in order.products.all():
+            line += 1
+            price = int(product.effective_price)
+            detalle.append({
+                'NroLinDet': line,
+                'NmbItem': product.name[:80],
+                'QtyItem': 1,
+                'PrcItem': price,
+                'MontoItem': price,
+            })
 
     # El envío se cobra al cliente → va como línea de la boleta.
     shipment = getattr(order, 'shipment', None)

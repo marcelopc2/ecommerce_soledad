@@ -60,3 +60,36 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order {self.order_id} - {self.status}"
+
+
+class OrderItem(models.Model):
+    """Una línea de la orden, con el precio y el nombre CONGELADOS al momento de
+    la compra.
+
+    Existe por dos motivos:
+
+    1. La boleta y el historial deben reflejar lo que se cobró de verdad, no el
+       precio actual del producto. Si mañana sube el precio, una boleta vieja
+       re-emitida salía con el valor nuevo (leía Product.price en vivo).
+
+    2. on_delete=PROTECT sobre el producto: mientras exista una venta de un
+       producto, no se puede borrar ni desde el panel ni desde el admin de
+       Django. Antes (M2M pelado) borrar un producto vaciaba en silencio los
+       pedidos históricos que lo contenían.
+
+    El M2M Order.products se conserva para lo que solo necesita la identidad del
+    producto (otorgar cursos en el LMS, el panel). Esta tabla es la fuente de
+    verdad de la plata.
+    """
+    order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, related_name='order_items', on_delete=models.PROTECT)
+    name = models.CharField(max_length=200, help_text="Nombre del producto al momento de la compra")
+    unit_price = models.DecimalField(max_digits=10, decimal_places=0, help_text="Precio cobrado por unidad")
+    quantity = models.PositiveIntegerField(default=1)
+
+    @property
+    def subtotal(self):
+        return int(self.unit_price) * self.quantity
+
+    def __str__(self):
+        return f"{self.quantity}x {self.name} (${self.unit_price})"

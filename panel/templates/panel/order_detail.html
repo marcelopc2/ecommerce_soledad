@@ -42,16 +42,30 @@
     <div class="table-responsive">
       <table class="table pnl-table">
         <tbody>
-          {% for p in order.products.all %}
+          {% comment %}
+            Se muestran los OrderItem (nombre y precio congelados a lo que se
+            cobró). Los pedidos anteriores a OrderItem caen al M2M de productos.
+          {% endcomment %}
+          {% for item in order.items.all %}
             <tr>
               <td>
-                <div class="cell-title">{{ p.name }}</div>
-                <div class="cell-sub">/{{ p.slug }}{% if p.access_months %} · {{ p.access_months }} mes{{ p.access_months|pluralize:"es" }} de acceso{% endif %}</div>
+                <div class="cell-title">{{ item.name }}</div>
+                <div class="cell-sub">/{{ item.product.slug }}{% if item.product.access_months %} · {{ item.product.access_months }} mes{{ item.product.access_months|pluralize:"es" }} de acceso{% endif %}</div>
               </td>
-              <td class="text-end fw-semibold">${{ p.price|floatformat:0|intcomma }}</td>
+              <td class="text-end fw-semibold">${{ item.subtotal|floatformat:0|intcomma }}</td>
             </tr>
           {% empty %}
-            <tr class="no-hover"><td class="empty-cell">Este pedido no tiene productos asociados.</td></tr>
+            {% for p in order.products.all %}
+              <tr>
+                <td>
+                  <div class="cell-title">{{ p.name }}</div>
+                  <div class="cell-sub">/{{ p.slug }}{% if p.access_months %} · {{ p.access_months }} mes{{ p.access_months|pluralize:"es" }} de acceso{% endif %}</div>
+                </td>
+                <td class="text-end fw-semibold">${{ p.price|floatformat:0|intcomma }}</td>
+              </tr>
+            {% empty %}
+              <tr class="no-hover"><td class="empty-cell">Este pedido no tiene productos asociados.</td></tr>
+            {% endfor %}
           {% endfor %}
           {% if shipment and shipment.shipping_cost %}
             <tr>

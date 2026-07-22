@@ -75,6 +75,28 @@ class PrecioAutoritativoTests(TestCase):
         self.assertIsNone(orden)
         self.assertIsNotNone(error)
 
+    def test_el_orderitem_congela_el_precio_aunque_el_producto_cambie(self):
+        orden, _ = build_order_from_request({
+            **DATOS_BASE, 'product_ids': [self.producto.id],
+        })
+        # El precio del producto sube DESPUÉS de la compra.
+        self.producto.price = 99990
+        self.producto.save()
+
+        item = orden.items.get()
+        self.assertEqual(int(item.unit_price), 69490)   # el que se cobró
+        self.assertEqual(item.name, 'Kit Inicial')
+
+    def test_no_se_puede_borrar_un_producto_ya_vendido(self):
+        """OrderItem.product es PROTECT: ni el admin ni un delete directo pueden
+        vaciar los pedidos históricos."""
+        from django.db.models import ProtectedError
+        build_order_from_request({
+            **DATOS_BASE, 'product_ids': [self.producto.id],
+        })
+        with self.assertRaises(ProtectedError):
+            self.producto.delete()
+
 
 class SoloParaAlumnosTests(TestCase):
     """requires_login: los packs y planes no se compran sin haber comprado el kit."""

@@ -6,7 +6,7 @@ de la Order (+ Shipment si corresponde).
 import logging
 from django.db import transaction
 from catalog.models import Product
-from .models import Order
+from .models import Order, OrderItem
 from .serializers import CheckoutSerializer
 from shipments.models import Shipment
 from shipments.services import (
@@ -146,6 +146,17 @@ def build_order_from_request(data, user=None):
             status='PENDING',
         )
         order.products.set(products)
+
+        # Una línea por producto, con el nombre y el precio congelados. Es lo
+        # que lee la boleta, para que el documento cuadre con lo cobrado aunque
+        # el precio del producto cambie después.
+        OrderItem.objects.bulk_create([
+            OrderItem(
+                order=order, product=p, name=p.name,
+                unit_price=int(p.effective_price), quantity=1,
+            )
+            for p in products
+        ])
 
         if validated:
             s, pkg, q = validated['shipping'], validated['package'], validated['quote']

@@ -11,7 +11,7 @@ from catalog.models import Product
 from invoicing.models import Invoice
 from lms.models import Course, Lesson
 from lms.services import grant_access_for_order, mark_lesson_completed
-from payments.models import Order
+from payments.models import Order, OrderItem
 
 DEMO_PASSWORD = 'MiClaveSegura123'
 
@@ -134,6 +134,10 @@ class Command(BaseCommand):
 
             order = Order.objects.create(status=order_status, total_amount=product.price, customer_email=email)
             order.products.add(product)
+            OrderItem.objects.create(
+                order=order, product=product, name=product.name,
+                unit_price=int(product.effective_price), quantity=1,
+            )
 
             membership = None
             if order_status == 'PAID':
