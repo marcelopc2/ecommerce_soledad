@@ -24,27 +24,28 @@ log = logging.getLogger('ingenioblocks.pagos')
 # ---------- Desbloqueo semanal de cursos ----------
 #
 # El curso 1 (según Course.order) está disponible desde el día de la compra.
-# Desde ahí, se libera uno nuevo cada lunes -pero solo si el alumno ya marcó
-# como completado el curso anterior-. Si llega el lunes y el curso actual
-# sigue sin completarse, el siguiente queda bloqueado hasta que lo termine
-# (no se salta la fila). Comprar un kit adicional simplemente agrega más
-# cursos al final de esta misma secuencia: el calendario no se reinicia.
-
-def _next_monday_strictly_after(d):
-    """Primer lunes DESPUÉS de `d` (si `d` ya es lunes, devuelve el de la semana siguiente)."""
-    days_ahead = (7 - d.weekday()) % 7  # weekday(): lunes=0 ... domingo=6
-    if days_ahead == 0:
-        days_ahead = 7
-    return d + timedelta(days=days_ahead)
-
+# Desde ahí se libera uno nuevo cada 7 días CONTADOS DESDE ESA COMPRA -pero solo
+# si el alumno ya marcó como completado el curso anterior-. Cada alumno tiene su
+# propio calendario: el que compró un miércoles recibe los suyos los miércoles.
+# Si llega el día y el curso actual sigue sin completarse, el siguiente queda
+# bloqueado hasta que lo termine (no se salta la fila). Comprar un kit adicional
+# agrega más cursos al final de esta misma secuencia: el calendario no se reinicia.
 
 def _unlock_date(start_date, index):
     """Fecha programada de liberación del curso en la posición `index` (0-based).
-    El curso 0 está disponible desde `start_date`; el resto, cada lunes siguiente."""
-    if index == 0:
-        return start_date
-    first_monday = _next_monday_strictly_after(start_date)
-    return first_monday + timedelta(weeks=index - 1)
+
+    El calendario es RELATIVO a la fecha de compra de cada alumno, no a un día
+    fijo de la semana: quien compró un miércoles recibe su modelo nuevo cada
+    miércoles, y quien compró un lunes lo recibe cada lunes.
+
+    Antes se saltaba al lunes siguiente, con dos efectos raros: al que compraba
+    un miércoles le llegaba el segundo modelo a los 5 días (no a los 7), y al
+    que compraba un domingo le llegaba al día siguiente. Además el "cada semana"
+    que se promete en la portada dejaba de cumplirse para casi todos.
+
+    `start_date` ya viene corrido por los días que la membresía estuvo pausada.
+    """
+    return start_date + timedelta(weeks=index)
 
 
 def _completion_map(membership, courses):
@@ -303,9 +304,13 @@ def send_reset_email(user):
 
 
 def send_course_unlocked_email(membership, course, numero):
-    """Avisa que se liberó un modelo nuevo. Lo dispara el comando
-    `enviar_avisos_desbloqueo` (ver lms/management/commands/), porque el goteo
-    depende del paso del tiempo y no de una acción del usuario."""
+    """Avisa que se liberó un modelo nuevo.
+
+    Lo dispara el comando `enviar_avisos_desbloqueo`, que corre a diario desde
+    cron: el goteo depende del paso del tiempo y no de una acción del usuario,
+    así que no hay ninguna petición web donde engancharlo. Ese comando lleva el
+    registro de lo ya avisado (UnlockNotice), no esta función.
+    """
     alumno = membership.student_name or ''
     saludo = (f'Hola {_nombre_para_saludo(membership.user, membership)}, esta semana '
               f'{alumno or "tu hijo/a"} puede construir un modelo nuevo:')

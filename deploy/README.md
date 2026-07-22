@@ -61,11 +61,32 @@ sudo certbot --nginx -d ecommercesoledad.duckdns.org
 sudo chown -R www-data:www-data /srv/ingenioblocks
 sudo chmod 600 /srv/ingenioblocks/.env
 
-# 10. Respaldo diario
+# 10. Tareas programadas
 chmod +x deploy/*.sh
 crontab -e
-#   15 4 * * * /srv/ingenioblocks/deploy/respaldar.sh >> /srv/ingenioblocks/logs/respaldos.log 2>&1
 ```
+
+Dos líneas, las dos necesarias:
+
+```cron
+# Respaldo diario de la base y los archivos subidos (4:15 AM)
+15 4 * * * /srv/ingenioblocks/deploy/respaldar.sh >> /srv/ingenioblocks/logs/respaldos.log 2>&1
+
+# Avisos del goteo semanal (9:00 AM). SIN ESTO el alumno nunca se entera de que
+# se liberó su modelo nuevo, que es la promesa central del plan mensual.
+0 9 * * * cd /srv/ingenioblocks && venv/bin/python manage.py enviar_avisos_desbloqueo >> logs/avisos.log 2>&1
+```
+
+Para ver qué haría sin mandar nada:
+
+```bash
+cd /srv/ingenioblocks && venv/bin/python manage.py enviar_avisos_desbloqueo --simular
+```
+
+Cada alumno tiene su propio calendario contado desde **su** fecha de compra: el
+que compró un miércoles recibe su modelo nuevo los miércoles. El comando es
+idempotente (lleva registro en `UnlockNotice`), así que correrlo dos veces el
+mismo día no manda correos repetidos.
 
 ---
 
@@ -149,8 +170,8 @@ en el servidor hay que sacarlo del repositorio y respaldarlo aparte.
 - Contraseña de aplicación de Gmail (hoy los correos se escriben en el log, no
   se envían).
 - Credenciales de producción de Transbank, MercadoPago y OpenFactura.
-- El cron del goteo semanal, que todavía no existe: el alumno no se entera de
-  que se liberó su modelo nuevo.
+- ~~El cron del goteo semanal~~ ya existe (`enviar_avisos_desbloqueo`), pero no
+  sirve de nada hasta que el correo salga de verdad (falta la clave de Gmail).
 - Términos y condiciones, política de privacidad y el derecho a retracto de 10
   días. El sitio pide el nombre de un menor de edad para el diploma.
 - Copiar `/srv/respaldos` fuera del servidor.

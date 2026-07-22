@@ -181,11 +181,38 @@ class Diploma(models.Model):
         return f"🎓 {self.title}"
 
 
+class UnlockNotice(models.Model):
+    """Marca que ya se avisó por correo del desbloqueo de un curso.
+
+    Existe solo para que el comando `enviar_avisos_desbloqueo` sea idempotente:
+    corre todos los días, y sin este registro le reenviaría el mismo aviso al
+    mismo alumno cada día hasta que complete el curso.
+
+    La unicidad (membresía, curso) es la que garantiza el "una sola vez": si dos
+    ejecuciones se pisan, la segunda choca con IntegrityError en vez de mandar
+    un correo repetido.
+    """
+    membership = models.ForeignKey(Membership, related_name='unlock_notices', on_delete=models.CASCADE)
+    course = models.ForeignKey(Course, related_name='unlock_notices', on_delete=models.CASCADE)
+    sent_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ('membership', 'course')
+
+    def __str__(self):
+        return f"aviso de {self.course.title} a {self.membership.user.email}"
+
+
 class DiplomaAward(models.Model):
     """Registro de que un alumno desbloqueó un diploma (congela la fecha de logro)."""
     membership = models.ForeignKey(Membership, related_name='diploma_awards', on_delete=models.CASCADE)
     diploma = models.ForeignKey(Diploma, related_name='awards', on_delete=models.CASCADE)
     awarded_at = models.DateTimeField(default=timezone.now)
+    # Cuándo se avisó por correo. Nulo = todavía no se avisó, y es lo que busca
+    # el comando `enviar_avisos_desbloqueo` para no repetir el correo cada día.
+    # El diploma se otorga al abrir la página, así que el aviso no puede salir
+    # en ese mismo momento sin acoplar el envío de correo a un GET.
+    email_sent_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ('membership', 'diploma')
