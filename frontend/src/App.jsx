@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import './App.css'
 import Landing from './pages/Landing'
-import Catalog from './pages/Catalog'
 import Checkout from './pages/Checkout'
 import CheckoutSuccess from './pages/CheckoutSuccess'
 import CheckoutFailed from './pages/CheckoutFailed'
@@ -52,7 +51,11 @@ function App() {
       <ScrollToTop />
       <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/tienda" element={<Catalog />} />
+      {/* /tienda era el catálogo del prototipo anterior: gris, sin el sistema
+          visual de la marca y sin footer. Ya no se enlaza desde ninguna parte,
+          pero la ruta se mantiene redirigiendo para que un marcador o un link
+          antiguo no caiga en una página que parece de otro producto. */}
+      <Route path="/tienda" element={<Navigate to="/#kits" replace />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/checkout/success" element={<CheckoutSuccess />} />
       <Route path="/checkout/failed" element={<CheckoutFailed />} />

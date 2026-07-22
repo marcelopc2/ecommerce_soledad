@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Zonas privadas: no tiene sentido que se indexen y no queremos que aparezcan
+# en resultados de búsqueda.
+Disallow: /gestion/
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /mis-cursos
+Disallow: /mi-cuenta
+Disallow: /curso/
+Disallow: /definir-clave/
+
+Sitemap: https://ecommercesoledad.duckdns.org/sitemap.xml

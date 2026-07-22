@@ -105,7 +105,7 @@ export default function CourseView() {
         {!membershipActive && (
           <div className="lms-expired-banner">
             <span>⚠️ Tu membresía está vencida. Renuévala para ver los videos y el material.</span>
-            <Link to="/tienda" className="lms-btn yellow">Renovar</Link>
+            <Link to="/#kits" className="lms-btn yellow">Renovar</Link>
           </div>
         )}
 
@@ -159,7 +159,7 @@ function LessonBody({ lesson, membershipActive, onDownloadPdf }) {
       <div className="lms-locked">
         <span className="lock">🔒</span>
         <strong>Este contenido está disponible con membresía activa</strong>
-        <Link to="/tienda" className="lms-btn yellow">Renovar membresía</Link>
+        <Link to="/#kits" className="lms-btn yellow">Renovar membresía</Link>
       </div>
     )
   }

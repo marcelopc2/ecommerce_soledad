@@ -1,0 +1,209 @@
+/* ============================================================
+   Páginas de resultado del pago (éxito / fallo).
+   Mismo sistema visual que la landing y el checkout: hay que envolver
+   en .lp para heredar los tokens de landing.css.
+
+   Son las pantallas que ve el cliente JUSTO DESPUÉS de pagar, el momento
+   de mayor ansiedad de todo el flujo ("¿me cobraron?, ¿y ahora qué?").
+   Por eso la de éxito no dice solo "gracias": explica paso a paso qué va
+   a pasar, empezando por el correo para crear la clave —que si cae en
+   spam deja al cliente sin ninguna instrucción.
+   ============================================================ */
+
+.res-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--lp-gray-bg);
+}
+
+/* ---------- Banda superior morada ---------- */
+
+.res-top {
+  position: relative;
+  background: linear-gradient(135deg, #2f0053 12%, #590599 82%);
+  padding: 26px 24px 96px;
+  overflow: hidden;
+}
+.res-top::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+.res-top-inner {
+  position: relative;
+  z-index: 1;
+  width: var(--lp-content);
+  margin: 0 auto;
+}
+.res-logo img { width: 132px; height: auto; display: block; }
+
+/* ---------- Tarjeta ---------- */
+
+.res-wrap {
+  width: var(--lp-content);
+  margin: -70px auto 0;
+  padding-bottom: 64px;
+  position: relative;
+  z-index: 2;
+}
+.res-card {
+  max-width: 660px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--lp-border);
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(47, 0, 83, 0.13);
+  padding: 40px;
+  text-align: center;
+}
+
+.res-emblema {
+  width: 74px;
+  height: 74px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.res-emblema svg { width: 38px; height: 38px; }
+.res-ok    .res-emblema { background: #e7f8ef; color: #178a52; }
+.res-error .res-emblema { background: #fdecec; color: #c0392b; }
+
+.res-card h1 {
+  font-family: var(--lp-heading);
+  font-size: 30px;
+  line-height: 1.15;
+  color: var(--lp-ink);
+  margin: 0 0 10px;
+}
+.res-bajada {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--lp-body-c);
+  margin: 0 0 8px;
+}
+.res-orden {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--lp-body-c);
+  background: var(--lp-gray-bg);
+  border: 1px solid var(--lp-border);
+  border-radius: 999px;
+  padding: 7px 16px;
+  margin-top: 6px;
+}
+.res-orden strong { color: var(--lp-ink); }
+
+/* ---------- "Qué pasa ahora" ---------- */
+
+.res-pasos {
+  text-align: left;
+  margin: 30px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+.res-paso {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 14px;
+  align-items: start;
+  background: var(--lp-gray-bg);
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.res-paso-num {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--lp-purple);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+}
+.res-paso h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lp-ink);
+  margin: 5px 0 4px;
+}
+.res-paso p {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--lp-body-c);
+  margin: 0;
+}
+.res-destacado {
+  color: var(--lp-purple);
+  font-weight: 600;
+}
+
+/* ---------- Acciones ---------- */
+
+.res-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 30px;
+}
+.res-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--lp-btn-font);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 15px 28px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, background-color 0.15s;
+}
+.res-btn-principal { background: var(--lp-yellow); color: #2f0053; }
+.res-btn-principal:hover { filter: brightness(1.06); transform: translateY(-2px); }
+.res-btn-secundario {
+  background: #fff;
+  color: var(--lp-ink);
+  border: 1.5px solid var(--lp-border);
+}
+.res-btn-secundario:hover { background: var(--lp-gray-bg); transform: translateY(-2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .res-btn:hover { transform: none; }
+}
+
+/* ---------- Ayuda al pie ---------- */
+
+.res-ayuda {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--lp-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--lp-body-c);
+}
+.res-ayuda a { color: var(--lp-purple); font-weight: 600; }
+
+@media (max-width: 560px) {
+  .res-top { padding: 20px 16px 88px; }
+  .res-wrap { padding-bottom: 40px; }
+  .res-card { padding: 28px 20px; border-radius: 18px; }
+  .res-card h1 { font-size: 24px; }
+  .res-acciones { flex-direction: column; }
+  .res-btn { width: 100%; }
+}

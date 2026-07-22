@@ -48,7 +48,7 @@ export default function MyCourses() {
                 ? <span className="lms-mem-chip ok">✓ Membresía activa hasta el {expires}</span>
                 : <>
                     <span className="lms-mem-chip bad">✕ Membresía vencida el {expires}</span>
-                    <Link to="/tienda" className="lms-btn yellow">Renovar</Link>
+                    <Link to="/#kits" className="lms-btn yellow">Renovar</Link>
                   </>
             )}
           </div>
@@ -61,7 +61,7 @@ export default function MyCourses() {
             <span className="big">🧱</span>
             <h3>Aún no tienes cursos</h3>
             <p>Compra un kit en la tienda y su contenido aparecerá aquí automáticamente.</p>
-            <Link to="/tienda" className="lms-btn yellow">Ir a la tienda</Link>
+            <Link to="/#kits" className="lms-btn yellow">Ir a la tienda</Link>
           </div>
         ) : (
           <div className="lms-courses-grid">

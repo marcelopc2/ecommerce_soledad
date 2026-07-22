@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sitio de una sola página: la portada es todo el contenido público, y las
+     secciones son anclas dentro de ella. Cuando existan páginas propias por
+     kit conviene generarlo desde Django en vez de mantenerlo a mano. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://ecommercesoledad.duckdns.org/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

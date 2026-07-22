@@ -631,7 +631,14 @@ function Testimonios() {
   )
 }
 
-function Concurso() {
+// Texto real del concurso. Mientras esté vacío la sección NO se muestra: iba a
+// producción con "Lorem ipsum dolor sit amet...", que es lo peor que puede leer
+// alguien a punto de gastar decenas de miles de pesos. No se inventa un texto
+// acá porque implicaría afirmar cosas de un concurso (premios, fechas, bases)
+// que solo la clienta puede definir. Con pegar el texto aquí vuelve a aparecer.
+const TEXTO_CONCURSO = ''
+
+function Concurso({ texto }) {
   return (
     <section className="lp-concurso-band">
       <div className="lp-concurso">
@@ -643,12 +650,7 @@ function Concurso() {
           <span className="lp-chip lp-chip-lila">ganador del año</span>
           <h2 className="lp-h2">concurso</h2>
           <span className="lp-underline" style={{ margin: '0 0 24px' }} />
-          <p>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-            tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
-            quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
-            consequat.
-          </p>
+          <p>{texto}</p>
         </div>
       </div>
     </section>
@@ -836,7 +838,7 @@ export default function Landing() {
       <Kits products={products} />
       <QuienesSomos />
       <Testimonios />
-      <Concurso />
+      {TEXTO_CONCURSO && <Concurso texto={TEXTO_CONCURSO} />}
       <Faq />
       <Contacto />
       <LandingFooter />

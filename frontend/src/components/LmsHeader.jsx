@@ -17,7 +17,7 @@ export default function LmsHeader() {
 
         <nav className="lms-header-nav">
           <NavLink to="/mis-cursos" className="lms-navlink">Mis cursos</NavLink>
-          <Link to="/tienda" className="lms-navlink">Tienda</Link>
+          <Link to="/#kits" className="lms-navlink">Tienda</Link>
           {user && (
             <>
               {/* El chip lleva al perfil: es donde la gente busca sus datos. */}
