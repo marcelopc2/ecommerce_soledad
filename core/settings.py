@@ -109,11 +109,25 @@ AXES_VERBOSE = True
 # PermissionDenied dentro de authenticate(), y es AxesMiddleware el que
 # reemplaza la respuesta por esta plantilla.
 AXES_LOCKOUT_TEMPLATE = 'panel/lockout.html'
-# Detrás de nginx la IP real viene en X-Forwarded-For. Si no se declara cuántos
-# proxies hay, axes tomaría la IP del propio proxy y bloquearía a TODOS los
-# visitantes de una sola vez. En local (sin proxy) va en 0.
-AXES_IPWARE_PROXY_COUNT = int(os.environ.get('AXES_PROXY_COUNT', '0')) or None
-AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+# --- Identificación de la IP real del visitante ---
+#
+# Cuántos proxies de confianza hay delante de Django. 0 = ninguno (local).
+# Detrás de nginx va en 1. Es la pieza que decide si se puede creer o no en el
+# encabezado X-Forwarded-For.
+NUM_PROXIES = int(os.environ.get('PROXY_COUNT', '0'))
+
+# X-Forwarded-For lo puede escribir CUALQUIERA que mande una petición. Si se le
+# cree sin proxy delante, un atacante manda una IP distinta en cada intento y
+# anula de una vez el bloqueo de axes Y el rate limiting de DRF: fuerza bruta
+# ilimitada. Por eso solo se consulta cuando hay un proxy declarado, y en el
+# servidor nginx debe SOBRESCRIBIR el encabezado (proxy_set_header
+# X-Forwarded-For $remote_addr) en vez de agregarle valores — ver deploy/nginx.conf.
+if NUM_PROXIES > 0:
+    AXES_IPWARE_PROXY_COUNT = NUM_PROXIES
+    AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+else:
+    AXES_IPWARE_PROXY_COUNT = None
+    AXES_IPWARE_META_PRECEDENCE_ORDER = ('REMOTE_ADDR',)
 
 # --- CORS: solo orígenes explícitos (nunca abierto a todos) ---
 # El frontend (FRONTEND_URL) siempre está permitido; en desarrollo se suman los localhost típicos.
@@ -249,6 +263,11 @@ REST_FRAMEWORK = {
         'quote': '30/min',          # cotizaciones de envío
         'contact': '5/min',         # formulario de contacto (anti spam de correos)
     },
+    # Sin esto DRF usa el X-Forwarded-For COMPLETO como identidad del cliente,
+    # que el atacante controla: cambiándolo en cada petición el throttling deja
+    # de existir. Con el valor explícito, en 0 usa REMOTE_ADDR y con proxy toma
+    # la IP en la posición correcta. Ver el bloque NUM_PROXIES más arriba.
+    'NUM_PROXIES': NUM_PROXIES,
 }
 
 # En producción la API responde solo JSON (sin la interfaz navegable de DRF, que expone

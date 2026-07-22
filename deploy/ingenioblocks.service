@@ -1,0 +1,49 @@
+# ============================================================================
+# Servicio systemd para el backend Django (gunicorn).
+#
+#   sudo cp deploy/ingenioblocks.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ingenioblocks
+#   sudo systemctl status ingenioblocks
+# ============================================================================
+[Unit]
+Description=Ingenio Blocks (Django + gunicorn)
+After=network.target
+# Si se usa Postgres, descomentar para que arranque después de la base:
+# After=network.target postgresql.service
+# Requires=postgresql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/ingenioblocks
+EnvironmentFile=/srv/ingenioblocks/.env
+
+ExecStart=/srv/ingenioblocks/venv/bin/gunicorn core.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 3 \
+    --timeout 60 \
+    --graceful-timeout 30 \
+    --access-logfile /srv/ingenioblocks/logs/gunicorn-access.log \
+    --error-logfile /srv/ingenioblocks/logs/gunicorn-error.log
+
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+
+# Si el proceso se cae, systemd lo levanta solo. Esto es lo que evita que el
+# sitio quede abajo hasta que alguien se dé cuenta.
+Restart=always
+RestartSec=5
+
+# --- Aislamiento ---
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+# Las únicas rutas donde el servicio necesita escribir: subidas de archivos,
+# estáticos recolectados, la base SQLite y los logs.
+ReadWritePaths=/srv/ingenioblocks
+
+[Install]
+WantedBy=multi-user.target
