@@ -1352,6 +1352,9 @@
   gap: 12px;
 }
 .lp-footer-center nav { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+.lp-footer-legal { gap: 20px !important; }
+.lp-footer-legal a { font-size: 13px !important; color: rgba(255, 255, 255, 0.75) !important; }
+.lp-footer-legal a:hover { color: var(--lp-yellow) !important; }
 .lp-footer-center a {
   color: #fff;
   text-decoration: none;

@@ -10,6 +10,7 @@ import SetPassword from './pages/SetPassword'
 import MyCourses from './pages/MyCourses'
 import Profile from './pages/Profile'
 import CourseView from './pages/CourseView'
+import Legal from './pages/Legal'
 import NotFound from './pages/NotFound'
 import RequireAuth from './components/RequireAuth'
 import ScrollTopButton from './components/ScrollTopButton'
@@ -61,6 +62,7 @@ function App() {
       <Route path="/checkout/failed" element={<CheckoutFailed />} />
 
       {/* Auth */}
+      <Route path="/legal/:doc" element={<Legal />} />
       <Route path="/login" element={<Login />} />
       <Route path="/definir-clave/:uid/:token" element={<SetPassword />} />
 

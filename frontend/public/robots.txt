@@ -10,5 +10,6 @@ Disallow: /mis-cursos
 Disallow: /mi-cuenta
 Disallow: /curso/
 Disallow: /definir-clave/
+Allow: /legal/
 
 Sitemap: https://ecommercesoledad.duckdns.org/sitemap.xml

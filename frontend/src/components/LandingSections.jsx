@@ -7,7 +7,7 @@
  * contenedor con la clase `lp` (varias reglas están scopeadas como `.lp .lp-h2`).
  */
 import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import { api } from '../api'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 
@@ -127,6 +127,11 @@ export function LandingFooter() {
       <div className="lp-footer-center">
         <nav>
           {NAV.map(([id, label]) => <a key={id} href={href(id)}>{label}</a>)}
+        </nav>
+        <nav className="lp-footer-legal">
+          <Link to="/legal/terminos">Términos y condiciones</Link>
+          <Link to="/legal/privacidad">Privacidad</Link>
+          <Link to="/legal/retracto">Retracto y devoluciones</Link>
         </nav>
         <p>Todos los derechos reservados para Ingenio Blocks</p>
       </div>
