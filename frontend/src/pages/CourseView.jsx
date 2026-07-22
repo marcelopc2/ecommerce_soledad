@@ -16,6 +16,7 @@ export default function CourseView() {
   const [error, setError] = useState('')
   const [unlockDate, setUnlockDate] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [aviso, setAviso] = useState('')   // errores puntuales, en la propia página
 
   useEffect(() => {
     api.get(`/lms/courses/${slug}/`)
@@ -35,7 +36,10 @@ export default function CourseView() {
       .finally(() => setLoading(false))
   }, [slug])
 
+  // Los errores se muestran dentro de la página y no con alert() del navegador:
+  // el cuadro gris del sistema se ve ajeno a la marca y en móvil es peor.
   const downloadPdf = async (lessonId, title) => {
+    setAviso('')
     try {
       const res = await api.get(`/lms/lessons/${lessonId}/pdf/`, { responseType: 'blob' })
       const url = URL.createObjectURL(res.data)
@@ -43,12 +47,13 @@ export default function CourseView() {
       a.href = url; a.download = `${title}.pdf`; a.click()
       URL.revokeObjectURL(url)
     } catch {
-      alert('Necesitas una membresía activa para descargar este documento.')
+      setAviso('No pudimos abrir el documento. Revisa que tu membresía siga activa.')
     }
   }
 
   const markSeen = async (lesson) => {
     setBusy(true)
+    setAviso('')
     try {
       const res = await api.post(`/lms/lessons/${lesson.id}/complete/`)
       setCourse(c => ({
@@ -58,7 +63,7 @@ export default function CourseView() {
         lessons: c.lessons.map(l => l.id === lesson.id ? { ...l, completed: true } : l),
       }))
     } catch {
-      alert('No se pudo marcar el recurso. Intenta de nuevo.')
+      setAviso('No pudimos guardar tu avance. Revisa tu conexión e intenta de nuevo.')
     } finally { setBusy(false) }
   }
 
@@ -97,7 +102,7 @@ export default function CourseView() {
           <div className="lms-course-progress">
             <div className="lms-progress-track big"><div className="lms-progress-bar" style={{ width: `${course.pct}%` }} /></div>
             <span className="lms-course-progress-label">
-              {course.completed ? '✓ Curso completado' : `${course.pct}% · ${course.done} de ${course.total} recursos`}
+              {course.completed ? '✓ Curso completado' : `${course.pct}% · ${course.done} de ${course.total} pasos`}
             </span>
           </div>
         )}
@@ -109,9 +114,16 @@ export default function CourseView() {
           </div>
         )}
 
+        {aviso && (
+          <div className="lms-aviso" role="alert">
+            <span>{aviso}</span>
+            <button type="button" onClick={() => setAviso('')} aria-label="Cerrar aviso">✕</button>
+          </div>
+        )}
+
         <div className="lms-classroom">
           <aside className="lms-playlist">
-            <div className="lms-playlist-head">Contenido · {course.lessons.length} recurso{course.lessons.length === 1 ? '' : 's'}</div>
+            <div className="lms-playlist-head">Contenido · {course.lessons.length} paso{course.lessons.length === 1 ? '' : 's'}</div>
             {course.lessons.map(l => (
               <button key={l.id}
                 className={'lms-lesson-item' + (activeId === l.id ? ' selected' : '')}
@@ -130,7 +142,7 @@ export default function CourseView() {
 
           <div className="lms-lesson-panel">
             {!active ? (
-              <div className="lms-empty"><span className="big">🎬</span><h3>Este curso aún no tiene recursos</h3></div>
+              <div className="lms-empty"><span className="big">🎬</span><h3>Este curso aún no tiene pasos</h3></div>
             ) : (
               <>
                 <h2>{active.order}. {active.title}</h2>
@@ -139,7 +151,7 @@ export default function CourseView() {
 
                 {membershipActive && (
                   active.completed
-                    ? <div className="lms-lesson-done">✓ Ya viste este recurso</div>
+                    ? <div className="lms-lesson-done">✓ ¡Listo, ya lo hiciste!</div>
                     : <button className="lms-btn yellow lms-mark-btn" onClick={() => markSeen(active)} disabled={busy}>
                         {busy ? 'Guardando…' : '✓ Marcar como visto'}
                       </button>

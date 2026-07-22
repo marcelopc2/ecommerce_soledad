@@ -88,6 +88,7 @@ export default function Checkout() {
   const [quoteMsg, setQuoteMsg] = useState('')
   const [courier, setCourier] = useState(null) // {courier, service, price, days}
   const [paying, setPaying] = useState(false)
+  const [errorPago, setErrorPago] = useState('')   // error al iniciar el pago, junto al botón
 
   // Con sesión iniciada, el correo de la cuenta viene puesto. En los productos
   // "solo para alumnos" además queda fijo: el servidor ancla la compra a esa
@@ -247,7 +248,10 @@ export default function Checkout() {
       }
     } catch (err) {
       setQuoteMsg('')
-      alert(err.response?.data?.error || 'Error al iniciar el pago')
+      setErrorPago(
+        err.response?.data?.error ||
+        'No pudimos iniciar el pago. Revisa tu conexión e intenta nuevamente.'
+      )
       setPaying(false)
     }
   }
@@ -458,6 +462,11 @@ export default function Checkout() {
               {product.price_note}
             </p>
           )}
+
+          {/* El error de pago se muestra acá, junto al botón que lo produjo,
+              en vez de con un alert() del navegador: ese cuadro gris del
+              sistema aparecía justo cuando la persona ya decidió pagar. */}
+          {errorPago && <p className="co-msg co-msg-error">{errorPago}</p>}
 
           <div className="co-pagos">
             <button className="co-btn-pagar co-btn-webpay"

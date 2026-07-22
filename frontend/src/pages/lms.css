@@ -528,6 +528,33 @@
 }
 .lms-expired-banner .lms-btn { margin-left: auto; padding: 9px 20px; }
 
+/* Aviso puntual dentro de la página (reemplaza a los alert() del navegador,
+   que se veían ajenos a la marca y en móvil eran especialmente molestos). */
+.lms-aviso {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff8e8;
+  border: 1.5px solid #ffe2a8;
+  color: #8a5a00;
+  border-radius: 16px;
+  padding: 15px 20px;
+  margin-bottom: 24px;
+  font-size: 14.5px;
+}
+.lms-aviso button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.65;
+  padding: 4px;
+}
+.lms-aviso button:hover { opacity: 1; }
+
 /* ---------- Estados vacíos / loader ---------- */
 
 .lms-empty {
