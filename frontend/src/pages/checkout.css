@@ -453,6 +453,16 @@
   .co-body { grid-template-columns: 1fr; }
   .co-resumen { position: static; }
 }
+
+/* Safari en iPhone hace zoom automático al enfocar un input de menos de 16px y
+   no vuelve solo: el usuario quedaba con el formulario corrido justo mientras
+   escribía su dirección. Solo en pantallas chicas, para no tocar el escritorio. */
+@media (max-width: 768px) {
+  .co-campo input,
+  .co-campo select,
+  .co-campo textarea,
+  .cbx-input { font-size: 16px; }
+}
 @media (max-width: 560px) {
   .co-top { padding: 20px 18px 66px; }
   .co-titulo h1 { font-size: 26px; }

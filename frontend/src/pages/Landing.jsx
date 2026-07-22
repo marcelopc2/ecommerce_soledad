@@ -122,28 +122,95 @@ const KIT_DESC = 'Kit de bloques Ingenio Blocks con más de 400 piezas + motor y
 
 /* ---------- Secciones ---------- */
 
+const SECCIONES_NAV = [
+  ['como-funciona', 'Cómo funciona'],
+  ['beneficios', 'Beneficios'],
+  ['kits', 'Kits'],
+  ['quienes-somos', 'Quiénes somos'],
+  ['contacto', 'Contacto'],
+]
+
+const IconMenu = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round">
+    <path d="M3 6h18M3 12h18M3 18h18" />
+  </svg>
+)
+
+const IconClose = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
+
 function LandingHeader({ active }) {
   const { user } = useAuth()
+  const [menuAbierto, setMenuAbierto] = useState(false)
   const cls = (id) => (active === id ? 'active' : undefined)
+
+  // Mientras el menú está abierto se bloquea el scroll del fondo y Escape lo
+  // cierra, igual que el modal de video.
+  useEffect(() => {
+    if (!menuAbierto) return
+    const alTeclear = (e) => { if (e.key === 'Escape') setMenuAbierto(false) }
+    const overflowPrevio = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', alTeclear)
+    return () => {
+      document.body.style.overflow = overflowPrevio
+      window.removeEventListener('keydown', alTeclear)
+    }
+  }, [menuAbierto])
+
   return (
     <header className="lp-header">
       <Link to="/" className="lp-logo"><img src={logo} alt="Ingenio Blocks" /></Link>
+
       <nav className="lp-nav">
-        <a href="#como-funciona" className={cls('como-funciona')}>Cómo funciona</a>
-        <a href="#beneficios" className={cls('beneficios')}>Beneficios</a>
-        <a href="#kits" className={cls('kits')}>Kits</a>
-        <a href="#quienes-somos" className={cls('quienes-somos')}>Quiénes somos</a>
-        <a href="#contacto" className={cls('contacto')}>Contacto</a>
+        {SECCIONES_NAV.map(([id, texto]) => (
+          <a key={id} href={`#${id}`} className={cls(id)}>{texto}</a>
+        ))}
       </nav>
+
       <div className="lp-header-right">
-        <Link to="/tienda" className="lp-cart" aria-label="Tienda"><IconCart /></Link>
+        <Link to="/#kits" className="lp-cart" aria-label="Ver los kits"><IconCart /></Link>
         <span className="lp-header-divider" />
         {user ? (
           <Link to="/mis-cursos" className="lp-login-btn">mis cursos <IconUser /></Link>
         ) : (
           <Link to="/login" className="lp-login-btn">iniciar sesión <IconUser /></Link>
         )}
+        {/* Bajo 1200px la nav horizontal no cabe y se oculta; sin este botón la
+            portada quedaba SIN navegación en celular, tablet y notebooks de 13". */}
+        <button
+          type="button"
+          className="lp-menu-btn"
+          aria-label={menuAbierto ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={menuAbierto}
+          onClick={() => setMenuAbierto((v) => !v)}
+        >
+          {menuAbierto ? <IconClose /> : <IconMenu />}
+        </button>
       </div>
+
+      {menuAbierto && (
+        <div className="lp-menu-movil" role="dialog" aria-modal="true" aria-label="Menú">
+          <nav>
+            {SECCIONES_NAV.map(([id, texto]) => (
+              <a key={id} href={`#${id}`} className={cls(id)}
+                 onClick={() => setMenuAbierto(false)}>{texto}</a>
+            ))}
+          </nav>
+          <Link
+            to={user ? '/mis-cursos' : '/login'}
+            className="lp-menu-movil-cta"
+            onClick={() => setMenuAbierto(false)}
+          >
+            {user ? 'mis cursos' : 'iniciar sesión'} <IconUser />
+          </Link>
+        </div>
+      )}
     </header>
   )
 }

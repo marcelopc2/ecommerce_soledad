@@ -237,6 +237,71 @@
 }
 .lp-login-btn:hover { background: rgba(255, 255, 255, 0.18); }
 
+/* Botón de menú: solo aparece cuando la nav horizontal se oculta (<1200px) */
+.lp-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;                 /* 44px es el mínimo táctil cómodo */
+  height: 44px;
+  padding: 0;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.lp-menu-btn:hover { background: rgba(255, 255, 255, 0.18); }
+
+.lp-menu-movil {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  background: #3d0072;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+.lp-menu-movil nav { display: flex; flex-direction: column; }
+.lp-menu-movil a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-radius: 12px;
+}
+.lp-menu-movil a:hover,
+.lp-menu-movil a.active { background: rgba(255, 255, 255, 0.12); color: var(--lp-yellow); }
+.lp-menu-movil-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 6px;
+  color: #2f0053 !important;
+  background: var(--lp-yellow);
+  font-weight: 700;
+  text-transform: lowercase;
+  border-radius: 999px;
+  padding: 14px 22px;
+}
+.lp-menu-movil-cta:hover { filter: brightness(1.06); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .lp-menu-movil { animation: lp-menu-entra 0.18s ease-out; }
+  @keyframes lp-menu-entra {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
 /* ---------- Hero ---------- */
 
 .lp-hero {
@@ -1306,6 +1371,7 @@
 
 @media (max-width: 1200px) {
   .lp-nav { display: none; }
+  .lp-menu-btn { display: inline-flex; }   /* reemplaza a la nav que se oculta */
   .lp-paso-arrow { display: none; }
   .lp-pasos { gap: 40px; }
   .lp-cards { grid-template-columns: 1fr; max-width: 560px; }
@@ -1339,4 +1405,55 @@
   .lp-faq-a { padding-left: 24px; padding-right: 24px; }
   .lp-faq-item.open .lp-faq-a { padding-bottom: 24px; }
   .lp-pagos { max-width: 100%; height: auto; }
+}
+
+/* ---------- Celular ----------
+   Antes el corte más chico era 820px, así que un iPhone de 390px recibía las
+   mismas tipografías y márgenes que una tablet: títulos de 36px que se comían
+   la pantalla y secciones con 80px de padding lateral. */
+@media (max-width: 560px) {
+  /* .lp y no :root: la variable vive en .lp (ver arriba) */
+  .lp { --lp-content: calc(100vw - 32px); }
+
+  .lp-logo img { height: 46px; }
+  .lp-header-right { gap: 10px; }
+  /* En celular el botón de sesión se cae: queda dentro del menú, que es donde
+     se espera encontrarlo. Se mantiene el carrito, que sí es de un toque. */
+  .lp-login-btn, .lp-header-divider { display: none; }
+
+  .lp-h2 { font-size: 26px; line-height: 1.2; }
+  .lp-h2::after { width: 48px; }
+  .lp-chip { font-size: 12px; }
+
+  /* Los 90-110px de aire vertical del diseño de escritorio dejan la portada
+     larguísima en un celular: se recortan a la mitad, conservando la
+     proporción relativa entre secciones. */
+  .lp-como        { padding: 52px 16px 56px; }
+  .lp-quienes     { padding: 56px 16px 24px; }
+  .lp-testimonios { padding: 28px 16px 60px; }
+  .lp-faq         { padding: 56px 16px; }
+  .lp-contacto    { padding: 48px 16px; }
+
+  .lp-hero-copy h1 { line-height: 1.12; }
+  .lp-hero-copy p { font-size: 15px; }
+
+  .lp-cards, .lp-pasos, .lp-testimonios-grid { max-width: 100%; }
+  .lp-card, .lp-paso, .lp-testimonio { padding: 22px; }
+  .lp-oferta, .lp-concurso { padding: 24px; }
+  .lp-beneficios-box { padding: 24px; }
+  .lp-faq-q { font-size: 15px; padding: 18px; }
+  .lp-faq-a { padding-left: 18px; padding-right: 18px; }
+
+  .lp-footer { gap: 24px; padding-bottom: 32px; }
+}
+
+/* ---------- Zoom involuntario en iOS ----------
+   Safari en iPhone hace zoom automático al enfocar cualquier input de menos de
+   16px, y no vuelve solo: el usuario queda con la página corrida justo cuando
+   está escribiendo sus datos. Se aplica solo en pantallas táctiles chicas para
+   no alterar el diseño de escritorio. */
+@media (max-width: 768px) {
+  .lp-contacto-form input,
+  .lp-contacto-form textarea,
+  .lp-contacto-form select { font-size: 16px; }
 }

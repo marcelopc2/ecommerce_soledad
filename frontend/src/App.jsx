@@ -26,6 +26,26 @@ function ScrollToTop() {
   return null
 }
 
+// Rutas donde los botones flotantes estorban en vez de ayudar: en el checkout
+// se paran justo encima del botón de pagar cuando el resumen cae al final en
+// móvil, y en el login (diseñado para no tener scroll) se montan sobre la
+// tarjeta en pantallas bajas.
+const SIN_BOTONES_FLOTANTES = ['/checkout', '/login', '/definir-clave', '/curso']
+
+function BotonesFlotantes() {
+  const { pathname } = useLocation()
+  const oculto = SIN_BOTONES_FLOTANTES.some(
+    (ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`)
+  )
+  if (oculto) return null
+  return (
+    <>
+      <ScrollTopButton />
+      <WhatsAppButton />
+    </>
+  )
+}
+
 function App() {
   return (
     <>
@@ -51,8 +71,7 @@ function App() {
           que este es el único 404 que ve el visitante del sitio público. */}
       <Route path="*" element={<NotFound />} />
       </Routes>
-      <ScrollTopButton />
-      <WhatsAppButton />
+      <BotonesFlotantes />
     </>
   )
 }
