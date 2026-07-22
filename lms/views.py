@@ -28,6 +28,7 @@ class MyCoursesView(APIView):
         for it in get_sequence_access(membership):
             if it['type'] == 'course':
                 data = CourseListSerializer(it['course']).data
+                requerido = it.get('required_course')
                 data.update({
                     'type': 'course',
                     'unlocked': it['unlocked'],
@@ -36,6 +37,10 @@ class MyCoursesView(APIView):
                     'done': it['done'],
                     'total': it['total'],
                     'unlock_date': it['unlock_date'],
+                    # Para que la tarjeta pueda decir POR QUÉ está cerrado en
+                    # vez de mostrar siempre una fecha (que puede estar pasada).
+                    'lock_reason': it.get('lock_reason'),
+                    'required_course_title': requerido.title if requerido else None,
                 })
             else:
                 d = it['diploma']

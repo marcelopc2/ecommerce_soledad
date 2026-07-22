@@ -1,12 +1,15 @@
+import logging
 import os
 import requests
-from decimal import Decimal
 from django.conf import settings
+
+log = logging.getLogger('ingenioblocks.pagos')
 
 # --- Configuración Shipit ---
 SHIPIT_API_BASE = getattr(settings, 'SHIPIT_API_BASE', 'https://api.shipit.cl')
 SHIPIT_ACCEPT = 'application/vnd.shipit.v2'
-SHIPIT_TIMEOUT = 20  # segundos
+# 8s y no 20: esta llamada corre dentro del checkout, con el cliente esperando.
+SHIPIT_TIMEOUT = int(os.environ.get('SHIPIT_TIMEOUT', '8'))
 
 # Comuna DESDE la que despacha la tienda (destiny_id/origin_id de Shipit son IDs
 # de comuna, no nombres). Default 308 = Las Condes. Configurable por si la
@@ -72,15 +75,33 @@ def build_package_from_products(products):
 # ---------------------------------------------------------------------------
 # Cotización (rates) — solo lectura
 # ---------------------------------------------------------------------------
+class CotizacionNoDisponible(Exception):
+    """No se pudo obtener una tarifa real de Shipit.
+
+    Existe para que el checkout pueda responder "no podemos calcular el
+    despacho ahora" en vez de inventar un precio. Ver get_shipping_quotes().
+    """
+
+
 def get_shipping_quotes(commune_name=None, commune_id=None, package=None, checkout_price=0):
     """
-    Devuelve opciones de courier para un destino. Intenta cotizar en Shipit real;
-    si no hay credenciales o Shipit no devuelve precios, cae al mock.
+    Devuelve opciones de courier para un destino, cotizadas en Shipit.
     Cada opción: {courier, service, price, days}.
 
     Shipit cotiza por `destiny_id` (ID de comuna), NO por nombre. Se usa el
     commune_id recibido; si no vino (el frontend mandó solo el nombre), se
     resuelve el nombre → id contra la lista de comunas de Shipit.
+
+    Si no se puede cotizar de verdad:
+      - en desarrollo (DEBUG=True) devuelve tarifas de mentira, para poder
+        probar el checkout sin depender de Shipit;
+      - en producción lanza CotizacionNoDisponible.
+
+    Esa distinción es deliberada: el precio que sale de acá es el que se le
+    COBRA al cliente. Antes cualquier fallo de Shipit caía al mock en silencio
+    y la tienda seguía vendiendo con tarifas inventadas — si el envío real
+    costaba $8.000 y se cobró $3.500, la diferencia la absorbía la tienda sin
+    que nadie se enterara.
     """
     package = package or DEFAULT_PACKAGE
 
@@ -91,10 +112,23 @@ def get_shipping_quotes(commune_name=None, commune_id=None, package=None, checko
                 quotes = _shipit_rates(int(destiny_id), package, checkout_price)
                 if quotes:
                     return quotes
+                log.error('Shipit no devolvió tarifas para la comuna %s (id %s)',
+                          commune_name, destiny_id)
             except Exception:
-                pass  # cualquier fallo de red/parseo → caemos al mock
+                log.exception('Falló la cotización en Shipit para la comuna %s (id %s)',
+                              commune_name, destiny_id)
+        else:
+            log.error('No se pudo resolver el id de comuna de "%s" en Shipit', commune_name)
+    else:
+        log.warning('Shipit sin credenciales configuradas (SHIPIT_EMAIL / SHIPIT_TOKEN)')
 
-    return _mock_quotes(package)
+    if settings.DEBUG:
+        return _mock_quotes(package)
+
+    raise CotizacionNoDisponible(
+        'No pudimos calcular el costo de despacho en este momento. '
+        'Intenta nuevamente en unos minutos o escríbenos por WhatsApp.'
+    )
 
 
 def _shipit_rates(destiny_id, package, checkout_price=0):
@@ -212,14 +246,20 @@ def _mock_quotes(package):
 # ---------------------------------------------------------------------------
 def get_communes():
     """
-    Lista de regiones→comunas para el selector. Intenta traerla de Shipit y la cachea;
-    si falla, usa una lista estática de respaldo.
+    Lista de regiones→comunas para el selector. Intenta traerla de Shipit y la
+    cachea; si falla, usa una lista estática de respaldo SIN cachearla.
+
+    Lo de no cachear el respaldo es importante: la lista estática trae las
+    comunas con `id: None`, y sin id de comuna no se puede cotizar de verdad.
+    Si Shipit fallaba en la primera petición después de un despliegue, el worker
+    se quedaba pegado con esa lista hasta que alguien reiniciara el proceso, y
+    todas las cotizaciones de ese worker quedaban rotas. Ahora un fallo puntual
+    se reintenta en la petición siguiente.
     """
     global _COMMUNES_CACHE
     if _COMMUNES_CACHE is not None:
         return _COMMUNES_CACHE
 
-    communes = None
     if _has_credentials():
         try:
             resp = requests.get(
@@ -227,16 +267,15 @@ def get_communes():
                 headers=_shipit_headers(),
                 timeout=SHIPIT_TIMEOUT,
             )
-            data = resp.json()
-            communes = _normalize_communes(data)
+            communes = _normalize_communes(resp.json())
+            if communes:
+                _COMMUNES_CACHE = communes   # solo se cachea la lista BUENA
+                return communes
+            log.error('Shipit devolvió una lista de comunas vacía o ilegible')
         except Exception:
-            communes = None
+            log.exception('No se pudo traer la lista de comunas de Shipit')
 
-    if not communes:
-        communes = _STATIC_COMMUNES
-
-    _COMMUNES_CACHE = communes
-    return communes
+    return _STATIC_COMMUNES
 
 
 def _normalize_communes(data):

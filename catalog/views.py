@@ -1,3 +1,4 @@
+import logging
 from django.conf import settings
 from core.emails import enviar_email
 from rest_framework import viewsets, status
@@ -9,6 +10,8 @@ from .serializers import (
     CategorySerializer, ProductSerializer, FAQSerializer, TestimonialSerializer,
     ContactSerializer, LandingVideoSerializer, LandingStepSerializer,
 )
+
+log = logging.getLogger(__name__)
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
@@ -24,8 +27,13 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = 'slug'
 
     def get_queryset(self):
-        # Filtramos para que el frontend solo reciba productos habilitados
-        return Product.objects.filter(is_active=True).prefetch_related('images', 'category')
+        # Filtramos para que el frontend solo reciba productos habilitados.
+        # category es ForeignKey → select_related (un JOIN); images es reversa
+        # → prefetch_related. Tenerlos juntos en prefetch gastaba una consulta
+        # extra por cada listado.
+        return (Product.objects.filter(is_active=True)
+                .select_related('category')
+                .prefetch_related('images'))
 
 class FAQViewSet(viewsets.ReadOnlyModelViewSet):
     """Preguntas frecuentes activas, en el orden que fijó el panel."""
@@ -88,6 +96,9 @@ class ContactView(APIView):
                 fail_silently=False,
             )
         except Exception:
+            # Un mensaje de contacto perdido es un cliente perdido: queda en el
+            # log con el correo de quien escribió para poder responderle igual.
+            log.exception('No se pudo enviar el mensaje de contacto de %s', data['email'])
             return Response(
                 {'error': 'No pudimos enviar tu mensaje. Intenta nuevamente en unos minutos.'},
                 status=status.HTTP_502_BAD_GATEWAY,

@@ -3,12 +3,14 @@ Otorgamiento de acceso al LMS cuando se confirma un pago, y correos asociados.
 Mismos principios que la boleta: idempotente y no-bloqueante (el pago nunca
 se rompe por un problema de LMS/email).
 """
+import logging
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from core.emails import enviar_email
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
@@ -16,6 +18,7 @@ from django.utils.encoding import force_bytes
 from .models import Membership, CourseProgress, LessonProgress, Diploma, DiplomaAward
 
 User = get_user_model()
+log = logging.getLogger('ingenioblocks.pagos')
 
 
 # ---------- Desbloqueo semanal de cursos ----------
@@ -81,15 +84,36 @@ def get_course_access(membership):
     comp = _completion_map(membership, courses)
     # Los días que estuvo pausada no cuentan para el calendario: se corre el
     # punto de partida hacia adelante esa misma cantidad de días.
-    start_date = membership.created_at.date() + timedelta(days=membership.total_paused_days)
-    today = timezone.now().date()
+    #
+    # localtime() antes de .date() porque con USE_TZ las fechas se guardan en
+    # UTC, y Chile va 3-4 horas atrás: sin convertir, el "día" del goteo
+    # cambiaba a las 20:00/21:00 hora local, así que el contenido se liberaba
+    # una tarde antes de lo prometido y una compra hecha un domingo por la
+    # noche quedaba registrada como lunes, corriendo toda la secuencia.
+    start_date = (timezone.localtime(membership.created_at).date()
+                  + timedelta(days=membership.total_paused_days))
+    today = timezone.localdate()
 
     result = []
     blocked = False
+    curso_previo = None      # el que hay que terminar para abrir el siguiente
     for i, course in enumerate(courses):
         unlock_date = _unlock_date(start_date, i)
         info = comp[course.id]
-        unlocked = (today >= unlock_date) and not blocked
+        falta_fecha = today < unlock_date
+        unlocked = not falta_fecha and not blocked
+
+        # Por qué está cerrado. Son dos motivos distintos y el alumno necesita
+        # distinguirlos: mostrar siempre "disponible el <fecha>" hacía que un
+        # curso trabado por no haber terminado el anterior luciera una fecha ya
+        # pasada, y el apoderado concluía que la plataforma estaba fallando.
+        if unlocked:
+            motivo, curso_requerido = None, None
+        elif blocked:
+            motivo, curso_requerido = 'previo', curso_previo
+        else:
+            motivo, curso_requerido = 'fecha', None
+
         result.append({
             'course': course,
             'unlocked': unlocked,
@@ -98,10 +122,14 @@ def get_course_access(membership):
             'done': info['done'],
             'total': info['total'],
             'unlock_date': unlock_date,
+            'lock_reason': motivo,              # None | 'fecha' | 'previo'
+            'required_course': curso_requerido,  # el curso que falta completar
         })
         # Lo que sigue queda bloqueado si este no se pudo desbloquear, o si se
         # desbloqueó pero el alumno todavía no lo completa.
         if not unlocked or not info['completed']:
+            if not blocked:
+                curso_previo = course   # el primero que traba la cadena
             blocked = True
     return result
 
@@ -158,13 +186,21 @@ def grant_access_for_order(order):
     try:
         return _grant(order)
     except Exception:
-        # No rompemos el pago por un fallo de LMS. Queda rastreable en el log del server.
-        import traceback
-        traceback.print_exc()
+        # No rompemos el pago por un fallo de LMS, pero queda en pagos.log con
+        # el id de la orden para poder otorgar el acceso a mano desde el panel.
+        log.exception('No se pudo otorgar el acceso al LMS de la orden %s', order.order_id)
         return None
 
 
+@transaction.atomic
 def _grant(order):
+    """Crea o extiende la membresía de una orden pagada.
+
+    Va en una transacción porque son cuatro escrituras encadenadas (membresía,
+    cursos, orden aplicada, vencimiento). Si fallaba entre el save() —que ya
+    había extendido expires_at— y el orders.add() —que es la marca de
+    idempotencia—, un reintento volvía a sumar los meses.
+    """
     products = list(order.products.all())
     courses = [c for p in products for c in p.courses.filter(is_active=True)]
     months = max((p.access_months for p in products), default=0)

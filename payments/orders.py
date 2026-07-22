@@ -3,11 +3,17 @@ Construcción de órdenes compartida por las vistas de pago (Webpay y MercadoPag
 Centraliza: parseo de productos, validación del envío, cálculo del total y creación
 de la Order (+ Shipment si corresponde).
 """
+import logging
+from django.db import transaction
 from catalog.models import Product
 from .models import Order
 from .serializers import CheckoutSerializer
 from shipments.models import Shipment
-from shipments.services import get_shipping_quotes, build_package_from_products
+from shipments.services import (
+    get_shipping_quotes, build_package_from_products, CotizacionNoDisponible,
+)
+
+log = logging.getLogger('ingenioblocks.pagos')
 
 
 def _primer_error(errores):
@@ -104,10 +110,14 @@ def build_order_from_request(data, user=None):
             return None, 'Falta el courier elegido'
 
         package = build_package_from_products(products)
-        quotes = get_shipping_quotes(
-            commune_name=commune_name, commune_id=commune_id,
-            package=package, checkout_price=int(products_total),
-        )
+        try:
+            quotes = get_shipping_quotes(
+                commune_name=commune_name, commune_id=commune_id,
+                package=package, checkout_price=int(products_total),
+            )
+        except CotizacionNoDisponible as e:
+            # Preferimos no vender antes que cobrar un despacho inventado.
+            return None, str(e)
 
         # Precio autoritativo: buscamos el courier elegido en la cotización del servidor.
         match = None
@@ -123,40 +133,46 @@ def build_order_from_request(data, user=None):
 
     total_amount = int(products_total) + int(shipping_cost)
 
-    order = Order.objects.create(
-        customer_email=customer_email,
-        customer_name=customer_name,
-        student_name=student_name,       # va al diploma (ver lms.services._grant)
-        customer_phone=customer_phone,
-        total_amount=total_amount,
-        status='PENDING',
-    )
-    order.products.set(products)
-
-    if validated:
-        s, pkg, q = validated['shipping'], validated['package'], validated['quote']
-        Shipment.objects.create(
-            order=order,
-            # Si no vinieron datos propios del destinatario, se usan los del
-            # comprador (que es el caso normal: compra para su propia casa).
-            recipient_name=s.get('recipient_name') or customer_name,
-            recipient_phone=s.get('recipient_phone') or customer_phone,
-            recipient_email=s.get('recipient_email', '') or customer_email,
-            region=s.get('region', ''),
-            commune=s.get('commune', ''),
-            commune_id=s.get('commune_id'),
-            address_street=s.get('address_street', ''),
-            address_number=s.get('address_number', ''),
-            address_detail=s.get('address_detail', ''),
-            courier=q['courier'],
-            service_name=q['service'],
-            shipping_cost=shipping_cost,
-            estimated_days=q.get('days', ''),
-            weight_kg=pkg['weight_kg'],
-            width_cm=pkg['width_cm'],
-            height_cm=pkg['height_cm'],
-            length_cm=pkg['length_cm'],
-            status='PENDING_DISPATCH',
+    # Todo junto o nada: la orden, sus productos y el envío son una sola cosa.
+    # Sin esto, un corte entre medio dejaba una orden física SIN envío, con el
+    # costo de despacho ya sumado al total que se le iba a cobrar al cliente.
+    with transaction.atomic():
+        order = Order.objects.create(
+            customer_email=customer_email,
+            customer_name=customer_name,
+            student_name=student_name,       # va al diploma (ver lms.services._grant)
+            customer_phone=customer_phone,
+            total_amount=total_amount,
+            status='PENDING',
         )
+        order.products.set(products)
 
+        if validated:
+            s, pkg, q = validated['shipping'], validated['package'], validated['quote']
+            Shipment.objects.create(
+                order=order,
+                # Si no vinieron datos propios del destinatario, se usan los del
+                # comprador (que es el caso normal: compra para su propia casa).
+                recipient_name=s.get('recipient_name') or customer_name,
+                recipient_phone=s.get('recipient_phone') or customer_phone,
+                recipient_email=s.get('recipient_email', '') or customer_email,
+                region=s.get('region', ''),
+                commune=s.get('commune', ''),
+                commune_id=s.get('commune_id'),
+                address_street=s.get('address_street', ''),
+                address_number=s.get('address_number', ''),
+                address_detail=s.get('address_detail', ''),
+                courier=q['courier'],
+                service_name=q['service'],
+                shipping_cost=shipping_cost,
+                estimated_days=q.get('days', ''),
+                weight_kg=pkg['weight_kg'],
+                width_cm=pkg['width_cm'],
+                height_cm=pkg['height_cm'],
+                length_cm=pkg['length_cm'],
+                status='PENDING_DISPATCH',
+            )
+
+    log.info('Orden %s creada por %s (total %s, %s producto/s)',
+             order.order_id, customer_email, total_amount, len(products))
     return order, None

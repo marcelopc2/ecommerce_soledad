@@ -1,7 +1,10 @@
+import logging
 import os
 import requests
 from datetime import date
 from django.conf import settings
+
+log = logging.getLogger('ingenioblocks.pagos')
 
 # --- Configuración OpenFactura (Haulmer) ---
 # Ambiente de DESARROLLO público de Haulmer: emite boletas SIMULADAS (sin validez SII).
@@ -9,7 +12,10 @@ from django.conf import settings
 OPENFACTURA_DEV_BASE = 'https://dev-api.haulmer.com'
 OPENFACTURA_DEV_APIKEY = '928e15a2d14d4a6292345f04960f4bd3'  # key pública de demo (documentada por Haulmer)
 
-TIMEOUT = 30
+# 8s y no 30: la emisión corre dentro del retorno del pago, y este timeout se
+# gasta DOS veces (consultar el emisor + emitir). Con 30s el peor caso superaba
+# el timeout de gunicorn y mataba al worker con el cliente esperando en pantalla.
+TIMEOUT = int(os.environ.get('OPENFACTURA_TIMEOUT', '8'))
 IVA_RATE = 0.19
 
 _ORG_CACHE = None
@@ -65,7 +71,10 @@ def _build_boleta_payload(order):
     line = 0
     for product in order.products.all():
         line += 1
-        price = int(product.price)
+        # effective_price y NO price: es lo que realmente se le cobró. Con
+        # `price` la boleta de un producto en oferta salía por el valor de
+        # lista y el detalle no cuadraba con el MntTotal.
+        price = int(product.effective_price)
         detalle.append({
             'NroLinDet': line,
             'NmbItem': product.name[:80],
@@ -87,6 +96,18 @@ def _build_boleta_payload(order):
         })
 
     total = int(order.total_amount)
+
+    # Un DTE cuyo detalle no suma el total es un documento tributario inválido.
+    # Mejor no emitirlo y que quede el registro, que mandarle al SII algo que no
+    # cuadra (o peor, entregarle al cliente una boleta que no calza con su cobro).
+    suma_detalle = sum(d['MontoItem'] for d in detalle)
+    if suma_detalle != total:
+        raise ValueError(
+            f'El detalle de la boleta suma {suma_detalle} pero la orden '
+            f'{order.order_id} cobró {total}. Revisar precios de los productos '
+            f'y el costo de despacho antes de emitir.'
+        )
+
     neto = round(total / (1 + IVA_RATE))
     iva = total - neto
 
@@ -173,9 +194,11 @@ def issue_invoice_for_order(order):
         invoice.status = 'ISSUED'
         invoice.error_message = ''
         invoice.issued_at = timezone.now()
+        log.info('Boleta folio %s emitida para la orden %s', invoice.folio, order.order_id)
     except Exception as e:
         invoice.status = 'ERROR'
         invoice.error_message = str(e)[:1000]
+        log.exception('No se pudo emitir la boleta de la orden %s', order.order_id)
 
     invoice.save()
     return invoice

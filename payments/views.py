@@ -1,7 +1,8 @@
-import os
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import transaction
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.conf import settings
@@ -10,6 +11,29 @@ from .orders import build_order_from_request
 from .services import create_webpay_transaction, commit_webpay_transaction
 from invoicing.services import issue_invoice_for_order
 from lms.services import grant_access_for_order
+
+# Va al archivo pagos.log, separado del log general: es el rastro que permite
+# reconstruir qué pasó cuando alguien reclama "pagué y no me llegó nada".
+log = logging.getLogger('ingenioblocks.pagos')
+
+
+def _entregar_compra(order):
+    """Emite la boleta y otorga el acceso al LMS de una orden ya pagada.
+
+    Cada paso va en su propio try: que falle la boleta NO puede impedir que el
+    alumno reciba su acceso, y viceversa. La orden ya está en PAID y guardada
+    antes de llegar acá, así que un fallo de estos deja la venta registrada y
+    recuperable a mano desde el panel.
+    """
+    try:
+        issue_invoice_for_order(order)
+    except Exception:
+        log.exception('Falló la emisión de boleta de la orden %s', order.order_id)
+
+    try:
+        grant_access_for_order(order)
+    except Exception:
+        log.exception('Falló el otorgamiento de acceso de la orden %s', order.order_id)
 
 class CreateWebpayTransactionView(APIView):
     throttle_scope = 'payment'
@@ -41,8 +65,14 @@ class CreateWebpayTransactionView(APIView):
                 'url': response['url'],
                 'token': response['token']
             })
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            # El detalle va al log, no al navegador: str(e) de la SDK de
+            # Transbank puede traer credenciales y rutas internas.
+            log.exception('No se pudo iniciar el pago Webpay de la orden %s', order.order_id)
+            return Response(
+                {'error': 'No pudimos conectar con Webpay. Intenta nuevamente en unos minutos.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
 class CommitWebpayTransactionView(APIView):
     """
@@ -69,27 +99,38 @@ class CommitWebpayTransactionView(APIView):
         except Order.DoesNotExist:
             return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=invalid_token')
 
-        # Confirmar en Transbank
+        # Confirmar en Transbank.
+        #
+        # OJO: commit_webpay_transaction() es la llamada que COBRA. Si lanza una
+        # excepción no sabemos de qué lado quedó: puede no haber cobrado nada, o
+        # puede haber cobrado y habérsenos caído la red al recibir la respuesta.
+        # El token es de un solo uso, así que no se puede reintentar. Por eso el
+        # except deja la orden en REVIEW y no en FAILED: dar por perdida una
+        # compra que sí se cobró es peor que pedir una revisión manual.
         try:
             response = commit_webpay_transaction(token_ws)
-
-            if response.get('status') == 'AUTHORIZED':
-                order.status = 'PAID'
-                order.save()
-                # Emitir boleta electrónica (no-bloqueante: si falla queda en ERROR para reintentar).
-                issue_invoice_for_order(order)
-                # Otorgar acceso al LMS (crea/extiende membresía y envía el correo de acceso).
-                grant_access_for_order(order)
-                return redirect(f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}')
-            else:
-                order.status = 'FAILED'
-                order.save()
-                return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=rejected')
-
-        except Exception as e:
-            order.status = 'FAILED'
-            order.save()
+        except Exception:
+            order.status = 'REVIEW'
+            order.save(update_fields=['status', 'updated_at'])
+            log.exception(
+                'REVISAR A MANO: el commit de Webpay falló para la orden %s '
+                '(token %s, monto %s). Puede haberse cobrado igual: confirmar en '
+                'el portal de Transbank antes de decidir.',
+                order.order_id, token_ws, order.total_amount,
+            )
             return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=error')
+
+        if response.get('status') == 'AUTHORIZED':
+            order.status = 'PAID'
+            order.save(update_fields=['status', 'updated_at'])
+            log.info('Orden %s PAGADA por Webpay (monto %s)', order.order_id, order.total_amount)
+            _entregar_compra(order)
+            return redirect(f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}')
+
+        order.status = 'FAILED'
+        order.save(update_fields=['status', 'updated_at'])
+        log.info('Orden %s rechazada por Webpay (status %s)', order.order_id, response.get('status'))
+        return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=rejected')
 
 from .services import create_mercadopago_preference, get_mercadopago_payment
 
@@ -117,8 +158,13 @@ class CreateMercadoPagoTransactionView(APIView):
                 notification_url=notification_url
             )
             return Response({'url': init_point})
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            log.exception('No se pudo crear la preferencia de MercadoPago de la orden %s',
+                          order.order_id)
+            return Response(
+                {'error': 'No pudimos conectar con MercadoPago. Intenta nuevamente en unos minutos.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
 def _verify_and_update_order(payment_id):
     """
@@ -129,37 +175,62 @@ def _verify_and_update_order(payment_id):
     if not payment_id or str(payment_id).lower() in ('', 'null', 'none'):
         return None, None
 
-    payment = get_mercadopago_payment(payment_id)
+    try:
+        payment = get_mercadopago_payment(payment_id)
+    except Exception:
+        log.exception('No se pudo consultar el pago %s en MercadoPago', payment_id)
+        return None, None
+
     real_status = payment.get('status')  # approved / rejected / pending / in_process ...
     external_reference = payment.get('external_reference')
 
     if not external_reference:
         return None, real_status
 
-    try:
-        order = Order.objects.get(order_id=external_reference)
-    except Order.DoesNotExist:
-        return None, real_status
+    # El webhook server-to-server y la vuelta del navegador llegan casi a la vez
+    # y los dos entran acá. select_for_update serializa a los dos procesos sobre
+    # la misma fila: sin esto ambos podían pasar el chequeo de idempotencia de
+    # grant_access_for_order antes de que ninguno lo marcara, y la membresía
+    # terminaba con el doble de meses.
+    entregar = False
+    with transaction.atomic():
+        try:
+            order = Order.objects.select_for_update().get(order_id=external_reference)
+        except Order.DoesNotExist:
+            return None, real_status
 
-    # Verificamos que el monto cobrado coincida con el de la orden (anti-manipulación).
-    paid_amount = payment.get('transaction_amount')
-    if paid_amount is not None and int(paid_amount) != int(order.total_amount):
-        order.status = 'FAILED'
-        order.save()
-        return order, 'amount_mismatch'
+        # Verificamos que el monto cobrado coincida con el de la orden (anti-manipulación).
+        paid_amount = payment.get('transaction_amount')
+        if paid_amount is not None and int(paid_amount) != int(order.total_amount):
+            order.status = 'FAILED'
+            order.save(update_fields=['status', 'updated_at'])
+            log.error(
+                'MONTO NO COINCIDE en la orden %s: MercadoPago cobró %s y la orden dice %s',
+                order.order_id, paid_amount, order.total_amount,
+            )
+            return order, 'amount_mismatch'
 
-    if real_status == 'approved':
-        order.status = 'PAID'
-        order.save()
-        # Emitir boleta electrónica (no-bloqueante: si falla queda en ERROR para reintentar).
-        issue_invoice_for_order(order)
-        # Otorgar acceso al LMS (crea/extiende membresía y envía el correo de acceso).
-        grant_access_for_order(order)
-        return order, real_status
-    elif real_status in ('rejected', 'cancelled'):
-        order.status = 'FAILED'
-    # pending / in_process: dejamos la orden como está (PENDING) hasta el webhook definitivo
-    order.save()
+        if real_status == 'approved':
+            # Solo entregamos si la orden NO estaba ya pagada. Así el segundo en
+            # llegar (webhook o navegador, da igual el orden) no re-entrega.
+            if order.status != 'PAID':
+                order.status = 'PAID'
+                order.save(update_fields=['status', 'updated_at'])
+                entregar = True
+                log.info('Orden %s PAGADA por MercadoPago (monto %s)',
+                         order.order_id, order.total_amount)
+        elif real_status in ('rejected', 'cancelled'):
+            order.status = 'FAILED'
+            order.save(update_fields=['status', 'updated_at'])
+            log.info('Orden %s rechazada por MercadoPago (status %s)',
+                     order.order_id, real_status)
+        # pending / in_process: la orden queda como está (PENDING) hasta el webhook definitivo.
+
+    # Fuera de la transacción: emitir boleta y otorgar acceso implican llamadas
+    # HTTP y envío de correo, que no deben mantener abierto un bloqueo de fila.
+    if entregar:
+        _entregar_compra(order)
+
     return order, real_status
 
 

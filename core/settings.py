@@ -7,7 +7,11 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+# El default es False a propósito: si el .env no se carga en el servidor (ruta
+# equivocada, permisos, contenedor sin el archivo), el sitio debe arrancar
+# SEGURO, no en modo depuración exponiendo la SECRET_KEY y los tokens de pago
+# en cualquier traceback. En desarrollo el .env trae DEBUG=True explícito.
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # SECRET_KEY: obligatoria vía .env. Solo en desarrollo (DEBUG=True) se permite un
 # fallback local; en producción, si falta, el servidor NO arranca (mejor que arrancar inseguro).
@@ -273,6 +277,71 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+# Sin esto el socket SMTP usa el timeout por defecto del sistema (puede colgarse
+# minutos). Los correos se envían dentro del retorno del pago, así que un SMTP
+# lento bloquea al cliente que acaba de pagar.
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'IngenioBlocks <no-reply@ingenioblocks.cl>')
 # Bandeja que recibe los mensajes del formulario de contacto de la landing.
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'contacto@ingenioblocks.com')
+
+
+# --- Registro de eventos (logging) ---
+# Sin esto, cuando un cliente reclama "pagué y no me llegó nada" no hay forma de
+# saber qué pasó: los fallos de Transbank, Shipit y OpenFactura desaparecían sin
+# dejar rastro. Los errores del camino del dinero van a un archivo aparte
+# (pagos.log) para poder auditarlos sin ruido.
+LOG_DIR = Path(os.environ.get('LOG_DIR', BASE_DIR / 'logs'))
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'detallado': {
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'consola': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'detallado',
+        },
+        'archivo': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'ingenioblocks.log',
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 5,
+            'formatter': 'detallado',
+            'encoding': 'utf-8',
+        },
+        'archivo_pagos': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'pagos.log',
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 10,
+            'formatter': 'detallado',
+            'encoding': 'utf-8',
+        },
+    },
+    'root': {
+        'handlers': ['consola', 'archivo'],
+        'level': LOG_LEVEL,
+    },
+    'loggers': {
+        # Todo lo que toca plata o entrega de producto: se guarda aparte y
+        # nunca se propaga al log general para que no se pierda entre el ruido.
+        'ingenioblocks.pagos': {
+            'handlers': ['consola', 'archivo_pagos'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['consola', 'archivo'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}

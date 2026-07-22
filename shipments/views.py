@@ -2,7 +2,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from catalog.models import Product
-from .services import get_shipping_quotes, get_communes, build_package_from_products
+from .services import (
+    get_shipping_quotes, get_communes, build_package_from_products,
+    CotizacionNoDisponible,
+)
 
 
 class CommunesView(APIView):
@@ -41,10 +44,16 @@ class QuoteShippingView(APIView):
         # Valor declarado para el seguro de Shipit: el precio real que se cobra
         # (con oferta si corresponde), no el de lista.
         checkout_price = int(sum(p.effective_price for p in products))
-        quotes = get_shipping_quotes(
-            commune_name=commune_name, commune_id=commune_id,
-            package=package, checkout_price=checkout_price,
-        )
+        try:
+            quotes = get_shipping_quotes(
+                commune_name=commune_name, commune_id=commune_id,
+                package=package, checkout_price=checkout_price,
+            )
+        except CotizacionNoDisponible as e:
+            # 503 y no 500: no es un error del sitio, es que el servicio de
+            # despacho no está respondiendo. El checkout lo muestra tal cual.
+            return Response({'error': str(e)},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         return Response({
             'shipping_required': True,
