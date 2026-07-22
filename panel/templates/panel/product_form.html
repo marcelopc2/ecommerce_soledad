@@ -1,0 +1,173 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}{% if product %}Editar producto{% else %}Nuevo producto{% endif %}{% endblock %}
+{% block crumb %}Panel · Tienda · Productos{% endblock %}
+{% block heading %}{% if product %}Editar «{{ product.name }}»{% else %}Nuevo producto{% endif %}{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:products' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+{% endblock %}
+
+{% block content %}
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="row g-4">
+
+    <div class="col-lg-8 d-flex flex-column gap-4">
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-info-circle"></i> Información básica</div>
+        <div class="mb-3">
+          <label class="form-label">{{ form.name.label }}</label>
+          {{ form.name }}
+          {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">{{ form.slug.label }}</label>
+          {{ form.slug }}
+          {% for e in form.slug.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">{{ form.price.label }}</label>
+            {{ form.price }}
+            {% for e in form.price.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">{{ form.access_months.label }}</label>
+            {{ form.access_months }}
+          </div>
+        </div>
+        <div class="mb-0">
+          <label class="form-label">{{ form.description.label }}</label>
+          {{ form.description }}
+        </div>
+      </div></div>
+
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-mortarboard"></i> Academia (LMS)</div>
+        <p class="cell-sub mb-3">Cursos que desbloquea esta compra, en el mismo orden semanal que verá el alumno (curso 1, 2, 3…). El orden se fija arrastrando en <a href="{% url 'panel:courses' %}">Cursos</a>.</p>
+        <div class="d-flex flex-column gap-2">
+          {% for cb in form.courses %}
+            <div class="form-check">{{ cb.tag }}<label class="form-check-label ms-2" for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label></div>
+          {% empty %}
+            <div class="cell-sub">Aún no hay cursos creados. <a href="{% url 'panel:course_new' %}">Crear un curso</a></div>
+          {% endfor %}
+        </div>
+      </div></div>
+
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-window-stack"></i> Portada (sección de kits)</div>
+        <div class="form-check form-switch mb-3">
+          {{ form.show_on_landing }}
+          <label class="form-check-label ms-1" for="{{ form.show_on_landing.id_for_label }}">{{ form.show_on_landing.label }}</label>
+        </div>
+        <p class="cell-sub mb-3">El orden y cuáles 4 se muestran se fija arrastrando en <a href="{% url 'panel:products' %}">Productos</a>.</p>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">{{ form.landing_badge.label }}</label>
+            {{ form.landing_badge }}
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">{{ form.price_note.label }}</label>
+            {{ form.price_note }}
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">{{ form.features.label }}</label>
+          {{ form.features }}
+        </div>
+        <div class="form-check form-switch">
+          {{ form.highlight }}
+          <label class="form-check-label ms-1" for="{{ form.highlight.id_for_label }}">{{ form.highlight.label }}</label>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-lg-4 d-flex flex-column gap-4">
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-toggles"></i> Estado</div>
+        <div class="form-check form-switch mb-2">
+          {{ form.is_active }}
+          <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+        </div>
+        <div class="form-check form-switch">
+          {{ form.is_digital }}
+          <label class="form-check-label ms-1" for="{{ form.is_digital.id_for_label }}">{{ form.is_digital.label }}</label>
+        </div>
+      </div></div>
+
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-tag"></i> Oferta y disponibilidad</div>
+        <div class="form-check form-switch mb-2">
+          {{ form.is_on_sale }}
+          <label class="form-check-label ms-1" for="{{ form.is_on_sale.id_for_label }}">{{ form.is_on_sale.label }}</label>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">{{ form.sale_price.label }}</label>
+          {{ form.sale_price }}
+          {% for e in form.sale_price.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="form-check form-switch mb-2">
+          {{ form.is_coming_soon }}
+          <label class="form-check-label ms-1" for="{{ form.is_coming_soon.id_for_label }}">{{ form.is_coming_soon.label }}</label>
+        </div>
+        <div class="form-check form-switch">
+          {{ form.requires_login }}
+          <label class="form-check-label ms-1" for="{{ form.requires_login.id_for_label }}">{{ form.requires_login.label }}</label>
+        </div>
+        <div class="pnl-hint mt-2">
+          <i class="bi bi-info-circle"></i>
+          Úsalo en packs de modelos y planes: solo podrán comprarlos quienes ya
+          tengan cuenta, es decir quienes antes compraron un kit con piezas.
+        </div>
+      </div></div>
+
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-truck"></i> Envío (Shipit)</div>
+        <div class="row">
+          <div class="col-6 mb-3">
+            <label class="form-label">{{ form.weight_kg.label }}</label>
+            {{ form.weight_kg }}
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label">{{ form.width_cm.label }}</label>
+            {{ form.width_cm }}
+          </div>
+          <div class="col-6 mb-0">
+            <label class="form-label">{{ form.height_cm.label }}</label>
+            {{ form.height_cm }}
+          </div>
+          <div class="col-6 mb-0">
+            <label class="form-label">{{ form.length_cm.label }}</label>
+            {{ form.length_cm }}
+          </div>
+        </div>
+      </div></div>
+
+      <div class="d-grid gap-2">
+        <button type="submit" class="btn btn-brand btn-lg"><i class="bi bi-check-lg me-1"></i> Guardar producto</button>
+        <a href="{% url 'panel:products' %}" class="btn btn-ghost">Cancelar</a>
+      </div>
+    </div>
+
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{% if not product %}
+<script>
+  // Autogenera el slug a partir del nombre (solo al crear).
+  const nameInput = document.getElementById('{{ form.name.id_for_label }}')
+  const slugInput = document.getElementById('{{ form.slug.id_for_label }}')
+  let slugTouched = false
+  slugInput.addEventListener('input', () => { slugTouched = true })
+  nameInput.addEventListener('input', () => {
+    if (slugTouched) return
+    slugInput.value = nameInput.value.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  })
+</script>
+{% endif %}
+{% endblock %}

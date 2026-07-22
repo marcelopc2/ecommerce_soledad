@@ -1,0 +1,18 @@
+{% extends 'error_base.html' %}
+
+{% comment %}
+  Django renderiza esta plantilla con un contexto VACÍO (sin context processors),
+  para no volver a ejecutar el código que puede estar fallando. Por eso acá no
+  se usa `request`, `user`, ni etiquetas que dependan del contexto.
+{% endcomment %}
+
+{% block title %}Error del servidor{% endblock %}
+{% block code %}500{% endblock %}
+{% block heading %}Se nos soltó un bloque{% endblock %}
+{% block message %}
+  Tuvimos un problema de nuestro lado. Ya quedó registrado y lo estamos
+  revisando. Vuelve a intentarlo en unos minutos.
+{% endblock %}
+{% block actions %}
+  <a class="btn btn-amarillo" href="/">Volver al inicio</a>
+{% endblock %}

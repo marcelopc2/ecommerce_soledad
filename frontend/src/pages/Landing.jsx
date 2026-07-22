@@ -1,17 +1,13 @@
-import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import { Contacto, LandingFooter } from '../components/LandingSections'
 import './landing.css'
 
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 import heroNino from '../assets/landing/hero-nino.png'
-import paso1 from '../assets/landing/paso1.png'
-import paso2 from '../assets/landing/paso2.png'
-import paso3 from '../assets/landing/paso3.png'
-import videoTaladro from '../assets/landing/video-taladro.png'
-import videoCaleidoscopio from '../assets/landing/video-caleidoscopio.png'
-import videoCentrifuga from '../assets/landing/video-centrifuga.png'
 import pagosBadges from '../assets/landing/pagos-badges.svg'
 import quienesSomosNino from '../assets/landing/quienes-somos-nino.png'
 import concurso3d from '../assets/landing/concurso-3d.png'
@@ -54,41 +50,11 @@ const IconStar = () => (
   </svg>
 )
 
-const IconMail = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffcb00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="4" width="20" height="16" rx="3" /><path d="m2 7 10 7L22 7" />
-  </svg>
-)
 
-const IconPhone = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffcb00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
-  </svg>
-)
 
-const IconPin = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffcb00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" />
-  </svg>
-)
 
-const IconInstagram = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><line x1="17.5" y1="6.5" x2="17.5" y2="6.5" strokeWidth="3" />
-  </svg>
-)
 
-const IconFacebook = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-    <path d="M14 13.5h2.5l1-4H14v-2c0-1.03 0-2 2-2h1.5V2.14C17.17 2.1 15.97 2 14.7 2 12.06 2 10.2 3.66 10.2 6.7v2.8H7v4h3.2V22h3.8v-8.5z" />
-  </svg>
-)
 
-const IconYoutube = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff">
-    <path d="M23 7.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C16.6 3.6 12 3.6 12 3.6s-4.6 0-7.7.3c-.5.1-1.5.1-2.4 1-.7.7-.9 2.3-.9 2.3S.8 9.1.8 11v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.3 7.6.3s4.6 0 7.7-.4c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V11c0-1.9-.2-3.8-.2-3.8zM9.8 14.9V8.5l6.2 3.2-6.2 3.2z" />
-  </svg>
-)
 
 const Sparkle = ({ size = 20, color = '#ffcb00', style }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={style} className="lp-deco" aria-hidden="true">
@@ -104,103 +70,55 @@ const PlusDeco = ({ style, color = 'rgba(255,255,255,0.5)' }) => (
 
 const ChevronsRight = () => (
   <svg width="66" height="52" viewBox="0 0 33 26" fill="none" stroke="#dfe3ea" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="4 3 14 13 4 23" /><polyline points="18 3 28 13 18 23" />
+    <polyline className="lp-chevron lp-chevron-1" points="4 3 14 13 4 23" />
+    <polyline className="lp-chevron lp-chevron-2" points="18 3 28 13 18 23" />
   </svg>
-)
-
-/* Sticker "Recomendado desde los 6 años" */
-const StickerBadge = () => (
-  <div className="lp-sticker">
-    <svg viewBox="0 0 150 150" width="150" height="150">
-      <polygon
-        points="75.0,1.0 88.8,14.6 107.1,8.3 113.7,26.5 132.9,28.9 130.9,48.1 147.1,58.5 137.0,75.0 147.1,91.5 130.9,101.9 132.9,121.1 113.7,123.5 107.1,141.7 88.8,135.4 75.0,149.0 61.2,135.4 42.9,141.7 36.3,123.5 17.1,121.1 19.1,101.9 2.9,91.5 13.0,75.0 2.9,58.5 19.1,48.1 17.1,28.9 36.3,26.5 42.9,8.3 61.2,14.6"
-        fill="#ffcb00" stroke="#f0b100" strokeWidth="2" strokeLinejoin="round"
-      />
-    </svg>
-    <span><em>Recomendado para niños y niñas desde los <strong>6 años</strong></em></span>
-  </div>
 )
 
 /* ---------- Datos estáticos del diseño ---------- */
 
+// Carrito: el offset de centrado NO se adivinó a ojo — se midió el centroide
+// real de los píxeles blancos renderizados (script aparte con resvg) contra el
+// centro real del círculo de 40px, e iteró hasta quedar en ~0% de desvío.
+// La canasta pesa más que el mango, así que el ajuste correcto es hacia la
+// IZQUIERDA (un intento anterior lo corrió a la derecha, empeorándolo).
 const IconoPasoKit = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="9" cy="21" r="1.5" /><circle cx="19" cy="21" r="1.5" />
-    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'translate(-0.3px, -0.5px)' }}>
+    <circle cx="10" cy="20" r="1.5" />
+    <circle cx="17.5" cy="20" r="1.5" />
+    <path d="M4 4h2.3l2 10.4a1.7 1.7 0 0 0 1.7 1.4h6.6a1.7 1.7 0 0 0 1.7-1.3L20 7.5H7" />
   </svg>
 )
 const IconoPasoAula = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
+  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2.5" y="4" width="19" height="13" rx="2.2" />
+    <path d="M8.5 21h7M12 17.5v3.5" />
   </svg>
 )
+// Mando de videojuego (paso "juega y disfruta"): agrandado — la versión anterior
+// medía solo 25% del alto del círculo (vs ~42% del carrito) y se veía enano al
+// lado de los otros dos íconos aunque tuviera tinta similar, por ser un cuerpo
+// muy chato. Ahora el cuerpo es más alto y los botones más grandes; centrado
+// con el mismo método de centroide medido que el carrito.
 const IconoPasoJuega = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-    <polygon points="6 3 21 12 6 21 6 3" />
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'translate(0.16px, -0.48px)' }}>
+    <rect x="2" y="7" width="20" height="12" rx="6" />
+    <path d="M7.5 11v4M5.5 13h4" />
+    <circle cx="16" cy="11.3" r="1.15" fill="currentColor" stroke="none" />
+    <circle cx="18.6" cy="13.9" r="1.15" fill="currentColor" stroke="none" />
   </svg>
 )
 
-const PASOS = [
-  {
-    num: '01', color: '#6a3093', foto: paso1, icono: <IconoPasoKit />,
-    titulo: 'Adquiere tu Kit Ingenio Blocks',
-    texto: 'Recibe en casa tu set de bloques físicos de alta calidad y prepárate para abrir la puerta a un mundo de creatividad tangible para tu hijo.',
-  },
-  {
-    num: '02', color: '#00a63e', foto: paso2, icono: <IconoPasoAula />,
-    titulo: 'Ingresa a nuestra Aula Virtual',
-    texto: 'Desbloquea tu acceso exclusivo a la plataforma interactiva. Encuentra cientos de guías visuales paso a paso, retos divertidos y proyectos nuevos que se actualizan constantemente.',
-  },
-  {
-    num: '03', color: '#ff6101', foto: paso3, icono: <IconoPasoJuega />,
-    titulo: 'Juega y disfruta',
-    texto: 'Observa cómo tu pequeño da vida a sus propias ideas. Aprende jugando de forma autónoma, fomenta su concentración y desarrolla habilidades clave mientras se divierte.',
-  },
-]
+// Los íconos son SVG del diseño, no imágenes subibles: el panel solo guarda
+// cuál corresponde a cada paso (campo `icon`) y acá se resuelve al componente.
+const ICONOS_PASO = {
+  kit: <IconoPasoKit />,
+  aula: <IconoPasoAula />,
+  juega: <IconoPasoJuega />,
+}
 
-const VIDEOS = [
-  {
-    foto: videoTaladro, titulo: 'Taladro y Herramientas',
-    texto: 'Aprende cómo un motor convierte la energía eléctrica en movimiento que permite hacer girar una broca de taladro.',
-  },
-  {
-    foto: videoCaleidoscopio, titulo: 'Caleidoscopio',
-    texto: '¡Explora el maravilloso mundo de la óptica y la creatividad, donde cada giro revela una nueva y deslumbrante combinación de colores y formas!',
-  },
-  {
-    foto: videoCentrifuga, titulo: 'Centrífuga de Ropa',
-    texto: 'Descubre cómo este ingenioso mecanismo transforma la tarea de lavar en un proceso rápido y eficiente.',
-  },
-]
 
 const KIT_DESC = 'Kit de bloques Ingenio Blocks con más de 400 piezas + motor y batería, que permite construir más de 100 modelos.'
-
-const FAQS = [
-  {
-    q: '¿Qué es Ingenio Blocks?',
-    a: 'Ingenio Blocks es una plataforma educativa que combina la entretención con el aprendizaje práctico. Con nuestro kit educativo STEM que contiene más de 400 piezas (bloques) + motor y batería y acceso a nuestra plataforma, los niños desde los 6 años pueden acceder a más de 100 modelos motorizados —uno nuevo cada semana— con instrucciones paso a paso.',
-  },
-  {
-    q: '¿Qué aprenden los niños con Ingenio Blocks?',
-    a: 'A través de la construcción de modelos motorizados, los niños aprenden principios esenciales de matemáticas, física y mecánica, mientras cultivan su creatividad, pensamiento crítico y capacidad para resolver problemas.',
-  },
-  {
-    q: '¿Qué edad deben tener los participantes?',
-    a: 'Nuestra plataforma está diseñada para niños y niñas desde los 6 años. El formato amigable les permite avanzar a su propio ritmo.',
-  },
-  {
-    q: '¿Cómo funcionan los programas?',
-    a: 'Al adquirir tu kit, obtienes acceso a nuestra Aula Virtual, donde cada semana se libera un nuevo modelo motorizado con instrucciones paso a paso. Cada modelo plantea un nuevo desafío, aumentando gradualmente en dificultad.',
-  },
-  {
-    q: '¿Qué tipo de metodología de aprendizaje usa Ingenio Blocks?',
-    a: 'Usamos metodologías de aprendizaje en espiral: cada proyecto está diseñado para explorar, crear, aprender y avanzar, fortaleciendo habilidades cognitivas, motoras y sociales.',
-  },
-  {
-    q: '¿Es necesario tener conocimientos previos en robótica o programación?',
-    a: 'No, no se requiere ningún conocimiento previo. Las instrucciones paso a paso permiten que cualquier niño comience a construir desde el primer día.',
-  },
-]
 
 /* ---------- Secciones ---------- */
 
@@ -247,11 +165,10 @@ function Hero({ activeSection }) {
             a más de 100 modelos motorizados con instrucciones paso a paso a través
             de nuestra Aula Virtual.
           </p>
-          <a href="#kits" className="lp-btn-yellow">comprar ahora</a>
+          <a href="#kits" className="lp-btn-yellow lp-btn-cta">comprar ahora</a>
         </div>
         <div className="lp-hero-photo">
           <img src={heroNino} alt="Niño construyendo con bloques Ingenio Blocks" />
-          <StickerBadge />
         </div>
       </div>
       {/* decoraciones flotantes */}
@@ -278,35 +195,98 @@ function Hero({ activeSection }) {
 }
 
 function ComoFunciona() {
+  const [pasos, setPasos] = useState([])
+
+  useEffect(() => {
+    api.get('/catalog/landing-steps/')
+      .then(res => setPasos(res.data))
+      .catch(() => {}) // la landing funciona igual sin los pasos
+  }, [])
+
   return (
     <section className="lp-como" id="como-funciona">
       <span className="lp-chip lp-chip-lila">la experiencia</span>
       <h2 className="lp-h2">cómo funciona</h2>
       <span className="lp-underline" />
       <div className="lp-pasos">
-        {PASOS.map((paso, i) => (
-          <div className="lp-paso" key={paso.num}>
+        {pasos.map((paso, i) => (
+          <div className="lp-paso" key={paso.id}>
             <div className="lp-paso-foto" style={{ '--tilt-color': paso.color }}>
-              <img src={paso.foto} alt={paso.titulo} />
+              {paso.photo_url && <img src={paso.photo_url} alt={paso.title} />}
             </div>
             <div className="lp-paso-body">
-              <span className="lp-paso-num">{paso.num}</span>
-              <span className="lp-paso-dot" style={{ background: paso.color }}>{paso.icono}</span>
-              <h3>{paso.titulo}</h3>
-              <p>{paso.texto}</p>
-              {i < 2 && <span className="lp-paso-arrow"><ChevronsRight /></span>}
+              {/* El número sale de la posición, no de la BD: si la clienta
+                  borra un paso intermedio, la numeración no queda saltada. */}
+              <span className="lp-paso-num">{String(i + 1).padStart(2, '0')}</span>
+              <span className="lp-paso-dot" style={{ background: paso.color }}>
+                {ICONOS_PASO[paso.icon] ?? ICONOS_PASO.kit}
+              </span>
+              <h3>{paso.title}</h3>
+              <p>{paso.description}</p>
+              {i < pasos.length - 1 && <span className="lp-paso-arrow"><ChevronsRight /></span>}
             </div>
           </div>
         ))}
       </div>
-      <a href="#beneficios" className="lp-btn-yellow lp-btn-play">
+      <a href="#beneficios" className="lp-btn-yellow lp-btn-cta lp-btn-play">
         ¿cómo empezar a construir? <IconPlayCircle />
       </a>
     </section>
   )
 }
 
+// Modal con el reproductor de YouTube. Se monta en document.body (portal) para
+// que ningún transform/contexto de apilamiento de la landing lo afecte.
+function VideoModal({ video, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'  // bloquea el scroll del fondo
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [onClose])
+
+  return createPortal(
+    <div className="lp-vmodal" onClick={onClose}>
+      <div className="lp-vmodal-inner" onClick={(e) => e.stopPropagation()}>
+        <button className="lp-vmodal-close" onClick={onClose} aria-label="Cerrar video">×</button>
+        <div className="lp-vmodal-frame">
+          <iframe
+            src={`https://www.youtube.com/embed/${video.youtube_id}?autoplay=1&rel=0`}
+            title={video.title}
+            allow="autoplay; encrypted-media; fullscreen"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 function Beneficios() {
+  const [videos, setVideos] = useState([])
+  const [activeVideo, setActiveVideo] = useState(null)
+
+  useEffect(() => {
+    api.get('/catalog/landing-videos/')
+      .then(res => setVideos(res.data))
+      .catch(() => {}) // la landing funciona igual sin videos
+  }, [])
+
+  // Rotación aleatoria por tarjeta. Se calcula recién cuando llegan los videos
+  // (antes el array venía fijo del código y se podía sembrar en el useState
+  // inicial); useMemo la deja estable entre re-renders para que la tarjeta no
+  // cambie de inclinación en cada hover.
+  const rotations = useMemo(
+    () => videos.map(() => (Math.random() * 6 - 3).toFixed(2)),
+    [videos.length],
+  )
+
   return (
     <section className="lp-beneficios" id="beneficios">
       <div className="lp-beneficios-col">
@@ -348,48 +328,143 @@ function Beneficios() {
           <strong>Algunos de nuestros modelos:</strong>
         </p>
         <div className="lp-videos">
-          {VIDEOS.map(v => (
-            <article className="lp-video-card" key={v.titulo}>
+          {videos.map((v, i) => (
+            <button
+              type="button"
+              className="lp-video-card"
+              key={v.id}
+              style={{ '--hover-rot': `${rotations[i]}deg` }}
+              onClick={() => setActiveVideo(v)}
+              aria-label={`Reproducir video: ${v.title}`}
+            >
               <div className="lp-video-thumb">
-                <img src={v.foto} alt={v.titulo} />
+                {v.cover_url && <img src={v.cover_url} alt={v.title} />}
                 <span className="lp-video-play"><IconPlaySolid /></span>
               </div>
               <div className="lp-video-body">
-                <h4>{v.titulo}</h4>
-                <p>{v.texto}</p>
+                <h4>{v.title}</h4>
+                <p>{v.description}</p>
               </div>
-            </article>
+            </button>
           ))}
         </div>
       </div>
+      {activeVideo && <VideoModal video={activeVideo} onClose={() => setActiveVideo(null)} />}
     </section>
   )
 }
 
-function Kits() {
+const money = (n) => `$${parseInt(n, 10).toLocaleString('es-CL')}`
+
+// Precio: muestra el de oferta (rojo + tachado el normal) o el normal con su nota.
+function PriceBlock({ product, extraClass = '' }) {
+  const onSale = product.is_on_sale && product.sale_price != null
+  return (
+    <div className={'lp-price-box ' + extraClass}>
+      {onSale ? (
+        <>
+          <span className="lp-price lp-price-red">{money(product.sale_price)}</span>
+          <span className="lp-price-antes">antes <s>{money(product.price)}</s></span>
+        </>
+      ) : (
+        <>
+          <span className="lp-price">{money(product.price)}</span>
+          {product.price_note && <span className="lp-price-note">{product.price_note}</span>}
+        </>
+      )}
+    </div>
+  )
+}
+
+// Ribbon: prioriza "Próximamente"; si no, "Oferta" cuando está en oferta.
+function CardRibbon({ product }) {
+  if (product.is_coming_soon) return <span className="lp-ribbon">Próximamente</span>
+  if (product.is_on_sale) return <span className="lp-ribbon lp-ribbon-red">Oferta</span>
+  return null
+}
+
+// Tarjeta normal (las 3 de la grilla)
+function KitCard({ product, onBuy }) {
+  const { user } = useAuth()
+  const soon = product.is_coming_soon
+  const needsLogin = product.requires_login && !user
+  const purple = product.highlight
+  const hasRibbon = product.is_coming_soon || product.is_on_sale
+  return (
+    <article className={'lp-card' + (purple ? ' lp-card-purple' : '')}>
+      <CardRibbon product={product} />
+      <div className={'lp-card-top' + (hasRibbon ? ' has-ribbon' : '')}>
+        {product.landing_badge && (
+          <span className={'lp-chip ' + (purple ? 'lp-chip-mensual' : 'lp-chip-pago')}>
+            {product.landing_badge}
+          </span>
+        )}
+      </div>
+      <h3>{product.name}</h3>
+      <p className="lp-card-desc">{product.description}</p>
+      <ul className={'lp-checks' + (purple ? ' lp-checks-yellow' : '')}>
+        {product.features_list.map((f, i) => (
+          <li key={i}><IconCheck color={purple ? '#ffcb00' : undefined} /> {f}</li>
+        ))}
+      </ul>
+      <div className="lp-card-footer">
+        <PriceBlock product={product} />
+        <button className="lp-btn-yellow lp-btn-cta lp-btn-card" disabled={soon} onClick={() => onBuy(product)}>
+          {soon ? 'Próximamente' : needsLogin ? 'inicia sesión para comprar' : `comprar ${product.name}`}
+        </button>
+      </div>
+    </article>
+  )
+}
+
+// Tarjeta ancha de abajo (el 4º producto, opcional)
+function KitWide({ product, onBuy }) {
+  const { user } = useAuth()
+  const soon = product.is_coming_soon
+  const needsLogin = product.requires_login && !user
+  return (
+    <article className="lp-oferta">
+      <CardRibbon product={product} />
+      <div className="lp-oferta-head">
+        <h3>{product.name}</h3>
+        {product.landing_badge && <span className="lp-chip lp-chip-pago">{product.landing_badge}</span>}
+        <p className="lp-card-desc">{product.description}</p>
+      </div>
+      <ul className="lp-checks lp-oferta-checks">
+        {product.features_list.map((f, i) => <li key={i}><IconCheck /> {f}</li>)}
+      </ul>
+      <div className="lp-oferta-buy">
+        <PriceBlock product={product} extraClass="lp-oferta-price" />
+        <button className="lp-btn-yellow lp-btn-cta lp-btn-card" disabled={soon} onClick={() => onBuy(product)}>
+          {soon ? 'Próximamente' : needsLogin ? 'inicia sesión para comprar' : `comprar ${product.name}`}
+        </button>
+      </div>
+    </article>
+  )
+}
+
+function Kits({ products }) {
   const navigate = useNavigate()
-  const [products, setProducts] = useState([])
-
-  useEffect(() => {
-    api.get('/catalog/products/')
-      .then(res => setProducts(res.data))
-      .catch(() => {}) // la landing funciona igual sin catálogo
-  }, [])
-
-  const findProduct = (...keywords) =>
-    products.find(p => keywords.some(k => p.name.toLowerCase().includes(k)))
+  const { user } = useAuth()
 
   const comprar = (product) => {
-    if (product) navigate('/checkout', { state: { product } })
-    else navigate('/tienda')
+    if (!product || product.is_coming_soon) return
+    // Packs/planes solo para alumnos: primero inicia sesión y después vuelve al
+    // checkout con el producto. El servidor igual lo revalida (requires_login).
+    if (product.requires_login && !user) {
+      navigate('/login', { state: { from: '/checkout', checkoutProduct: product } })
+      return
+    }
+    navigate('/checkout', { state: { product } })
   }
 
-  const kitInicial = findProduct('inicial', 'kit ingenio')
-  const kit8 = findProduct('8 modelos', 'pack')
-  const membresia = findProduct('membres')
-
-  const precio = (product, fallback) =>
-    product ? `$${parseInt(product.price).toLocaleString('es-CL')}` : fallback
+  // productos de la portada: hasta 4, ordenados; 3 en grilla + 1 ancho abajo
+  const landing = products
+    .filter(p => p.show_on_landing)
+    .sort((a, b) => (a.landing_order - b.landing_order) || (a.id - b.id))
+    .slice(0, 4)
+  const grid = landing.slice(0, 3)
+  const wide = landing[3]
 
   return (
     <section className="lp-kits" id="kits">
@@ -402,85 +477,12 @@ function Kits() {
       </p>
       <img className="lp-pagos" src={pagosBadges} alt="Pagos 100% seguros: Webpay, MercadoPago, Visa, Mastercard, Redcompra" />
 
-      <div className="lp-cards">
-        {/* Kit Inicial */}
-        <article className="lp-card">
-          <span className="lp-chip lp-chip-pago">pago único</span>
-          <h3>Kit Inicial</h3>
-          <p className="lp-card-desc"><strong>Kit de bloques Ingenio Blocks</strong> con más de 400 piezas + motor y batería, que permite construir más de 100 modelos.</p>
-          <ul className="lp-checks">
-            <li><IconCheck /> Acceso al aula virtual de Ingenio Blocks por 6 meses.</li>
-            <li><IconCheck /> 24 modelos (1 cada semana).</li>
-            <li><IconCheck /> Certificado de aprobación cada 12 modelos.</li>
-            <li><IconCheck /> No incluye gastos de envío.</li>
-          </ul>
-          <div className="lp-price-box">
-            <span className="lp-price">{precio(kitInicial, '$69.490')}</span>
-            <span className="lp-price-note">/ pago único</span>
-          </div>
-          <button className="lp-btn-yellow lp-btn-card" onClick={() => comprar(kitInicial)}>comprar kit inicial</button>
-        </article>
-
-        {/* Kit 8 modelos */}
-        <article className="lp-card">
-          <span className="lp-chip lp-chip-pago">pago único</span>
-          <h3>Kit 8 modelos</h3>
-          <p className="lp-card-desc">Si ya eres parte del <strong>Mundo Ingenio Blocks</strong> puedes agregar más modelos a tu usuario. Los modelos irán en orden como hasta ahora y se liberará 1 a la semana.</p>
-          <ul className="lp-checks">
-            <li><IconCheck /> Acceso al aula virtual de Ingenio Blocks por 2 meses.</li>
-            <li><IconCheck /> 8 modelos (1 cada semana).</li>
-            <li><IconCheck /> Certificado de aprobación cada 12 modelos.</li>
-            <li><IconCheck /> Máximo de compra 3 packs.</li>
-          </ul>
-          <div className="lp-price-box">
-            <span className="lp-price">{precio(kit8, '$12.900')}</span>
-            <span className="lp-price-note">/ pago único</span>
-          </div>
-          <button className="lp-btn-yellow lp-btn-card" onClick={() => comprar(kit8)}>comprar kit 8 modelos</button>
-        </article>
-
-        {/* Membresía Familiar */}
-        <article className="lp-card lp-card-purple">
-          <span className="lp-ribbon">Próximamente</span>
-          <span className="lp-chip lp-chip-mensual">pago mensual</span>
-          <h3>Membresía Familiar</h3>
-          <p className="lp-card-desc"><strong>Kit de bloques Ingenio Blocks</strong> con más de 400 piezas + motor y batería, que permite construir más de 100 modelos.</p>
-          <ul className="lp-checks lp-checks-yellow">
-            <li><IconCheck color="#ffcb00" /> Pertenecer al Club Ingenio Blocks.</li>
-            <li><IconCheck color="#ffcb00" /> Contenido informativo exclusivo para miembros.</li>
-            <li><IconCheck color="#ffcb00" /> Participar en las competencias.</li>
-            <li><IconCheck color="#ffcb00" /> Premios al ganador.</li>
-          </ul>
-          <div className="lp-price-box">
-            <span className="lp-price">{precio(membresia, '$9.990')}</span>
-            <span className="lp-price-note">/ pago mensual</span>
-          </div>
-          <button className="lp-btn-yellow lp-btn-card" onClick={() => comprar(membresia)}>comprar membresía</button>
-        </article>
-      </div>
-
-      {/* Oferta */}
-      <article className="lp-oferta">
-        <span className="lp-ribbon lp-ribbon-red">Oferta</span>
-        <div className="lp-oferta-head">
-          <h3>Oferta</h3>
-          <span className="lp-chip lp-chip-pago">pago único</span>
-          <p className="lp-card-desc"><strong>Kit de bloques Ingenio Blocks</strong> con más de 400 piezas + motor y batería, que permite construir más de 100 modelos.</p>
+      {grid.length > 0 && (
+        <div className="lp-cards">
+          {grid.map(p => <KitCard key={p.id} product={p} onBuy={comprar} />)}
         </div>
-        <ul className="lp-checks lp-oferta-checks">
-          <li><IconCheck /> Acceso al aula virtual de Ingenio Blocks por 6 meses.</li>
-          <li><IconCheck /> 24 modelos (1 cada semana).</li>
-          <li><IconCheck /> Certificado de aprobación cada 12 modelos.</li>
-          <li><IconCheck /> No incluye gastos de envío.</li>
-        </ul>
-        <div className="lp-oferta-buy">
-          <div className="lp-price-box lp-oferta-price">
-            <span className="lp-price lp-price-red">$59.490</span>
-            <span className="lp-price-antes">antes <s>$69.490</s></span>
-          </div>
-          <button className="lp-btn-yellow lp-btn-card" onClick={() => comprar(kitInicial)}>comprar kit inicial</button>
-        </div>
-      </article>
+      )}
+      {wide && <KitWide product={wide} onBuy={comprar} />}
     </section>
   )
 }
@@ -528,26 +530,33 @@ function QuienesSomos() {
 }
 
 function Testimonios() {
+  const [testimonials, setTestimonials] = useState([])
+
+  useEffect(() => {
+    api.get('/catalog/testimonials/')
+      .then(res => setTestimonials(res.data))
+      .catch(() => {}) // la landing funciona igual sin testimonios
+  }, [])
+
   return (
     <section className="lp-testimonios">
       <span className="lp-chip lp-chip-lila">comunidad feliz</span>
       <h2 className="lp-h2">testimonios</h2>
       <span className="lp-underline" />
       <div className="lp-testimonios-grid">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <article className="lp-testimonio" key={i}>
-            <div className="lp-stars">
-              {Array.from({ length: 5 }).map((_, j) => <IconStar key={j} />)}
+        {testimonials.map((t) => (
+          <article className="lp-testimonio" key={t.id}>
+            <div className="lp-testimonio-in">
+              <div className="lp-stars">
+                {Array.from({ length: t.rating }).map((_, j) => <IconStar key={j} />)}
+              </div>
+              <span className="lp-quote" aria-hidden="true">“</span>
+              <p>"{t.quote}"</p>
+              <footer>
+                <strong>{t.name}</strong>
+                <span>{t.location}</span>
+              </footer>
             </div>
-            <span className="lp-quote" aria-hidden="true">“</span>
-            <p>
-              "Queríamos una actividad educativa y con diversión garantizada. Con este
-              plan mensual encontramos la mezcla ideal de teoría y armado práctico."
-            </p>
-            <footer>
-              <strong>Mario Gomez</strong>
-              <span>Santiago, Chile</span>
-            </footer>
           </article>
         ))}
       </div>
@@ -580,9 +589,17 @@ function Concurso() {
 }
 
 function Faq() {
-  const [open, setOpen] = useState(0)
+  const [faqs, setFaqs] = useState([])
+  const [open, setOpen] = useState(-1)
   const [verMas, setVerMas] = useState(false)
-  const visibles = verMas ? FAQS : FAQS.slice(0, 6)
+
+  useEffect(() => {
+    api.get('/catalog/faqs/')
+      .then(res => setFaqs(res.data))
+      .catch(() => {}) // la landing funciona igual sin preguntas frecuentes
+  }, [])
+
+  const visibles = verMas ? faqs : faqs.slice(0, 6)
 
   return (
     <section className="lp-faq">
@@ -591,93 +608,132 @@ function Faq() {
       <span className="lp-underline" />
       <div className="lp-faq-list">
         {visibles.map((f, i) => (
-          <div className={`lp-faq-item${open === i ? ' open' : ''}`} key={f.q}>
-            <button className="lp-faq-q" onClick={() => setOpen(open === i ? -1 : i)}>
-              {f.q}
-              <span className={`lp-faq-toggle${open === i ? ' minus' : ''}`}>
-                {open === i ? '−' : '+'}
-              </span>
+          <div className={`lp-faq-item${open === i ? ' open' : ''}`} key={f.id}>
+            <button className="lp-faq-q" onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i}>
+              <span>{f.question}</span>
+              <span className="lp-faq-toggle" aria-hidden="true" />
             </button>
-            {open === i && <div className="lp-faq-a">{f.a}</div>}
+            <div className="lp-faq-a-wrap">
+              <div className="lp-faq-a">{f.answer}</div>
+            </div>
           </div>
         ))}
       </div>
-      {!verMas && FAQS.length > 6 && (
+      {!verMas && faqs.length > 6 && (
         <button className="lp-vermas" onClick={() => setVerMas(true)}>ver más</button>
       )}
     </section>
   )
 }
 
-function Contacto() {
-  const [form, setForm] = useState({ nombre: '', apellido: '', email: '', telefono: '', comentarios: '' })
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+const REVEAL_SELECTOR = [
+  '.lp-chip', '.lp-h2', '.lp-underline',
+  '.lp-paso',
+  '.lp-beneficios-col', '.lp-beneficios-box',
+  '.lp-video-card',
+  '.lp-kits-intro', '.lp-pagos', '.lp-card', '.lp-oferta',
+  '.lp-quienes-foto', '.lp-quienes-texto',
+  '.lp-testimonio',
+  '.lp-concurso-visual', '.lp-concurso-texto',
+  '.lp-faq-item',
+  '.lp-contacto-info', '.lp-contacto-form',
+].join(',')
 
-  const enviar = (e) => {
-    e.preventDefault()
-    const body = `Nombre: ${form.nombre} ${form.apellido}%0AEmail: ${form.email}%0ATeléfono: ${form.telefono}%0A%0A${encodeURIComponent(form.comentarios)}`
-    window.location.href = `mailto:contacto@ingenioblocks.com?subject=Contacto desde la web&body=${body}`
-  }
+function useScrollReveal(rootRef, deps = []) {
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (!root) return
 
-  return (
-    <section className="lp-contacto" id="contacto">
-      <div className="lp-contacto-inner">
-        <div className="lp-contacto-info">
-          <span className="lp-chip lp-chip-outline">estamos para tí</span>
-          <h2 className="lp-h2 lp-h2-white">contacto</h2>
-          <span className="lp-underline" style={{ margin: '0 0 36px' }} />
-          <ul>
-            <li><IconMail /> E-mail: contacto@ingenioblocks.com</li>
-            <li><IconPhone /> Teléfono: +56 9 8502 6926</li>
-            <li><IconPin /> Ubicación: Las Condes, Santiago-Chile</li>
-          </ul>
-        </div>
-        <form className="lp-contacto-form" onSubmit={enviar}>
-          <p>
-            Rellena el siguiente formulario y nuestros profesionales se contactarán
-            directamente contigo.
-          </p>
-          <div className="lp-form-row">
-            <input placeholder="Nombre" value={form.nombre} onChange={set('nombre')} required />
-            <input placeholder="Apellido" value={form.apellido} onChange={set('apellido')} />
-          </div>
-          <div className="lp-form-row">
-            <input type="email" placeholder="Email" value={form.email} onChange={set('email')} required />
-            <input placeholder="Numero telefónico" value={form.telefono} onChange={set('telefono')} />
-          </div>
-          <input placeholder="Comentarios y sugerencias" value={form.comentarios} onChange={set('comentarios')} />
-          <button type="submit" className="lp-btn-yellow">contáctanos</button>
-        </form>
-      </div>
-    </section>
-  )
-}
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const noIO = typeof IntersectionObserver === 'undefined'
 
-function LandingFooter() {
-  return (
-    <footer className="lp-footer">
-      <img src={logo} alt="Ingenio Blocks" className="lp-footer-logo" />
-      <div className="lp-footer-center">
-        <nav>
-          <a href="#como-funciona">Cómo funciona</a>
-          <a href="#beneficios">Beneficios</a>
-          <a href="#kits">Kits</a>
-          <a href="#quienes-somos">Quiénes somos</a>
-          <a href="#contacto">Contacto</a>
-        </nav>
-        <p>Todos los derechos reservados para Ingenio Blocks</p>
-      </div>
-      <div className="lp-social">
-        <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram"><IconInstagram /></a>
-        <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook"><IconFacebook /></a>
-        <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube"><IconYoutube /></a>
-      </div>
-    </footer>
-  )
+    // Elementos aún no revelados; se ignoran los que están dentro de otro a
+    // revelar (basta animar el contenedor). `revealDone` = ya visible;
+    // `revealArmed` = ya se le puso opacity:0 (no re-armar en cada corrida).
+    const all = Array.from(root.querySelectorAll(REVEAL_SELECTOR))
+    const pending = all.filter(el =>
+      !el.dataset.revealDone &&
+      !all.some(other => other !== el && other.contains(el))
+    )
+
+    // Sin animación posible (reduced-motion o sin IntersectionObserver):
+    // mostrar todo de inmediato. NUNCA dejar contenido oculto.
+    if (reduce || noIO) {
+      pending.forEach(el => { el.classList.add('lp-in'); el.dataset.revealDone = '1' })
+      return
+    }
+
+    // Ocultar una sola vez y preparar el stagger entre hermanos.
+    const perParent = new Map()
+    pending.forEach(el => {
+      if (el.dataset.revealArmed) return
+      const i = perParent.get(el.parentElement) || 0
+      perParent.set(el.parentElement, i + 1)
+      el.style.transitionDelay = `${Math.min(i, 6) * 80}ms`
+      el.classList.add('lp-reveal')
+      el.dataset.revealArmed = '1'
+    })
+
+    // Observer NUEVO en cada corrida, desconectado en su propio cleanup: así el
+    // doble montaje de StrictMode (montar→desmontar→montar) vuelve a observar y
+    // el contenido nunca queda atascado en opacity:0.
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('lp-in')
+          entry.target.dataset.revealDone = '1'
+          io.unobserve(entry.target)
+        }
+      }
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
+
+    pending.forEach(el => io.observe(el))
+
+    // Red de seguridad: si el observer no revela algo que YA debería verse
+    // (arriba del borde inferior del viewport), se muestra igual. Lo de más
+    // abajo sigue entrando con animación al hacer scroll.
+    const failSafe = window.setTimeout(() => {
+      const vh = window.innerHeight
+      root.querySelectorAll('.lp-reveal:not(.lp-in)').forEach(el => {
+        if (el.getBoundingClientRect().top < vh) {
+          el.classList.add('lp-in')
+          el.dataset.revealDone = '1'
+          io.unobserve(el)
+        }
+      })
+    }, 1200)
+
+    return () => { window.clearTimeout(failSafe); io.disconnect() }
+  }, deps) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export default function Landing() {
   const [activeSection, setActiveSection] = useState('')
+  const [products, setProducts] = useState([])
+  const rootRef = useRef(null)
+  const location = useLocation()
+  // re-escanea el reveal cuando llegan los productos (cards asíncronas)
+  useScrollReveal(rootRef, [products.length])
+
+  useEffect(() => {
+    api.get('/catalog/products/')
+      .then(res => setProducts(res.data))
+      .catch(() => {}) // la landing funciona igual sin catálogo
+  }, [])
+
+  // Los <a href="#kits"> normales solo saltan al ancla si ya estamos en "/"
+  // (es scroll nativo del navegador). Si el link viene de otra página con
+  // <Link to="/#kits">, React Router cambia de ruta pero NO hace ese scroll
+  // solo -queda arriba de todo-, así que hay que hacerlo a mano acá.
+  useEffect(() => {
+    if (!location.hash) return
+    const id = location.hash.slice(1)
+    // rAF: espera a que el layout de la sección ya esté pintado (ids como
+    // "kits" dependen de contenido que puede tardar un frame en montarse).
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    })
+  }, [location.hash])
 
   // scrollspy: marca en el navbar la última sección cuyo inicio pasó el 40% del viewport
   useEffect(() => {
@@ -706,11 +762,11 @@ export default function Landing() {
   }, [])
 
   return (
-    <div className="lp">
+    <div className="lp" ref={rootRef}>
       <Hero activeSection={activeSection} />
       <ComoFunciona />
       <Beneficios />
-      <Kits />
+      <Kits products={products} />
       <QuienesSomos />
       <Testimonios />
       <Concurso />

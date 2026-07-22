@@ -2,9 +2,9 @@
 
 import django.core.files.storage
 import django.db.models.deletion
-import pathlib
 from django.conf import settings
 from django.db import migrations, models
+import lms.models
 
 
 class Migration(migrations.Migration):
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                 ('order', models.PositiveIntegerField(default=1, help_text='Orden de la lección dentro del curso')),
                 ('lesson_type', models.CharField(choices=[('VIDEO', 'Video'), ('PDF', 'Documento PDF')], max_length=5)),
                 ('video_embed_url', models.URLField(blank=True, help_text='URL de embed del video (YouTube/Vimeo). Solo para lecciones de tipo VIDEO.', max_length=500)),
-                ('pdf_file', models.FileField(blank=True, help_text='PDF protegido. Solo para lecciones de tipo PDF.', null=True, storage=django.core.files.storage.FileSystemStorage(location=pathlib.PureWindowsPath('C:/Users/MarceloYoga/Desktop/Proyectos/ecommerce/protected_media')), upload_to='lessons/')),
+                ('pdf_file', models.FileField(blank=True, help_text='PDF protegido. Solo para lecciones de tipo PDF.', null=True, storage=lms.models.protected_storage, upload_to='lessons/')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='lessons', to='lms.course')),
             ],

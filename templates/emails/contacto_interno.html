@@ -1,0 +1,47 @@
+{% extends 'emails/base.html' %}
+
+{% comment %}
+  Este correo NO va al visitante: llega a la bandeja de la clienta con lo que
+  alguien escribió en el formulario de contacto de la landing. Por eso el pie
+  con "recibiste este correo porque tienes una cuenta" no aplica, pero se deja
+  la misma base para no mantener dos diseños.
+{% endcomment %}
+
+{% block asunto %}Nuevo mensaje de contacto{% endblock %}
+{% block preheader %}{{ nombre }} escribió desde el formulario de la web.{% endblock %}
+{% block titulo %}Nuevo mensaje desde la web{% endblock %}
+
+{% block contenido %}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="margin:6px 0 20px; border:1px solid #ece5f4; border-radius:10px; border-collapse:separate;">
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Nombre</td>
+      <td align="right" style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:bold; color:#2f0053; border-bottom:1px solid #f4f1f7;">{{ nombre }}</td>
+    </tr>
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Email</td>
+      <td align="right" style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; border-bottom:1px solid #f4f1f7;">
+        <a href="mailto:{{ email }}" style="color:#8200db; text-decoration:none;">{{ email }}</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095;">Teléfono</td>
+      <td align="right" style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158;">{{ telefono|default:"—" }}</td>
+    </tr>
+  </table>
+
+  <div style="font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#8a8095; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px;">
+    Mensaje
+  </div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td bgcolor="#faf8fc" style="background-color:#faf8fc; border-left:4px solid #8200db; border-radius:8px; padding:16px 18px;">
+        <p style="margin:0; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.75; color:#314158; white-space:pre-wrap;">{{ comentarios|default:"(sin comentarios)" }}</p>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:20px 0 0; font-family:Arial,Helvetica,sans-serif; font-size:13px; line-height:1.7; color:#8a8095;">
+    Puedes responder directamente a este correo: la respuesta le llega a {{ nombre }}.
+  </p>
+{% endblock %}

@@ -27,7 +27,19 @@ class Order(models.Model):
     
     # Datos de facturación / envío (Básicos)
     customer_email = models.EmailField()
-    
+
+    # Nombres capturados en el checkout. Viven en la Order (y no solo en el
+    # Shipment) porque los productos digitales no generan envío, y de ahí se
+    # copian a la Membership al aprobarse el pago: el DIPLOMA sale a nombre del
+    # alumno, así que ese dato tiene que sobrevivir al proceso de pago.
+    customer_name = models.CharField(
+        max_length=200, blank=True, help_text="Nombre del apoderado que compra",
+    )
+    student_name = models.CharField(
+        max_length=200, blank=True, help_text="Nombre del niño/a (va en el diploma)",
+    )
+    customer_phone = models.CharField(max_length=30, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

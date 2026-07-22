@@ -1,0 +1,6 @@
+{% comment %}
+  Párrafo estándar de los correos. Existe para no repetir la misma tira de
+  estilos en línea en cada template (y que no se desalineen entre sí).
+  Uso: {% include 'emails/_p.html' with texto="..." %}
+{% endcomment %}
+<p style="margin:0 0 14px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.75; color:#314158;">{{ texto }}</p>

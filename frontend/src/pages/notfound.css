@@ -1,0 +1,120 @@
+/* 404 del frontend. Mismos colores y tipografías que las plantillas de error de
+   Django (templates/error_base.html), para que la experiencia sea la misma sin
+   importar si el error lo devolvió el backend o lo resolvió React. */
+
+.nf {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  overflow: hidden;
+  font-family: 'Outfit', system-ui, sans-serif;
+  color: #fff;
+  background: linear-gradient(135deg, #2f0053 10%, #590599 75%);
+  text-align: center;
+}
+.nf::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+.nf-card { position: relative; z-index: 1; width: 100%; max-width: 620px; }
+
+.nf-code {
+  font-family: 'Quicksand', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(96px, 22vw, 180px);
+  line-height: 1;
+  letter-spacing: 2px;
+  color: #ffcb00;
+  margin: 0;
+  text-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+.nf-card h1 {
+  font-family: 'Quicksand', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(22px, 5vw, 30px);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 6px;
+  /* explícito, no heredado: index.css tiene `h1 { color: var(--text-h) }`
+     (oscuro) y una regla directa sobre el elemento siempre le gana a lo que
+     hereda del padre, por más que .nf ya declare color:#fff */
+  color: #fff;
+}
+.nf-underline {
+  display: block;
+  width: 66px;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffcb00;
+  margin: 0 auto 22px;
+}
+.nf-msg {
+  font-size: 16px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 auto 28px;
+  max-width: 46ch;
+}
+
+.nf-acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.nf-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-decoration: none;
+  border-radius: 14px;
+  padding: 15px 30px;
+  transition: transform 0.15s, box-shadow 0.15s, background-color 0.12s, color 0.12s;
+}
+.nf-btn-amarillo {
+  background: #ffcb00;
+  color: #000;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+.nf-btn-amarillo:hover {
+  background: #fff;
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 10px 16px -4px rgba(0, 0, 0, 0.3);
+}
+.nf-btn-borde {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+}
+.nf-btn-borde:hover { background: rgba(255, 255, 255, 0.12); transform: translateY(-2px); }
+
+.nf-marca {
+  margin-top: 38px;
+  font-size: 12.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.nf-deco { position: absolute; border-radius: 50%; pointer-events: none; }
+.nf-d1 { width: 14px; height: 14px; background: rgba(255, 203, 0, 0.75); top: 18%; left: 12%; animation: nf-flota 7s ease-in-out infinite; }
+.nf-d2 { width: 10px; height: 10px; background: rgba(255, 255, 255, 0.45); top: 72%; left: 18%; animation: nf-flota 9s ease-in-out -2s infinite; }
+.nf-d3 { width: 18px; height: 18px; background: rgba(130, 0, 219, 0.75); top: 26%; right: 14%; animation: nf-flota 8s ease-in-out -4s infinite; }
+.nf-d4 { width: 12px; height: 12px; background: rgba(255, 203, 0, 0.5); top: 78%; right: 20%; animation: nf-flota 6.5s ease-in-out -1s infinite; }
+
+@keyframes nf-flota {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-16px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nf-deco { animation: none !important; }
+  .nf-btn:hover { transform: none; }
+}

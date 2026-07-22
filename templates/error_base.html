@@ -1,0 +1,167 @@
+{% comment %}
+  Base de las páginas de error (404/403/500/400/CSRF).
+
+  Dos decisiones deliberadas:
+
+  1) TODO el CSS va incrustado acá, sin {% static %} ni hojas externas. Un 500
+     puede venir justamente de que los estáticos no se sirven, o de un fallo que
+     deja el sitio a medias; si la página de error dependiera de un archivo
+     externo, se vería rota justo cuando más importa que se vea bien.
+
+  2) No se usa `request` ni nada del contexto. Django renderiza 500.html SIN
+     context processors (usa un contexto vacío para no re-ejecutar código que
+     puede ser el que está fallando), así que cualquier {{ request.x }} saldría
+     vacío. Los enlaces son rutas absolutas fijas por la misma razón.
+{% endcomment %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{% block title %}Error{% endblock %} · Ingenio Blocks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple-dark: #2f0053;
+      --purple: #590599;
+      --accent: #8200db;
+      --yellow: #ffcb00;
+      --heading: 'Quicksand', system-ui, -apple-system, sans-serif;
+      --body: 'Outfit', system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px;
+      font-family: var(--body);
+      color: #fff;
+      background: linear-gradient(135deg, var(--purple-dark) 10%, var(--purple) 75%);
+      position: relative;
+      overflow: hidden;
+    }
+    /* misma cuadrícula sutil del banner de la portada */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+    }
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 620px;
+      text-align: center;
+    }
+    .code {
+      font-family: var(--heading);
+      font-weight: 700;
+      font-size: clamp(96px, 22vw, 180px);
+      line-height: 1;
+      color: var(--yellow);
+      letter-spacing: 2px;
+      margin: 0;
+      text-shadow: 0 12px 30px rgba(0,0,0,.25);
+    }
+    h1 {
+      font-family: var(--heading);
+      font-weight: 700;
+      font-size: clamp(22px, 5vw, 30px);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 10px 0 6px;
+    }
+    .underline {
+      display: block;
+      width: 66px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--yellow);
+      margin: 0 auto 22px;
+    }
+    p {
+      font-size: 16px;
+      line-height: 1.7;
+      color: rgba(255,255,255,.9);
+      margin: 0 auto 28px;
+      max-width: 46ch;
+    }
+    .acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--body);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      text-decoration: none;
+      border-radius: 14px;
+      padding: 15px 30px;
+      cursor: pointer;
+      border: none;
+      transition: transform .15s, box-shadow .15s, background-color .12s, color .12s;
+    }
+    .btn-amarillo {
+      background: var(--yellow);
+      color: #000;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,.2);
+    }
+    .btn-amarillo:hover {
+      background: #fff;
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 10px 16px -4px rgba(0,0,0,.3);
+    }
+    .btn-borde {
+      background: transparent;
+      color: #fff;
+      border: 1.5px solid rgba(255,255,255,.5);
+    }
+    .btn-borde:hover { background: rgba(255,255,255,.12); transform: translateY(-2px); }
+    .marca { margin-top: 40px; }
+    .marca svg { width: 122px; height: auto; opacity: .85; }
+    /* piezas decorativas flotando, como en la portada */
+    .deco { position: absolute; border-radius: 50%; pointer-events: none; }
+    .d1 { width: 14px; height: 14px; background: rgba(255,203,0,.75); top: 18%; left: 12%; animation: flota 7s ease-in-out infinite; }
+    .d2 { width: 10px; height: 10px; background: rgba(255,255,255,.45); top: 72%; left: 18%; animation: flota 9s ease-in-out -2s infinite; }
+    .d3 { width: 18px; height: 18px; background: rgba(130,0,219,.75); top: 26%; right: 14%; animation: flota 8s ease-in-out -4s infinite; }
+    .d4 { width: 12px; height: 12px; background: rgba(255,203,0,.5); top: 78%; right: 20%; animation: flota 6.5s ease-in-out -1s infinite; }
+    @keyframes flota {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-16px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .deco { animation: none !important; }
+      .btn:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <span class="deco d1"></span><span class="deco d2"></span>
+  <span class="deco d3"></span><span class="deco d4"></span>
+
+  <main class="card">
+    <p class="code">{% block code %}error{% endblock %}</p>
+    <h1>{% block heading %}Algo salió mal{% endblock %}</h1>
+    <span class="underline"></span>
+    <p>{% block message %}Ocurrió un problema inesperado.{% endblock %}</p>
+    <div class="acciones">
+      {% block actions %}
+        <a class="btn btn-amarillo" href="/">Volver al inicio</a>
+      {% endblock %}
+    </div>
+    <div class="marca">{% include 'includes/logo.html' %}</div>
+  </main>
+</body>
+</html>

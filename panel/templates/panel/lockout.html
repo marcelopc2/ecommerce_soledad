@@ -1,0 +1,24 @@
+{% extends 'error_base.html' %}
+
+{% comment %}
+  Página que muestra django-axes cuando una combinación usuario+IP superó el
+  límite de intentos fallidos (AXES_LOCKOUT_TEMPLATE).
+
+  Extiende error_base.html (y no el diseño del panel) para que sea coherente
+  con el resto de los errores: misma cuadrícula, mismas partículas, mismos
+  colores. El bloqueo ocurre SIN sesión iniciada, así que no puede heredar de
+  panel/base.html de todos modos.
+{% endcomment %}
+
+{% block title %}Acceso bloqueado{% endblock %}
+{% block code %}429{% endblock %}
+{% block heading %}Acceso bloqueado{% endblock %}
+{% block message %}
+  Se superó el número de intentos permitidos y el ingreso quedó bloqueado
+  temporalmente{% if cooloff_time %} (unos {{ cooloff_time }}){% endif %}.
+  Si eres tú y olvidaste la clave, espera unos minutos y vuelve a intentarlo.
+{% endblock %}
+{% block actions %}
+  <a class="btn btn-amarillo" href="/gestion/ingresar/">Volver a intentar</a>
+  <a class="btn btn-borde" href="/">Ir al inicio</a>
+{% endblock %}

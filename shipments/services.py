@@ -8,12 +8,18 @@ SHIPIT_API_BASE = getattr(settings, 'SHIPIT_API_BASE', 'https://api.shipit.cl')
 SHIPIT_ACCEPT = 'application/vnd.shipit.v2'
 SHIPIT_TIMEOUT = 20  # segundos
 
+# Comuna DESDE la que despacha la tienda (destiny_id/origin_id de Shipit son IDs
+# de comuna, no nombres). Default 308 = Las Condes. Configurable por si la
+# tienda cambia de bodega. Se saca del panel de Shipit o de GET /v/communes.
+SHIPIT_ORIGIN_COMMUNE_ID = int(os.environ.get('SHIPIT_ORIGIN_COMMUNE_ID', '308'))
+
 # Paquete por defecto cuando faltan dimensiones/peso del producto (igual que el plugin WooCommerce).
 DEFAULT_PACKAGE = getattr(settings, 'DEFAULT_PACKAGE', {
     'width_cm': 10, 'height_cm': 10, 'length_cm': 10, 'weight_kg': 1,
 })
 
-_COMMUNES_CACHE = None  # cache en memoria de proceso para la lista de comunas
+_COMMUNES_CACHE = None       # cache en memoria de la lista de comunas
+_COMMUNE_ID_BY_NAME = None   # cache nombre(normalizado) -> id, para resolver destino
 
 
 def _shipit_credentials():
@@ -66,34 +72,53 @@ def build_package_from_products(products):
 # ---------------------------------------------------------------------------
 # Cotización (rates) — solo lectura
 # ---------------------------------------------------------------------------
-def get_shipping_quotes(commune_name=None, commune_id=None, package=None):
+def get_shipping_quotes(commune_name=None, commune_id=None, package=None, checkout_price=0):
     """
     Devuelve opciones de courier para un destino. Intenta cotizar en Shipit real;
     si no hay credenciales o Shipit no devuelve precios, cae al mock.
     Cada opción: {courier, service, price, days}.
+
+    Shipit cotiza por `destiny_id` (ID de comuna), NO por nombre. Se usa el
+    commune_id recibido; si no vino (el frontend mandó solo el nombre), se
+    resuelve el nombre → id contra la lista de comunas de Shipit.
     """
     package = package or DEFAULT_PACKAGE
 
     if _has_credentials():
-        try:
-            quotes = _shipit_rates(commune_name, package)
-            if quotes:
-                return quotes
-        except Exception:
-            pass  # cualquier fallo de red/parseo → caemos al mock
+        destiny_id = commune_id or _resolve_commune_id(commune_name)
+        if destiny_id:
+            try:
+                quotes = _shipit_rates(int(destiny_id), package, checkout_price)
+                if quotes:
+                    return quotes
+            except Exception:
+                pass  # cualquier fallo de red/parseo → caemos al mock
 
     return _mock_quotes(package)
 
 
-def _shipit_rates(commune_name, package):
-    """Llama al endpoint real de cotización de Shipit (POST /v/rates). Solo lectura."""
+def _shipit_rates(destiny_id, package, checkout_price=0):
+    """Llama al endpoint real de cotización de Shipit (POST /v/rates). Solo lectura.
+
+    El payload lleva TODOS los campos que exige Shipit (confirmado con su
+    soporte, ticket de julio 2026). El mínimo `{width, height, length, weight,
+    commune_name}` devolvía 400 'Sin Precios'; lo que faltaba eran los IDs de
+    comuna (origin/destiny) y los flags de la cotización.
+    """
     payload = {
         'parcel': {
+            'length': package['length_cm'],
             'width': package['width_cm'],
             'height': package['height_cm'],
-            'length': package['length_cm'],
             'weight': package['weight_kg'],
-            'commune_name': commune_name,
+            'destiny_id': destiny_id,                    # comuna de destino
+            'origin_id': SHIPIT_ORIGIN_COMMUNE_ID,       # comuna de la tienda
+            'is_payable': False,                         # no es pago contra entrega
+            'destiny': 'Domicilio',                      # entrega a domicilio (no sucursal)
+            'courier_selected': False,                   # queremos TODAS las tarifas
+            'courier_for_client': '',
+            'request_from': 'custom',                    # identifica el origen de la integración
+            'checkout_price': int(checkout_price or 0),  # valor declarado (para el seguro)
         }
     }
     resp = requests.post(
@@ -103,27 +128,69 @@ def _shipit_rates(commune_name, package):
         timeout=SHIPIT_TIMEOUT,
     )
     data = resp.json()
-    return _normalize_shipit_prices(data.get('prices', []))
+    return _normalize_shipit_prices(data.get('prices', []) if isinstance(data, dict) else [])
+
+
+# Nombre legible del tipo de servicio que devuelve Shipit.
+_SERVICE_LABELS = {
+    'next_day': 'Día hábil siguiente',
+    'same_day': 'Mismo día',
+    'normal': 'Normal',
+    'express': 'Express',
+}
 
 
 def _normalize_shipit_prices(prices):
     """
-    Normaliza la respuesta de Shipit a nuestro contrato {courier, service, price, days}.
-    NOTA: la forma exacta de cada item se confirmará cuando la cuenta devuelva precios
-    (hoy responde vacío por configuración de la cuenta). Parser defensivo mientras tanto.
+    Normaliza la respuesta real de Shipit a nuestro contrato {courier, service,
+    price, days}. Cada item trae `courier` como OBJETO (no string): el nombre
+    está en courier.display_name; `price` ya viene con descuentos aplicados;
+    `days` es el SLA y `service_type` el tipo de servicio.
     """
     normalized = []
     for item in prices or []:
-        price = item.get('price') or item.get('total_price') or item.get('cost')
+        # Shipit puede marcar una tarifa como no despachable a ese destino.
+        if item.get('available_to_shipping') is False:
+            continue
+        price = item.get('price')
         if price is None:
             continue
+
+        courier = item.get('courier') or {}
+        nombre = (courier.get('display_name') or courier.get('name') or 'Courier')
+        dias = item.get('days')
         normalized.append({
-            'courier': item.get('courier') or item.get('courier_name') or item.get('provider', 'Courier'),
-            'service': item.get('service') or item.get('service_name') or '',
+            'courier': nombre.title(),                   # "chilexpress" → "Chilexpress"
+            'service': _SERVICE_LABELS.get(item.get('service_type'), ''),
             'price': int(round(float(price))),
-            'days': item.get('sla') or item.get('days') or item.get('estimated_days', ''),
+            'days': (f'{dias} día hábil' if dias == 1
+                     else f'{dias} días hábiles' if dias else ''),
         })
+    # Más barato primero: es lo que el cliente espera ver arriba.
+    normalized.sort(key=lambda q: q['price'])
     return normalized
+
+
+def _resolve_commune_id(name):
+    """Devuelve el ID de comuna de Shipit para un nombre, o None. Usa la lista
+    de comunas cacheada (misma que alimenta el selector del checkout)."""
+    if not name:
+        return None
+    global _COMMUNE_ID_BY_NAME
+    if _COMMUNE_ID_BY_NAME is None:
+        _COMMUNE_ID_BY_NAME = {}
+        for region in get_communes():
+            for c in region['communes']:
+                if c.get('id') is not None:
+                    _COMMUNE_ID_BY_NAME[_norm(c['name'])] = c['id']
+    return _COMMUNE_ID_BY_NAME.get(_norm(name))
+
+
+def _norm(texto):
+    """Normaliza un nombre de comuna para comparar (sin tildes, minúsculas)."""
+    import unicodedata
+    t = unicodedata.normalize('NFD', (texto or '').strip().lower())
+    return ''.join(c for c in t if unicodedata.category(c) != 'Mn')
 
 
 def _mock_quotes(package):
@@ -174,19 +241,30 @@ def get_communes():
 
 def _normalize_communes(data):
     """
-    Normaliza la respuesta de Shipit a [{region, communes:[{id, name}]}].
-    NOTA: confirmar la forma exacta con la doc de Shipit; parser defensivo por ahora.
+    Normaliza la respuesta real de Shipit a [{region, communes:[{id, name}]}].
+
+    OJO: Shipit trae `region` como OBJETO ({'id':13,'name':'Los Lagos'}) y
+    además `region_name` como string. Hay que usar el string: si se agrupa por
+    el objeto (no hasheable de forma útil), reviéntala y todo caía a la lista
+    estática con id=None, y sin id la cotización real es imposible.
     """
     if not isinstance(data, list) or not data:
         return None
     by_region = {}
     for c in data:
-        region = c.get('region') or c.get('region_name') or 'Chile'
+        region = c.get('region_name')
+        if not region:
+            reg = c.get('region')
+            region = reg.get('name') if isinstance(reg, dict) else (reg or 'Chile')
         by_region.setdefault(region, []).append({
             'id': c.get('id'),
             'name': c.get('name') or c.get('commune_name'),
         })
-    return [{'region': r, 'communes': cs} for r, cs in by_region.items()]
+    # Comunas ordenadas alfabéticamente dentro de cada región (para el selector).
+    return [
+        {'region': r, 'communes': sorted(cs, key=lambda x: x['name'] or '')}
+        for r, cs in sorted(by_region.items())
+    ]
 
 
 # Respaldo estático (subset). Se reemplaza automáticamente por la lista real de Shipit

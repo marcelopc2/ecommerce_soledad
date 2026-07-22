@@ -1,0 +1,18 @@
+¡Tu kit va en camino, {{ nombre }}!
+
+Despachamos tu pedido. Puedes seguirlo con estos datos:
+
+Courier:      {{ courier }}
+Seguimiento:  {{ tracking }}
+Destino:      {{ destino }}
+{% if tracking_url %}
+Seguir mi envío: {{ tracking_url }}
+{% endif %}{% if estimado %}
+{{ estimado }}
+{% endif %}
+Mientras llega, recuerda que tu Aula Virtual ya está disponible:
+puedes ir mirando el primer modelo.
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

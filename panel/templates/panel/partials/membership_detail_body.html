@@ -1,0 +1,194 @@
+{% load humanize %}
+
+{# ---------- Estado (reactivo: se actualiza solo al pausar/activar) ---------- #}
+<div class="mdetail-status-bar mb-3">
+  {% include 'panel/partials/membership_status_badge.html' with m=m %}
+</div>
+
+{# ---------- KPIs ---------- #}
+<div class="stat-grid mb-4">
+  <div class="stat-card">
+    <div class="stat-tile"><i class="bi bi-cash-coin"></i></div>
+    <div>
+      <div class="stat-value">${{ total_spent|floatformat:0|intcomma }}</div>
+      <div class="stat-label">Total gastado</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-tile"><i class="bi bi-calendar3"></i></div>
+    <div>
+      <div class="stat-value">{{ days_as_member }}</div>
+      <div class="stat-label">Día{{ days_as_member|pluralize }} en la plataforma</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-tile"><i class="bi bi-mortarboard"></i></div>
+    <div>
+      <div class="stat-value">{{ completed_count }}/{{ total_courses }}</div>
+      <div class="stat-label">Cursos completados</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-tile"><i class="bi bi-play-circle"></i></div>
+    <div>
+      <div class="stat-value stat-value-sm">{% if current_course %}{{ current_course.title }}{% else %}—{% endif %}</div>
+      <div class="stat-label">Curso actual</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ---------- Datos de contacto ---------- #}
+  <div class="col-lg-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-person-vcard"></i> Datos de contacto</div>
+      <form hx-post="{% url 'panel:membership_names_update' m.pk %}" hx-target="#mdetail-content" hx-swap="innerHTML">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label">{{ name_form.student_name.label }}</label>
+          {{ name_form.student_name }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">{{ name_form.parent_name.label }}</label>
+          {{ name_form.parent_name }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Correo de registro</label>
+          <input class="form-control" value="{{ m.user.email }}" disabled>
+        </div>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="bi bi-check-lg me-1"></i> Guardar datos</button>
+      </form>
+    </div></div>
+  </div>
+
+  {# ---------- Suscripción ---------- #}
+  <div class="col-lg-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-calendar-check"></i> Suscripción</div>
+      <div class="mdetail-kv"><span>Estado</span><strong>{% include 'panel/partials/membership_status_badge.html' with m=m %}</strong></div>
+      <div class="mdetail-kv"><span>Activación</span><strong>{{ m.created_at|date:'d M Y' }}</strong></div>
+      <div class="mdetail-kv"><span>Vencimiento</span><strong>{{ m.expires_at|date:'d M Y' }}</strong></div>
+      {% if granting_products %}
+        <div class="mdetail-kv">
+          <span>Otorgado por</span>
+          <strong>{% for p in granting_products %}{{ p.name }} ({{ p.access_months }}m){% if not forloop.last %}, {% endif %}{% endfor %}</strong>
+        </div>
+      {% endif %}
+      {% if m.is_paused %}
+        <p class="mdetail-note mt-2 mb-0"><i class="bi bi-pause-circle"></i> Pausada desde el {{ m.paused_at|date:'d M Y' }}. Al reanudar se le devuelven los días.</p>
+      {% elif m.total_paused_days %}
+        <p class="mdetail-note mt-2 mb-0">Estuvo pausada {{ m.total_paused_days }} día{{ m.total_paused_days|pluralize }} en total (ya descontados del calendario).</p>
+      {% endif %}
+    </div></div>
+  </div>
+
+  {# ---------- Facturas ---------- #}
+  <div class="col-12">
+    <div class="pnl-card"><div class="card-pad pb-2">
+      <div class="form-section-title"><i class="bi bi-receipt"></i> Facturas y compras</div>
+    </div>
+    {% if invoices %}
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <thead>
+            <tr><th>Fecha</th><th>Folio</th><th>Estado boleta</th><th class="text-end">Total</th><th class="text-end">PDF</th></tr>
+          </thead>
+          <tbody>
+            {% for row in invoices %}
+              <tr>
+                <td class="cell-sub">{{ row.order.created_at|date:'d M Y' }}</td>
+                <td>{{ row.invoice.folio|default:"—" }}</td>
+                <td>
+                  {% if row.invoice %}
+                    {% if row.invoice.status == 'ISSUED' %}<span class="badge-soft green">Emitida</span>
+                    {% elif row.invoice.status == 'ERROR' %}<span class="badge-soft red">Error</span>
+                    {% else %}<span class="badge-soft gray">Pendiente</span>{% endif %}
+                  {% else %}<span class="badge-soft gray">Sin boleta</span>{% endif %}
+                </td>
+                <td class="text-end fw-semibold">${{ row.order.total_amount|floatformat:0|intcomma }}</td>
+                <td class="text-end">
+                  {% if row.invoice and row.invoice.pdf_base64 %}
+                    <a href="{% url 'panel:invoice_pdf' row.invoice.pk %}" class="btn-icon" title="Descargar PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+                  {% else %}<span class="cell-sub">—</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="card-pad pt-0"><p class="cell-sub mb-0">Sin órdenes asociadas.</p></div>
+    {% endif %}
+    </div>
+  </div>
+
+  {% comment %}
+    Contraseña. Dos caminos a propósito:
+    - Reenviar el correo: la vía normal. No expone ninguna clave y el link es
+      de un solo uso. Cubre "no me llegó" y "el link expiró".
+    - Asignar a mano: salida de emergencia para cuando el correo NO funciona.
+      No usa htmx sino un POST normal, porque tras asignarla hay que recargar
+      la página completa para mostrar el mensaje con la clave que se dictó.
+  {% endcomment %}
+  <div class="col-12">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-key"></i> Contraseña del alumno</div>
+
+      <div class="mdetail-actions mb-3">
+        <form method="post" action="{% url 'panel:membership_send_reset' m.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-sm">
+            <i class="bi bi-envelope-arrow-up"></i> Enviarle el correo para definir su clave
+          </button>
+        </form>
+      </div>
+
+      <details class="mdetail-manual">
+        <summary>Asignar una contraseña a mano</summary>
+        <p class="pnl-hint mt-2 mb-2">
+          <i class="bi bi-info-circle"></i>
+          Úsalo solo si el correo no está funcionando. La clave se muestra una vez
+          para que se la dictes; después no vuelve a verse (queda guardada cifrada).
+        </p>
+        <form method="post" action="{% url 'panel:membership_set_password' m.pk %}"
+              class="d-flex gap-2 flex-wrap align-items-center">
+          {% csrf_token %}
+          <input type="text" name="password" class="form-control" style="max-width:280px"
+                 placeholder="Contraseña nueva" required
+                 autocomplete="off" minlength="8">
+          <button type="submit" class="btn btn-brand btn-sm">
+            <i class="bi bi-check-lg"></i> Asignar contraseña
+          </button>
+        </form>
+      </details>
+    </div></div>
+  </div>
+
+  {# ---------- Acciones ---------- #}
+  <div class="col-12">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-toggles"></i> Acciones</div>
+      <div class="mdetail-actions">
+        <button type="button" class="btn btn-ghost btn-sm"
+                hx-post="{% url 'panel:membership_toggle_pause' m.pk %}"
+                hx-target="#mdetail-content" hx-swap="innerHTML"
+                hx-confirm="{% if m.is_paused %}¿Reanudar la suscripción? Se le devolverán los días pausados al vencimiento y al calendario de cursos.{% else %}¿Pausar la suscripción? Se congela el acceso y el desbloqueo semanal de cursos hasta que la reanudes.{% endif %}">
+          {% if m.is_paused %}<i class="bi bi-play-fill"></i> Reanudar suscripción{% else %}<i class="bi bi-pause-fill"></i> Pausar suscripción{% endif %}
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm"
+                hx-post="{% url 'panel:membership_toggle_user' m.pk %}"
+                hx-target="#mdetail-content" hx-swap="innerHTML"
+                hx-confirm="{% if m.user.is_active %}¿Desactivar esta cuenta? No podrá iniciar sesión hasta que la reactives.{% else %}¿Reactivar esta cuenta?{% endif %}">
+          {% if m.user.is_active %}<i class="bi bi-person-slash"></i> Desactivar usuario{% else %}<i class="bi bi-person-check"></i> Activar usuario{% endif %}
+        </button>
+        <button type="button" class="btn btn-danger-soft btn-sm"
+                hx-post="{% url 'panel:membership_delete' m.pk %}"
+                hx-confirm="¿Eliminar por completo la cuenta de «{{ m.student_name|default:m.user.email }}»? Se borra el usuario, la membresía y su progreso. Las boletas y órdenes se conservan como historial. Esta acción no se puede deshacer.">
+          <i class="bi bi-trash"></i> Eliminar cuenta
+        </button>
+      </div>
+    </div></div>
+  </div>
+
+</div>

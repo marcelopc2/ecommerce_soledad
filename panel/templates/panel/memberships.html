@@ -1,0 +1,82 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Membresías{% endblock %}
+{% block crumb %}Panel · Academia{% endblock %}
+{% block heading %}Membresías{% endblock %}
+
+{% block actions %}
+<div class="d-flex gap-2 mfilter-group">
+  <a class="mfilter-pill{% if not estado %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=">Todas ({{ total_count }})</a>
+  <a class="mfilter-pill green{% if estado == 'activa' %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=activa">{{ active_count }} activas</a>
+  <a class="mfilter-pill yellow{% if estado == 'pausada' %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pausada">{{ paused_count }} pausadas</a>
+  <a class="mfilter-pill gray{% if estado == 'vencida' %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=vencida">{{ expired_count }} vencidas</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="pnl-card">
+  <div class="pnl-toolbar">
+    <div class="pnl-search">
+      <i class="bi bi-search"></i>
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por alumno, apoderado o correo…"
+             autocomplete="off"
+             hx-get="{% url 'panel:memberships' %}"
+             hx-trigger="input changed delay:300ms, search"
+             hx-target="#memberships-tbody"
+             hx-swap="innerHTML"
+             hx-include="[name='estado'], [name='sort'], [name='dir']"
+             hx-indicator="#memberships-spin">
+      <span id="memberships-spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
+    </div>
+    <input type="hidden" name="estado" value="{{ estado }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="dir" value="{{ dir }}">
+  </div>
+  <div class="table-responsive">
+    <table class="table pnl-table">
+      <thead>
+        <tr>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=alumno&amp;dir={{ next_dir.alumno }}">
+              Alumno{% if sort == 'alumno' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=apoderado&amp;dir={{ next_dir.apoderado }}">
+              Apoderado{% if sort == 'apoderado' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=inicio&amp;dir={{ next_dir.inicio }}">
+              Inicio{% if sort == 'inicio' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=vencimiento&amp;dir={{ next_dir.vencimiento }}">
+              Vencimiento{% if sort == 'vencimiento' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=progreso&amp;dir={{ next_dir.progreso }}">
+              Progreso{% if sort == 'progreso' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=estado&amp;dir={{ next_dir.estado }}">
+              Estado{% if sort == 'estado' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="text-end">Detalle</th>
+        </tr>
+      </thead>
+      <tbody id="memberships-tbody">
+        {% include 'panel/partials/memberships_rows.html' %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends 'error_base.html' %}
+
+{% block title %}Sin permiso{% endblock %}
+{% block code %}403{% endblock %}
+{% block heading %}Esta puerta está cerrada{% endblock %}
+{% block message %}
+  No tienes permiso para ver esta página. Si eres alumno, inicia sesión con la
+  cuenta que recibiste al comprar tu kit; puede que tu acceso haya vencido.
+{% endblock %}
+{% block actions %}
+  <a class="btn btn-amarillo" href="/login">Iniciar sesión</a>
+  <a class="btn btn-borde" href="/">Volver al inicio</a>
+{% endblock %}

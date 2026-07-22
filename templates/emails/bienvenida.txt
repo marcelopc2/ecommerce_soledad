@@ -1,0 +1,21 @@
+¡Gracias por tu compra, {{ nombre }}!
+
+Tu cuenta ya está creada y tu Aula Virtual está lista. Solo falta un paso:
+definir tu contraseña.
+
+Tu usuario es: {{ email }}
+
+Define tu contraseña aquí:
+{{ link }}
+
+Este enlace es de un solo uso. Si expira, puedes pedir uno nuevo desde
+"¿Olvidaste tu contraseña?" en la página de ingreso.
+
+{{ vigencia_texto }}
+
+Cada semana se libera un modelo nuevo, con instrucciones paso a paso.
+¡A construir!
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

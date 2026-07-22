@@ -1,0 +1,13 @@
+{% comment %}
+  Botón para correo. Va como <table> con bgcolor y no como <a> con estilos:
+  Outlook ignora border-radius y padding en un <a> suelto, y el botón queda
+  como un link pelado. Uso:
+    {% include 'emails/_boton.html' with url=link texto="Ver mis cursos" %}
+{% endcomment %}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0 6px;">
+  <tr>
+    <td align="center" bgcolor="#ffcb00" style="background-color:#ffcb00; border-radius:12px;">
+      <a href="{{ url }}" style="display:inline-block; padding:15px 34px; font-family:Arial,Helvetica,sans-serif; font-size:13px; font-weight:bold; color:#000000; text-decoration:none; letter-spacing:0.8px; text-transform:uppercase;">{{ texto }}</a>
+    </td>
+  </tr>
+</table>

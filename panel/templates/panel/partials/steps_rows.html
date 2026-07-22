@@ -1,0 +1,46 @@
+{% for s in steps %}
+  <tr>
+    <td style="width:56px">
+      <span class="cell-title text-muted">{{ forloop.counter|stringformat:"02d" }}</span>
+    </td>
+    <td style="width:132px">
+      {% if s.photo %}
+        <img src="{{ s.photo.url }}" alt="{{ s.title }}"
+             style="width:116px;height:66px;object-fit:cover;border-radius:8px;display:block">
+      {% else %}
+        <span class="badge-soft gray">Sin foto</span>
+      {% endif %}
+    </td>
+    <td>
+      <div class="cell-title">{{ s.title }}</div>
+      <div class="cell-sub text-truncate" style="max-width:400px">{{ s.description }}</div>
+    </td>
+    <td>
+      <span class="d-inline-flex align-items-center gap-2">
+        <span style="width:18px;height:18px;border-radius:50%;background:{{ s.color }};display:inline-block"></span>
+        <span class="cell-sub">{{ s.get_icon_display }}</span>
+      </span>
+    </td>
+    <td>
+      {% if s.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculto</span>{% endif %}
+    </td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <a href="{% url 'panel:step_edit' s.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:step_delete' s.pk %}"
+                hx-confirm="¿Eliminar el paso «{{ s.title }}»?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="6" class="empty-cell">
+      No hay pasos. <a href="{% url 'panel:step_new' %}">Agregar el primero</a> o
+      <a href="#" hx-post="{% url 'panel:step_restore_defaults' %}" hx-confirm="¿Restaurar los pasos a los valores por defecto? Las fotos hay que volver a subirlas.">restaurar los de por defecto</a>.
+    </td>
+  </tr>
+{% endfor %}

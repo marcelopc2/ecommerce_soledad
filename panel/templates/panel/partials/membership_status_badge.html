@@ -1,0 +1,9 @@
+{% if not m.user.is_active %}
+  <span class="badge-soft gray"><i class="bi bi-slash-circle"></i> Deshabilitado</span>
+{% elif m.is_paused %}
+  <span class="badge-soft yellow"><i class="bi bi-pause-circle"></i> Pausada</span>
+{% elif m.is_active %}
+  <span class="badge-soft green"><i class="bi bi-check-circle-fill"></i> Activa</span>
+{% else %}
+  <span class="badge-soft red"><i class="bi bi-clock-history"></i> Vencida</span>
+{% endif %}

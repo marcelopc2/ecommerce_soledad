@@ -1,0 +1,91 @@
+{% extends 'panel/base.html' %}
+{% load humanize %}
+
+{% block title %}Pedidos{% endblock %}
+{% block crumb %}Panel · Tienda{% endblock %}
+{% block heading %}Pedidos{% endblock %}
+
+{% block actions %}
+<div class="d-flex gap-2 mfilter-group">
+  <a class="mfilter-pill{% if not estado %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=">Todos ({{ counts.total }})</a>
+  <a class="mfilter-pill green{% if estado == 'pagados' %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pagados">{{ counts.pagados }} pagados</a>
+  <a class="mfilter-pill yellow{% if estado == 'pendientes' %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pendientes">{{ counts.pendientes }} pendientes</a>
+  <a class="mfilter-pill red{% if estado == 'fallidos' %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=fallidos">{{ counts.fallidos }} fallidos</a>
+  {% if counts.sin_boleta %}
+    <a class="mfilter-pill red{% if estado == 'sin_boleta' %} active{% endif %}"
+       href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=sin_boleta"
+       title="Pedidos cobrados cuya boleta no está emitida">
+      <i class="bi bi-exclamation-triangle me-1"></i> {{ counts.sin_boleta }} sin boleta
+    </a>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="pnl-card">
+  <div class="pnl-toolbar">
+    <div class="pnl-search">
+      <i class="bi bi-search"></i>
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por correo, n.º de pedido o folio…"
+             autocomplete="off"
+             hx-get="{% url 'panel:orders' %}"
+             hx-trigger="input changed delay:300ms, search"
+             hx-target="#orders-tbody"
+             hx-swap="innerHTML"
+             hx-include="[name='estado'], [name='sort'], [name='dir']"
+             hx-indicator="#orders-spin">
+      <span id="orders-spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
+    </div>
+    <input type="hidden" name="estado" value="{{ estado }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="dir" value="{{ dir }}">
+    <span class="pnl-hint"><i class="bi bi-cash-coin"></i> Ingresos cobrados: <strong>${{ revenue|floatformat:0|intcomma }}</strong></span>
+  </div>
+  <div class="table-responsive">
+    <table class="table pnl-table">
+      <thead>
+        <tr>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=cliente&amp;dir={{ next_dir.cliente }}">
+              Cliente{% if sort == 'cliente' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=folio&amp;dir={{ next_dir.folio }}">
+              Folio{% if sort == 'folio' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th text-end">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=total&amp;dir={{ next_dir.total }}">
+              Total{% if sort == 'total' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=estado&amp;dir={{ next_dir.estado }}">
+              Pago{% if sort == 'estado' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=boleta&amp;dir={{ next_dir.boleta }}">
+              Boleta{% if sort == 'boleta' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=fecha&amp;dir={{ next_dir.fecha }}">
+              Fecha{% if sort == 'fecha' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="orders-tbody">
+        {% include 'panel/partials/orders_rows.html' %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

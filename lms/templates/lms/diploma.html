@@ -1,0 +1,242 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diploma · {{ student_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple-dark: #2f0053;
+      --purple: #590599;
+      --accent: #8200db;
+      --yellow: #ffcb00;
+      --teal: #00b8a9;
+      --coral: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Outfit', sans-serif;
+      background: #ece7f3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 60px;
+      min-height: 100vh;
+    }
+
+    /* Barra de acciones (no se imprime) */
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .toolbar button {
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 26px;
+      cursor: pointer;
+      background: var(--yellow);
+      color: var(--purple-dark);
+      box-shadow: 0 6px 16px rgba(255, 203, 0, 0.4);
+    }
+    .toolbar button.ghost { background: #fff; color: var(--purple); box-shadow: none; border: 1.5px solid #d9cfe8; }
+
+    /* El diploma: proporción horizontal tipo A4 apaisado */
+    .diploma {
+      position: relative;
+      width: min(960px, 96vw);
+      aspect-ratio: 1.414 / 1;
+      background:
+        radial-gradient(circle at 88% 12%, rgba(130, 0, 219, 0.16), transparent 40%),
+        radial-gradient(circle at 10% 90%, rgba(255, 203, 0, 0.16), transparent 38%),
+        #ffffff;
+      border-radius: 22px;
+      box-shadow: 0 30px 70px rgba(47, 0, 83, 0.28);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6% 10%;
+    }
+    /* marco */
+    .diploma::before {
+      content: '';
+      position: absolute;
+      inset: 20px;
+      border: 3px solid var(--yellow);
+      border-radius: 16px;
+      pointer-events: none;
+    }
+    .diploma::after {
+      content: '';
+      position: absolute;
+      inset: 27px;
+      border: 1.5px solid rgba(130, 0, 219, 0.35);
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    /* Cinta de "vista previa": inconfundible, para que nadie la tome por un
+       diploma real. Se imprime también (a propósito) para que una vista
+       previa impresa por error tampoco pueda pasar por un documento válido. */
+    .preview-ribbon {
+      position: absolute;
+      top: 34px;
+      left: -54px;
+      width: 220px;
+      transform: rotate(-45deg);
+      background: repeating-linear-gradient(45deg, #d21f1f, #d21f1f 10px, #b31414 10px, #b31414 20px);
+      color: #fff;
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      text-align: center;
+      padding: 7px 0;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+      z-index: 5;
+    }
+    /* bloques decorativos flotando en las esquinas */
+    .blocks { position: absolute; display: grid; grid-template-columns: repeat(2, 20px); grid-auto-rows: 20px; gap: 5px; }
+    .blocks span { border-radius: 5px; }
+    .blocks.tl { top: 42px; left: 46px; transform: rotate(-8deg); }
+    .blocks.br { bottom: 42px; right: 46px; transform: rotate(7deg); }
+    .blocks span:nth-child(1) { background: var(--yellow); }
+    .blocks span:nth-child(2) { background: var(--coral); }
+    .blocks span:nth-child(3) { background: var(--teal); }
+    .blocks span:nth-child(4) { background: var(--accent); }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--purple);
+      letter-spacing: 0.5px;
+    }
+    .brand .logo-icon { width: 15px; height: auto; }
+
+    .eyebrow {
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--teal);
+    }
+    .title {
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 700;
+      font-size: clamp(28px, 5vw, 46px);
+      color: var(--purple-dark);
+      margin: 6px 0 2px;
+      line-height: 1.1;
+    }
+    .subtitle { font-size: 15px; color: #6b6375; margin-bottom: 20px; }
+
+    .awarded-to { font-size: 14px; color: #8a8095; }
+    .student {
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 700;
+      font-size: clamp(30px, 6vw, 54px);
+      color: var(--accent);
+      margin: 2px 0 6px;
+      line-height: 1.05;
+    }
+    .student-underline { width: 46%; height: 3px; background: var(--yellow); border-radius: 2px; margin: 0 auto 20px; }
+
+    .message { font-size: 15px; color: #4a4458; max-width: 78%; line-height: 1.6; }
+
+    .footer {
+      margin-top: 26px;
+      display: flex;
+      align-items: center;
+      gap: 42px;
+      font-size: 13px;
+      color: #6b6375;
+    }
+    .seal {
+      width: 78px; height: 78px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, var(--yellow), #eab700);
+      display: grid; place-items: center;
+      color: var(--purple-dark);
+      font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 26px;
+      box-shadow: 0 4px 10px rgba(234, 183, 0, 0.5);
+      transform: rotate(-6deg);
+    }
+    .sign { text-align: center; }
+    .sign .line { width: 150px; border-top: 1.5px solid #b7aec6; margin-bottom: 5px; }
+
+    @media print {
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+      }
+      .toolbar { display: none; }
+      .diploma {
+        box-shadow: none;
+        width: 100vw;
+        height: 100vh;
+        aspect-ratio: auto;
+        border-radius: 0;
+      }
+      @page { size: A4 landscape; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">🖨️ Descargar / Imprimir</button>
+    <button class="ghost" onclick="window.close()">Cerrar</button>
+  </div>
+
+  <div class="diploma">
+    {% if is_preview %}<div class="preview-ribbon">VISTA PREVIA</div>{% endif %}
+    <div class="blocks tl"><span></span><span></span><span></span><span></span></div>
+    <div class="blocks br"><span></span><span></span><span></span><span></span></div>
+
+    <div class="brand">
+      <img src="{% static 'lms/img/logo-icon.svg' %}" alt="" class="logo-icon">
+      Ingenio Blocks
+    </div>
+
+    <div class="eyebrow">Diploma de logro</div>
+    <div class="title">{{ diploma.title }}</div>
+    <div class="subtitle">otorgado con mucho orgullo a</div>
+
+    <div class="student">{{ student_name }}</div>
+    <div class="student-underline"></div>
+
+    <div class="message">
+      {% if diploma.description %}{{ diploma.description }}{% else %}Por completar con dedicación, creatividad e ingenio esta etapa de su aventura de aprendizaje construyendo, jugando y descubriendo.{% endif %}
+    </div>
+
+    <div class="footer">
+      <div class="sign">
+        <div class="line"></div>
+        Equipo Ingenio Blocks
+      </div>
+      <div class="seal">🏅</div>
+      <div class="sign">
+        <div class="line"></div>
+        {% if awarded_at %}{{ awarded_at|date:'d/m/Y' }}{% else %}Fecha{% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

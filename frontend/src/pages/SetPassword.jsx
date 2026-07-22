@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api } from '../api'
-import Header from '../components/Header'
+import logo from '../assets/landing/logo-ingenioblocks.svg'
+import './lms.css'
 
 export default function SetPassword() {
   const { uid, token } = useParams()
@@ -30,25 +31,43 @@ export default function SetPassword() {
   }
 
   return (
-    <div className="App">
-      <Header />
-      <div className="auth-card">
-        <h2>Define tu contraseña</h2>
-        {done ? (
-          <p className="form-ok">¡Listo! Redirigiéndote al inicio de sesión…</p>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <input className="field" type="password" placeholder="Nueva contraseña" value={password}
-              onChange={e => setPassword(e.target.value)} required />
-            <input className="field" type="password" placeholder="Repite la contraseña" value={confirm}
-              onChange={e => setConfirm(e.target.value)} required />
-            {error && <p className="form-error">{error}</p>}
-            <button className="btn-primary" type="submit" disabled={busy}>
-              {busy ? 'Guardando…' : 'Guardar contraseña'}
-            </button>
-          </form>
-        )}
-        <p className="auth-foot"><Link to="/login">Ir a iniciar sesión</Link></p>
+    <div className="lms">
+      <div className="lms-auth">
+        <div className="shape s1" /><div className="shape s2" />
+        <div className="shape s3" /><div className="shape s4" />
+
+        <div className="lms-auth-card">
+          <Link to="/"><img src={logo} alt="IngenioBlocks" className="logo" /></Link>
+          <h1>Crea tu contraseña 🔑</h1>
+          <p className="sub">Un paso más y entras a tus cursos.</p>
+
+          {done ? (
+            <p className="lms-form-ok">¡Listo! Redirigiéndote al inicio de sesión…</p>
+          ) : (
+            <>
+              {error && <p className="lms-form-error">{error}</p>}
+              <form onSubmit={handleSubmit}>
+                <div className="lms-field">
+                  <label htmlFor="sp-pass">Nueva contraseña</label>
+                  <input id="sp-pass" type="password" placeholder="Mínimo 8 caracteres" value={password}
+                    onChange={e => setPassword(e.target.value)} required autoFocus />
+                </div>
+                <div className="lms-field">
+                  <label htmlFor="sp-confirm">Repite la contraseña</label>
+                  <input id="sp-confirm" type="password" placeholder="••••••••" value={confirm}
+                    onChange={e => setConfirm(e.target.value)} required />
+                </div>
+                <button className="lms-btn yellow" type="submit" disabled={busy}>
+                  {busy ? 'Guardando…' : 'Guardar y continuar'}
+                </button>
+              </form>
+            </>
+          )}
+
+          <div className="lms-auth-links">
+            <Link to="/login" className="muted">Ir a iniciar sesión</Link>
+          </div>
+        </div>
       </div>
     </div>
   )

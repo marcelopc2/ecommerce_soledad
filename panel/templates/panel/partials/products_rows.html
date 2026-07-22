@@ -1,0 +1,72 @@
+{% load humanize %}
+{% for p in products %}
+  <tr{% if p.show_on_landing and not q %} class="pnl-drag-row" data-id="{{ p.id }}"{% endif %}>
+    <td class="order-cell">
+      <div class="order-cell-inner">
+        {% if p.show_on_landing %}
+          {% if not q %}
+            <span class="drag-handle" title="Arrastrar para reordenar"><i class="bi bi-grip-vertical"></i></span>
+          {% endif %}
+          <span class="drag-pos{% if q %} static{% endif %}{% if p.landing_order > 4 %} waiting{% endif %}"
+                title="{% if p.landing_order <= 3 %}Tarjeta {{ p.landing_order }} de la portada{% elif p.landing_order == 4 %}Tarjeta ancha de la portada{% else %}En cola — arrástralo a un puesto dentro del top 4 para mostrarlo{% endif %}">
+            {{ p.landing_order }}
+          </span>
+        {% else %}
+          <span class="drag-empty">—</span>
+        {% endif %}
+      </div>
+    </td>
+    <td>
+      <div class="cell-title">
+        {{ p.name }}
+        {% if p.is_on_sale %}<span class="badge-soft red">Oferta</span>{% endif %}
+        {% if p.is_coming_soon %}<span class="badge-soft yellow">Próximamente</span>{% endif %}
+        {% if p.show_on_landing %}
+          {% if p.landing_order <= 4 %}
+            <span class="badge-soft purple">Portada</span>
+          {% else %}
+            <span class="badge-soft gray">En cola</span>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="cell-sub">/{{ p.slug }}</div>
+    </td>
+    <td class="text-end fw-semibold">${{ p.price|floatformat:0|intcomma }}</td>
+    <td>
+      {% if p.is_digital %}
+        <span class="badge-soft teal"><i class="bi bi-cloud-arrow-down"></i> Digital</span>
+      {% else %}
+        <span class="badge-soft purple"><i class="bi bi-box"></i> Físico</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if p.is_active %}
+        <span class="badge-soft green">Activo</span>
+      {% else %}
+        <span class="badge-soft gray">Oculto</span>
+      {% endif %}
+    </td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <a href="{% url 'panel:product_edit' p.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:product_delete' p.pk %}"
+                hx-confirm="¿Eliminar «{{ p.name }}»? Esta acción no se puede deshacer."
+                hx-target="closest tr"
+                hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="6" class="empty-cell">
+      {% if q %}
+        <i class="bi bi-search"></i> Sin resultados para «{{ q }}».
+      {% else %}
+        Aún no hay productos. <a href="{% url 'panel:product_new' %}">Crear el primero</a>.
+      {% endif %}
+    </td>
+  </tr>
+{% endfor %}

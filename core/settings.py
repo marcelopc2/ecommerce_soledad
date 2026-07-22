@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -28,6 +29,11 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 _extra_hosts = os.environ.get('ALLOWED_HOSTS', '')
 ALLOWED_HOSTS += [h.strip() for h in _extra_hosts.split(',') if h.strip()]
 
+# El default de Django ('same-origin') hace que el navegador no mande ningún
+# referrer a sitios externos, lo que rompe el reproductor embebido de YouTube
+# (Error 153) en las páginas servidas por Django (panel de gestión).
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
 CSRF_TRUSTED_ORIGINS = []
 if BACKEND_PUBLIC_URL:
     from urllib.parse import urlparse
@@ -43,11 +49,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+    'django.contrib.humanize',
+
     # Third party apps
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'axes',
     
     # Local apps
     'catalog',
@@ -55,6 +63,7 @@ INSTALLED_APPS = [
     'shipments',
     'invoicing',
     'lms',
+    'panel',
 ]
 
 MIDDLEWARE = [
@@ -66,7 +75,41 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Axes va al FINAL: necesita que request.user ya esté resuelto.
+    'axes.middleware.AxesMiddleware',
 ]
+
+# --- Bloqueo por intentos fallidos de login (django-axes) ---
+# Cubre el panel /gestion/ (django.contrib.auth.authenticate) y el login de la
+# API JWT (simplejwt también pasa por authenticate()), así que un solo ajuste
+# protege las dos puertas de entrada.
+# AxesStandaloneBackend va PRIMERO: corta antes de que ModelBackend gaste tiempo
+# verificando el hash de la contraseña.
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+AXES_FAILURE_LIMIT = int(os.environ.get('AXES_FAILURE_LIMIT', '5'))
+AXES_COOLOFF_TIME = timedelta(minutes=int(os.environ.get('AXES_COOLOFF_MINUTES', '30')))
+# Se bloquea la COMBINACIÓN usuario+IP, no cada uno por separado: bloquear solo
+# por IP dejaría fuera a toda una oficina o colegio tras el error de una persona,
+# y bloquear solo por usuario permite que un tercero deje fuera a la clienta
+# a propósito fallando adrede contra su correo.
+AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
+AXES_RESET_ON_SUCCESS = True          # un login bueno limpia el contador
+AXES_ENABLE_ADMIN = True
+AXES_VERBOSE = True
+# Página propia de bloqueo: sin esto axes devuelve un 429 pelado sin explicar
+# nada. Ojo: el bloqueo NO se maneja en la vista de login — Django atrapa el
+# PermissionDenied dentro de authenticate(), y es AxesMiddleware el que
+# reemplaza la respuesta por esta plantilla.
+AXES_LOCKOUT_TEMPLATE = 'panel/lockout.html'
+# Detrás de nginx la IP real viene en X-Forwarded-For. Si no se declara cuántos
+# proxies hay, axes tomaría la IP del propio proxy y bloquearía a TODOS los
+# visitantes de una sola vez. En local (sin proxy) va en 0.
+AXES_IPWARE_PROXY_COUNT = int(os.environ.get('AXES_PROXY_COUNT', '0')) or None
+AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
 
 # --- CORS: solo orígenes explícitos (nunca abierto a todos) ---
 # El frontend (FRONTEND_URL) siempre está permitido; en desarrollo se suman los localhost típicos.
@@ -88,7 +131,6 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30          # HSTS 30 días (subir a 1 año cuando esté estable)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = False
-    SECURE_REFERRER_POLICY = 'same-origin'
     SESSION_COOKIE_HTTPONLY = True
     # El frontend en producción debe venir por HTTPS
     if FRONTEND_URL.startswith('http://'):
@@ -100,7 +142,9 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        # Plantillas propias del proyecto (páginas de error 404/403/500/…).
+        # Van antes que las de las apps para que Django las use en vez de las suyas.
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -171,8 +215,16 @@ DEFAULT_PACKAGE = {'width_cm': 10, 'height_cm': 10, 'length_cm': 10, 'weight_kg'
 PROTECTED_MEDIA_ROOT = BASE_DIR / 'protected_media'
 PROTECTED_MEDIA_ROOT.mkdir(exist_ok=True)
 
+# --- Media pública (portadas de los videos de la landing) ---
+# A diferencia de PROTECTED_MEDIA_ROOT, esto SÍ es público: son imágenes que
+# ve cualquier visitante de la portada.
+# En producción nginx tiene que servir /media/ desde esta carpeta; en desarrollo
+# lo sirve Django (ver core/urls.py).
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT.mkdir(exist_ok=True)
+
 # --- Autenticación (JWT para el frontend React) + Rate limiting ---
-from datetime import timedelta
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -191,6 +243,7 @@ REST_FRAMEWORK = {
         'reset': '5/min',           # solicitudes de recuperación (anti spam de correos)
         'payment': '10/min',        # creación de pagos
         'quote': '30/min',          # cotizaciones de envío
+        'contact': '5/min',         # formulario de contacto (anti spam de correos)
     },
 }
 
@@ -221,3 +274,5 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'IngenioBlocks <no-reply@ingenioblocks.cl>')
+# Bandeja que recibe los mensajes del formulario de contacto de la landing.
+CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'contacto@ingenioblocks.com')

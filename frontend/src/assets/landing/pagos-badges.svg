@@ -4,8 +4,8 @@
 
 <g id="Group 1000004174">
 <foreignObject x="-12" y="-12" width="600" height="117"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(6px);clip-path:url(#bgblur_0_0_1_clip_path);height:100%;width:100%"></div></foreignObject><g id="Overlay+Border+Shadow+OverlayBlur" filter="url(#filter0_i_0_1)" data-figma-bg-blur-radius="12">
-<rect width="576" height="93" rx="16" fill="white" fill-opacity="0.1"/>
-<rect x="0.5" y="0.5" width="575" height="92" rx="15.5" stroke="white" stroke-opacity="0.1"/>
+<rect width="576" height="93" rx="16" fill="#6a3093"/>
+<rect x="0.5" y="0.5" width="575" height="92" rx="15.5" stroke="white" stroke-opacity="0.15"/>
 </g>
 <g id="SVG">
 <path id="Vector" d="M199.667 26.8333C199.667 31 196.75 33.0833 193.283 34.2916C193.102 34.3532 192.905 34.3502 192.725 34.2833C189.25 33.0833 186.333 31 186.333 26.8333V21C186.333 20.779 186.421 20.567 186.577 20.4107C186.734 20.2544 186.946 20.1666 187.167 20.1666C188.833 20.1666 190.917 19.1666 192.367 17.9C192.543 17.7491 192.768 17.6663 193 17.6663C193.232 17.6663 193.457 17.7491 193.633 17.9C195.092 19.175 197.167 20.1666 198.833 20.1666C199.054 20.1666 199.266 20.2544 199.423 20.4107C199.579 20.567 199.667 20.779 199.667 21V26.8333Z" stroke="#FFCB00" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>

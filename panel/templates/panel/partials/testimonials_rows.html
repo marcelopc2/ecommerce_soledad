@@ -1,0 +1,31 @@
+{% for t in testimonials %}
+  <tr>
+    <td>
+      <div class="cell-title">{{ t.name }}</div>
+      <div class="cell-sub">{{ t.location }}</div>
+    </td>
+    <td class="cell-sub text-truncate" style="max-width:420px">{{ t.quote }}</td>
+    <td>{{ t.rating }} <i class="bi bi-star-fill text-warning"></i></td>
+    <td>
+      {% if t.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculto</span>{% endif %}
+    </td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <a href="{% url 'panel:testimonial_edit' t.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:testimonial_delete' t.pk %}"
+                hx-confirm="¿Eliminar el testimonio de «{{ t.name }}»?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="5" class="empty-cell">
+      No hay testimonios. <a href="{% url 'panel:testimonial_new' %}">Crear el primero</a> o
+      <a href="#" hx-post="{% url 'panel:testimonial_restore_defaults' %}" hx-confirm="¿Restaurar los testimonios a los valores por defecto?">restaurar los de por defecto</a>.
+    </td>
+  </tr>
+{% endfor %}

@@ -1,0 +1,189 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}{% if course %}Editar curso{% else %}Nuevo curso{% endif %}{% endblock %}
+{% block crumb %}Panel · Academia · Cursos{% endblock %}
+{% block heading %}{% if course %}Editar «{{ course.title }}»{% else %}Nuevo curso{% endif %}{% endblock %}
+
+{% block actions %}
+<div class="d-flex gap-2">
+  <a href="{% url 'panel:courses' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Cancelar</a>
+  <button type="submit" form="course-form" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar curso</button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# ---------- Sección 1: datos del curso ---------- #}
+<form method="post" id="course-form" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="form_name" value="course">
+
+  <div class="pnl-card mb-4"><div class="card-pad">
+    <div class="form-section-title"><i class="bi bi-mortarboard"></i> 1. Datos del curso</div>
+    <div class="row">
+      <div class="col-md-7 mb-3">
+        <label class="form-label">{{ form.title.label }}</label>
+        {{ form.title }}
+        {% for e in form.title.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-5 mb-3">
+        <label class="form-label">{{ form.slug.label }}</label>
+        {{ form.slug }}
+        {% for e in form.slug.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">{{ form.description.label }}</label>
+      {{ form.description }}
+    </div>
+    <div class="mb-3">
+      <label class="form-label">{{ form.image_url.label }}</label>
+      {{ form.image_url }}
+    </div>
+    <div class="form-check form-switch">
+      {{ form.is_active }}
+      <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+    </div>
+  </div></div>
+</form>
+
+{# ---------- Sección 2: recursos (solo si el curso ya existe) ---------- #}
+{% if course %}
+  <div class="form-section-title mb-3"><i class="bi bi-collection-play"></i> 2. Recursos del curso</div>
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="pnl-card">
+        <div class="pnl-toolbar">
+          <span class="pnl-hint"><i class="bi bi-grip-vertical"></i> Arrastra para ordenar el paso a paso</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table pnl-table" id="lessons-table" data-reorder-url="{% url 'panel:lessons_reorder' course.pk %}">
+            <thead>
+              <tr>
+                <th class="order-col">Orden</th>
+                <th>Recurso</th>
+                <th>Tipo</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="lessons-tbody">
+              {% include 'panel/partials/lessons_rows.html' %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-plus-circle"></i> Agregar recurso</div>
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="form_name" value="lesson">
+          <div class="mb-3">
+            <label class="form-label">{{ lesson_form.title.label }}</label>
+            {{ lesson_form.title }}
+            {% for e in lesson_form.title.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{{ lesson_form.lesson_type.label }}</label>
+            {{ lesson_form.lesson_type }}
+          </div>
+          <div class="mb-3" id="video-field">
+            <label class="form-label">{{ lesson_form.video_embed_url.label }}</label>
+            {{ lesson_form.video_embed_url }}
+            {% for e in lesson_form.video_embed_url.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3" id="pdf-field">
+            <label class="form-label">{{ lesson_form.pdf_file.label }}</label>
+            {{ lesson_form.pdf_file }}
+            {% for e in lesson_form.pdf_file.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3" id="image-field">
+            <label class="form-label">{{ lesson_form.image_file.label }}</label>
+            {{ lesson_form.image_file }}
+            {% for e in lesson_form.image_file.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{{ lesson_form.description.label }}</label>
+            {{ lesson_form.description }}
+          </div>
+          <button type="submit" class="btn btn-brand w-100"><i class="bi bi-plus-lg me-1"></i> Agregar recurso</button>
+        </form>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="lessonPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span class="pnl-hint mb-0"><i class="bi bi-eye"></i> Vista previa del recurso</span>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" id="lessonPreviewBody"></div>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="pnl-card"><div class="card-pad">
+    <div class="form-section-title text-muted"><i class="bi bi-collection-play"></i> 2. Recursos del curso</div>
+    <p class="cell-sub mb-0"><i class="bi bi-info-circle"></i> Guarda el curso primero para poder agregarle videos, PDFs e imágenes.</p>
+  </div></div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function initCourseFormPage() {
+    {% if not course %}
+      var titleInput = document.getElementById('{{ form.title.id_for_label }}')
+      var slugInput = document.getElementById('{{ form.slug.id_for_label }}')
+      if (titleInput && slugInput && !titleInput.dataset.bound) {
+        titleInput.dataset.bound = '1'
+        var slugTouched = false
+        slugInput.addEventListener('input', function () { slugTouched = true })
+        titleInput.addEventListener('input', function () {
+          if (slugTouched) return
+          slugInput.value = titleInput.value.toLowerCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+        })
+      }
+    {% endif %}
+
+    {% if course %}
+      var typeSelect = document.getElementById('{{ lesson_form.lesson_type.id_for_label }}')
+      if (typeSelect && !typeSelect.dataset.bound) {
+        typeSelect.dataset.bound = '1'
+        var fields = { VIDEO: 'video-field', PDF: 'pdf-field', IMAGE: 'image-field' }
+        function sync() {
+          for (var t in fields) {
+            var el = document.getElementById(fields[t])
+            if (el) el.style.display = (typeSelect.value === t) ? '' : 'none'
+          }
+        }
+        typeSelect.addEventListener('change', sync)
+        sync()
+      }
+
+      var tbody = document.getElementById('lessons-tbody')
+      var table = document.getElementById('lessons-table')
+      if (tbody && table && !tbody.dataset.sortableInit) {
+        tbody.dataset.sortableInit = '1'
+        Sortable.create(tbody, {
+          handle: '.drag-handle', animation: 180, ghostClass: 'drag-ghost', dragClass: 'drag-dragging',
+          onEnd: function () {
+            var ids = Array.from(tbody.querySelectorAll('tr.pnl-drag-row')).map(function (tr) { return tr.dataset.id })
+            if (ids.length === 0) return
+            htmx.ajax('POST', table.dataset.reorderUrl, { source: tbody, target: '#lessons-tbody', swap: 'innerHTML', values: { order: ids } })
+          },
+        })
+      }
+    {% endif %}
+  }
+  document.addEventListener('DOMContentLoaded', initCourseFormPage)
+  document.body.addEventListener('htmx:afterSettle', initCourseFormPage)
+</script>
+{% endblock %}

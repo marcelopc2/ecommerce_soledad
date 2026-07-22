@@ -1,0 +1,213 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Configuración{% endblock %}
+{% block crumb %}Panel · Configuración{% endblock %}
+{% block heading %}Configuración{% endblock %}
+
+{% block actions %}
+<div class="d-flex gap-2">
+  <button type="button" class="btn btn-ghost" id="cfg-restore-btn"
+          hx-post="{% url 'panel:faq_restore_defaults' %}"
+          hx-confirm="¿Restaurar las preguntas frecuentes a los valores por defecto? Se perderán todas las preguntas agregadas y ediciones que hayas hecho. Esta acción no se puede deshacer.">
+    <i class="bi bi-arrow-counterclockwise me-1"></i> <span id="cfg-restore-label">Restaurar por defecto</span>
+  </button>
+  <a href="{% url 'panel:faq_new' %}" class="btn btn-brand" id="cfg-new-btn">
+    <i class="bi bi-plus-lg me-1"></i> <span id="cfg-new-label">Nueva pregunta</span>
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="pnl-card">
+  <ul class="nav nav-tabs pnl-tabs" id="cfgTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link{% if tab == 'faqs' %} active{% endif %}" id="tab-faqs-btn" data-cfg-tab="faqs"
+              type="button" role="tab" aria-controls="tab-faqs" aria-selected="{% if tab == 'faqs' %}true{% else %}false{% endif %}">
+        <i class="bi bi-question-circle-fill me-1"></i> Preguntas Frecuentes
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link{% if tab == 'testimonios' %} active{% endif %}" id="tab-testimonios-btn" data-cfg-tab="testimonios"
+              type="button" role="tab" aria-controls="tab-testimonios" aria-selected="{% if tab == 'testimonios' %}true{% else %}false{% endif %}">
+        <i class="bi bi-chat-quote-fill me-1"></i> Testimonios
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link{% if tab == 'videos' %} active{% endif %}" id="tab-videos-btn" data-cfg-tab="videos"
+              type="button" role="tab" aria-controls="tab-videos" aria-selected="{% if tab == 'videos' %}true{% else %}false{% endif %}">
+        <i class="bi bi-play-btn-fill me-1"></i> Videos de la portada
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link{% if tab == 'pasos' %} active{% endif %}" id="tab-pasos-btn" data-cfg-tab="pasos"
+              type="button" role="tab" aria-controls="tab-pasos" aria-selected="{% if tab == 'pasos' %}true{% else %}false{% endif %}">
+        <i class="bi bi-signpost-2-fill me-1"></i> Cómo funciona
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content pt-3">
+    <div class="tab-pane fade{% if tab == 'faqs' %} show active{% endif %}" id="tab-faqs" role="tabpanel">
+      <div class="pnl-toolbar">
+        <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son las preguntas de la sección "Preguntas Frecuentes" de la landing. Las que estén ocultas no se muestran a los visitantes.</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <thead>
+            <tr>
+              <th>Pregunta</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="faqs-tbody">
+            {% include 'panel/partials/faqs_rows.html' %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-pane fade{% if tab == 'testimonios' %} show active{% endif %}" id="tab-testimonios" role="tabpanel">
+      <div class="pnl-toolbar">
+        <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son las tarjetas de la sección "Testimonios" de la landing. Los que estén ocultos no se muestran a los visitantes.</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Testimonio</th>
+              <th>Estrellas</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="testimonials-tbody">
+            {% include 'panel/partials/testimonials_rows.html' %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-pane fade{% if tab == 'videos' %} show active{% endif %}" id="tab-videos" role="tabpanel">
+      <div class="pnl-toolbar">
+        <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son los videos de la sección "Sobre el Mundo Ingenio Blocks" de la landing. Al hacer clic en una tarjeta se abre el video de YouTube.</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <thead>
+            <tr>
+              <th>Portada</th>
+              <th>Video</th>
+              <th>YouTube</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="videos-tbody">
+            {% include 'panel/partials/videos_rows.html' %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-pane fade{% if tab == 'pasos' %} show active{% endif %}" id="tab-pasos" role="tabpanel">
+      <div class="pnl-toolbar">
+        <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son los pasos de la sección "Cómo funciona" de la landing. El número (01, 02, 03…) se asigna solo según el orden.</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <thead>
+            <tr>
+              <th>N°</th>
+              <th>Foto</th>
+              <th>Paso</th>
+              <th>Estilo</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="steps-tbody">
+            {% include 'panel/partials/steps_rows.html' %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% comment %}
+  Las acciones "Nueva pregunta"/"Restaurar por defecto" del topbar cambian
+  según la pestaña activa (preguntas vs testimonios), y las pestañas activas
+  y sus botones se sincronizan sin recargar la página, guardando la pestaña
+  en la URL (?tab=) para que sobreviva a un refresh o a un redirect de vuelta
+  desde el formulario de crear/editar.
+{% endcomment %}
+<script>
+  (function () {
+    var CFG = {
+      faqs: {
+        newUrl: "{% url 'panel:faq_new' %}",
+        newLabel: 'Nueva pregunta',
+        restoreUrl: "{% url 'panel:faq_restore_defaults' %}",
+        restoreLabel: 'Restaurar por defecto',
+        restoreConfirm: '¿Restaurar las preguntas frecuentes a los valores por defecto? Se perderán todas las preguntas agregadas y ediciones que hayas hecho. Esta acción no se puede deshacer.',
+      },
+      testimonios: {
+        newUrl: "{% url 'panel:testimonial_new' %}",
+        newLabel: 'Nuevo testimonio',
+        restoreUrl: "{% url 'panel:testimonial_restore_defaults' %}",
+        restoreLabel: 'Restaurar por defecto',
+        restoreConfirm: '¿Restaurar los testimonios a los valores por defecto? Se perderán todos los testimonios agregados y ediciones que hayas hecho. Esta acción no se puede deshacer.',
+      },
+      videos: {
+        newUrl: "{% url 'panel:video_new' %}",
+        newLabel: 'Nuevo video',
+        restoreUrl: "{% url 'panel:video_restore_defaults' %}",
+        restoreLabel: 'Restaurar por defecto',
+        restoreConfirm: '¿Restaurar los videos a los valores por defecto? Se perderán los videos agregados y las ediciones que hayas hecho, y las PORTADAS habrá que volver a subirlas. Esta acción no se puede deshacer.',
+      },
+      pasos: {
+        newUrl: "{% url 'panel:step_new' %}",
+        newLabel: 'Nuevo paso',
+        restoreUrl: "{% url 'panel:step_restore_defaults' %}",
+        restoreLabel: 'Restaurar por defecto',
+        restoreConfirm: '¿Restaurar los pasos a los valores por defecto? Se perderán los pasos agregados y las ediciones que hayas hecho, y las FOTOS habrá que volver a subirlas. Esta acción no se puede deshacer.',
+      },
+    }
+
+    function activate(tabName) {
+      document.querySelectorAll('#cfgTabs .nav-link').forEach(function (btn) {
+        var isActive = btn.dataset.cfgTab === tabName
+        btn.classList.toggle('active', isActive)
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false')
+      })
+      document.querySelectorAll('.tab-content .tab-pane').forEach(function (pane) {
+        pane.classList.toggle('show', pane.id === 'tab-' + tabName)
+        pane.classList.toggle('active', pane.id === 'tab-' + tabName)
+      })
+      var cfg = CFG[tabName]
+      var newBtn = document.getElementById('cfg-new-btn')
+      var restoreBtn = document.getElementById('cfg-restore-btn')
+      newBtn.setAttribute('href', cfg.newUrl)
+      document.getElementById('cfg-new-label').textContent = cfg.newLabel
+      restoreBtn.setAttribute('hx-post', cfg.restoreUrl)
+      restoreBtn.setAttribute('hx-confirm', cfg.restoreConfirm)
+      document.getElementById('cfg-restore-label').textContent = cfg.restoreLabel
+      if (window.htmx) htmx.process(restoreBtn)
+
+      var url = new URL(window.location)
+      url.searchParams.set('tab', tabName)
+      window.history.replaceState({}, '', url)
+    }
+
+    document.querySelectorAll('#cfgTabs .nav-link').forEach(function (btn) {
+      btn.addEventListener('click', function () { activate(btn.dataset.cfgTab) })
+    })
+
+    activate('{{ tab }}')
+  })()
+</script>
+{% endblock %}

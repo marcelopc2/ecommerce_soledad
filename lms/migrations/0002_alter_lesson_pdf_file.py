@@ -2,8 +2,8 @@
 
 import django.core.files.storage
 import django.core.validators
-import pathlib
 from django.db import migrations, models
+import lms.models
 
 
 class Migration(migrations.Migration):
@@ -16,6 +16,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='lesson',
             name='pdf_file',
-            field=models.FileField(blank=True, help_text='PDF protegido. Solo para lecciones de tipo PDF.', null=True, storage=django.core.files.storage.FileSystemStorage(location=pathlib.PureWindowsPath('C:/Users/MarceloYoga/Desktop/Proyectos/ecommerce/protected_media')), upload_to='lessons/', validators=[django.core.validators.FileExtensionValidator(allowed_extensions=['pdf'])]),
+            field=models.FileField(blank=True, help_text='PDF protegido. Solo para lecciones de tipo PDF.', null=True, storage=lms.models.protected_storage, upload_to='lessons/', validators=[django.core.validators.FileExtensionValidator(allowed_extensions=['pdf'])]),
         ),
     ]

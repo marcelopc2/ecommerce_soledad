@@ -1,0 +1,29 @@
+{% for f in faqs %}
+  <tr>
+    <td>
+      <div class="cell-title">{{ f.question }}</div>
+      <div class="cell-sub text-truncate" style="max-width:520px">{{ f.answer }}</div>
+    </td>
+    <td>
+      {% if f.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculta</span>{% endif %}
+    </td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <a href="{% url 'panel:faq_edit' f.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:faq_delete' f.pk %}"
+                hx-confirm="¿Eliminar la pregunta «{{ f.question }}»?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="3" class="empty-cell">
+      No hay preguntas frecuentes. <a href="{% url 'panel:faq_new' %}">Crear la primera</a> o
+      <a href="#" hx-post="{% url 'panel:faq_restore_defaults' %}" hx-confirm="¿Restaurar las preguntas frecuentes a los valores por defecto?">restaurar las de por defecto</a>.
+    </td>
+  </tr>
+{% endfor %}

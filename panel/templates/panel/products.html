@@ -1,0 +1,82 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Productos{% endblock %}
+{% block crumb %}Panel · Tienda{% endblock %}
+{% block heading %}Productos{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:product_new' %}" class="btn btn-brand"><i class="bi bi-plus-lg me-1"></i> Nuevo producto</a>
+{% endblock %}
+
+{% block content %}
+<div class="pnl-card">
+  <div class="pnl-toolbar">
+    <div class="pnl-search">
+      <i class="bi bi-search"></i>
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre o slug…"
+             autocomplete="off"
+             hx-get="{% url 'panel:products' %}"
+             hx-trigger="input changed delay:300ms, search"
+             hx-target="#products-tbody"
+             hx-swap="innerHTML"
+             hx-indicator="#products-spin">
+      <span id="products-spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
+    </div>
+    <span class="pnl-hint"><i class="bi bi-grip-vertical"></i> Arrastra para elegir cuáles 4 kits se muestran en la portada</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table pnl-table" id="products-reorder-url" data-reorder-url="{% url 'panel:products_reorder' %}">
+      <thead>
+        <tr>
+          <th class="order-col">Orden</th>
+          <th>Producto</th>
+          <th class="text-end">Precio</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="products-tbody">
+        {% include 'panel/partials/products_rows.html' %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function initProductsSortable() {
+    var tbody = document.getElementById('products-tbody')
+    var table = document.getElementById('products-reorder-url')
+    if (!tbody || !table || tbody.dataset.sortableInit) return
+    tbody.dataset.sortableInit = '1'
+
+    Sortable.create(tbody, {
+      handle: '.drag-handle',
+      animation: 180,
+      ghostClass: 'drag-ghost',
+      dragClass: 'drag-dragging',
+      // Los productos de la portada solo pueden reordenarse entre sí (van agrupados
+      // arriba de la tabla): no se pueden soltar sobre un producto que no está en la portada.
+      onMove: function (evt) {
+        return evt.related.classList.contains('pnl-drag-row')
+      },
+      onEnd: function () {
+        var ids = Array.from(tbody.querySelectorAll('tr.pnl-drag-row')).map(function (tr) { return tr.dataset.id })
+        if (ids.length === 0) return
+        htmx.ajax('POST', table.dataset.reorderUrl, {
+          source: tbody,
+          target: '#products-tbody',
+          swap: 'innerHTML',
+          values: { order: ids },
+        })
+      },
+    })
+  }
+
+  // Cubre carga inicial y también cuando se vuelve a esta página vía hx-boost.
+  document.addEventListener('DOMContentLoaded', initProductsSortable)
+  document.body.addEventListener('htmx:afterSettle', initProductsSortable)
+</script>
+{% endblock %}

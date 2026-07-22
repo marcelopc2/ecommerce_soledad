@@ -1,0 +1,16 @@
+Restablece tu contraseña
+
+Recibimos una solicitud para cambiar la contraseña de tu cuenta.
+Crea una nueva aquí:
+
+{{ link }}
+
+El enlace es de un solo uso y expira. Si no funciona, vuelve a pedirlo
+desde la página de ingreso.
+
+¿No fuiste tú? Ignora este correo: tu contraseña actual sigue funcionando
+y nadie puede cambiarla sin este enlace.
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

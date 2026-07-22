@@ -1,0 +1,43 @@
+{% for l in lessons %}
+  <tr class="pnl-drag-row" data-id="{{ l.id }}">
+    <td class="order-cell">
+      <div class="order-cell-inner">
+        <span class="drag-handle" title="Arrastrar"><i class="bi bi-grip-vertical"></i></span>
+        <span class="drag-pos">{{ forloop.counter }}</span>
+      </div>
+    </td>
+    <td>
+      <div class="cell-title">{{ l.title }}</div>
+      {% if l.description %}<div class="cell-sub text-truncate" style="max-width:360px">{{ l.description }}</div>{% endif %}
+    </td>
+    <td>
+      {% if l.lesson_type == 'VIDEO' %}
+        <span class="badge-soft purple"><i class="bi bi-play-circle"></i> Video</span>
+      {% elif l.lesson_type == 'PDF' %}
+        <span class="badge-soft teal"><i class="bi bi-file-earmark-pdf"></i> PDF</span>
+      {% else %}
+        <span class="badge-soft yellow"><i class="bi bi-image"></i> Imagen</span>
+      {% endif %}
+    </td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <button class="btn-icon" title="Vista previa"
+                hx-get="{% url 'panel:lesson_preview' l.pk %}"
+                hx-target="#lessonPreviewBody" hx-swap="innerHTML"
+                data-bs-toggle="modal" data-bs-target="#lessonPreviewModal">
+          <i class="bi bi-eye"></i>
+        </button>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:lesson_delete' l.pk %}"
+                hx-confirm="¿Eliminar el recurso «{{ l.title }}»?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="4" class="empty-cell">Este curso aún no tiene recursos. Agrega el primero con el formulario de al lado.</td>
+  </tr>
+{% endfor %}

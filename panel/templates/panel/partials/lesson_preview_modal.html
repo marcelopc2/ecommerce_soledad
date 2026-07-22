@@ -1,0 +1,33 @@
+<div class="lpv-header">
+  {% if lesson.lesson_type == 'VIDEO' %}
+    <span class="badge-soft purple"><i class="bi bi-play-circle"></i> Video</span>
+  {% elif lesson.lesson_type == 'PDF' %}
+    <span class="badge-soft teal"><i class="bi bi-file-earmark-pdf"></i> PDF</span>
+  {% else %}
+    <span class="badge-soft yellow"><i class="bi bi-image"></i> Imagen</span>
+  {% endif %}
+  <h5 class="mt-2 mb-1">{{ lesson.title }}</h5>
+  {% if lesson.description %}<p class="cell-sub mb-0">{{ lesson.description }}</p>{% endif %}
+</div>
+
+<div class="lpv-body">
+  {% if lesson.lesson_type == 'VIDEO' %}
+    {% if lesson.video_embed_url %}
+      <div class="lpv-video"><iframe src="{{ lesson.video_embed_url }}" allowfullscreen allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+    {% else %}
+      <p class="cell-sub"><i class="bi bi-info-circle"></i> Este recurso no tiene URL de video configurada.</p>
+    {% endif %}
+  {% elif lesson.lesson_type == 'IMAGE' %}
+    {% if lesson.image_file %}
+      <img src="{% url 'panel:lesson_preview_image' lesson.pk %}" class="lpv-image" alt="{{ lesson.title }}">
+    {% else %}
+      <p class="cell-sub"><i class="bi bi-info-circle"></i> Este recurso no tiene imagen cargada.</p>
+    {% endif %}
+  {% elif lesson.lesson_type == 'PDF' %}
+    {% if lesson.pdf_file %}
+      <iframe src="{% url 'panel:lesson_preview_pdf' lesson.pk %}" class="lpv-pdf"></iframe>
+    {% else %}
+      <p class="cell-sub"><i class="bi bi-info-circle"></i> Este recurso no tiene PDF cargado.</p>
+    {% endif %}
+  {% endif %}
+</div>

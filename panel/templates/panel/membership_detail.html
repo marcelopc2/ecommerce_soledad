@@ -1,0 +1,15 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}{{ m.student_name|default:m.user.email }}{% endblock %}
+{% block crumb %}Panel · Academia · Membresías{% endblock %}
+{% block heading %}{{ m.student_name|default:"Alumno sin nombre" }}{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:memberships' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+{% endblock %}
+
+{% block content %}
+<div id="mdetail-content">
+  {% include 'panel/partials/membership_detail_body.html' %}
+</div>
+{% endblock %}

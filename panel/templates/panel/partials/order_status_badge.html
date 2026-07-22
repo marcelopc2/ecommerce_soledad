@@ -1,0 +1,7 @@
+{% if o.status == 'PAID' %}
+  <span class="badge-soft green"><i class="bi bi-check-circle"></i> Pagado</span>
+{% elif o.status == 'PENDING' %}
+  <span class="badge-soft yellow"><i class="bi bi-hourglass-split"></i> Pendiente</span>
+{% else %}
+  <span class="badge-soft red"><i class="bi bi-x-circle"></i> Fallido</span>
+{% endif %}

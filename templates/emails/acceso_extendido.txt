@@ -1,0 +1,13 @@
+¡Gracias por tu compra, {{ nombre }}!
+
+Extendimos tu acceso al Aula Virtual. Entra con la cuenta de siempre:
+no tienes que crear nada nuevo.
+
+{{ vigencia_texto }}
+
+Ir a mis cursos:
+{{ link }}
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

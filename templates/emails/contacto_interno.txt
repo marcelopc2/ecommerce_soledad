@@ -1,0 +1,11 @@
+Nuevo mensaje desde la web
+
+Nombre:   {{ nombre }}
+Email:    {{ email }}
+Teléfono: {{ telefono|default:"—" }}
+
+Mensaje:
+{{ comentarios|default:"(sin comentarios)" }}
+
+--
+Puedes responder directamente a este correo: la respuesta le llega a {{ nombre }}.

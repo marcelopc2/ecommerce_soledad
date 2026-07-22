@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { PANEL_URL } from '../api'
 
 export default function Header() {
   const { user, logout } = useAuth()
@@ -17,7 +18,7 @@ export default function Header() {
           {user ? (
             <>
               <Link to="/mis-cursos" className="nav-link">Mis cursos</Link>
-              {user.is_staff && <Link to="/panel" className="nav-link nav-panel">Panel</Link>}
+              {user.is_staff && <a href={PANEL_URL} className="nav-link nav-panel">Panel</a>}
               <span className="nav-user">{user.email}</span>
               <button className="nav-logout" onClick={handleLogout}>Salir</button>
             </>

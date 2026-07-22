@@ -1,0 +1,57 @@
+{% extends 'emails/base.html' %}
+
+{% block asunto %}Confirmación de tu compra{% endblock %}
+{% block preheader %}Recibimos tu pago. Este es el detalle de tu pedido.{% endblock %}
+{% block titulo %}¡Pago confirmado!{% endblock %}
+
+{% block contenido %}
+  {% include 'emails/_p.html' with texto="Recibimos tu pago correctamente. Este es el detalle de tu pedido:" %}
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="margin:20px 0; border:1px solid #ece5f4; border-radius:10px; border-collapse:separate; overflow:hidden;">
+    <tr>
+      <td bgcolor="#faf8fc" colspan="2" style="background-color:#faf8fc; padding:12px 18px; border-bottom:1px solid #ece5f4;">
+        <span style="font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#8a8095; letter-spacing:1px; text-transform:uppercase;">
+          Pedido {{ numero_pedido }}
+        </span>
+      </td>
+    </tr>
+    {% for item in productos %}
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">
+        {{ item.nombre }}
+      </td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7; white-space:nowrap;">
+        {{ item.precio }}
+      </td>
+    </tr>
+    {% endfor %}
+    {% if envio_costo %}
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#8a8095; border-bottom:1px solid #f4f1f7;">
+        Envío{% if envio_courier %} ({{ envio_courier }}){% endif %}
+      </td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#8a8095; border-bottom:1px solid #f4f1f7; white-space:nowrap;">
+        {{ envio_costo }}
+      </td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td bgcolor="#f8f4fe" style="background-color:#f8f4fe; padding:14px 18px; font-family:Arial,Helvetica,sans-serif; font-size:15px; font-weight:bold; color:#2f0053;">
+        Total
+      </td>
+      <td bgcolor="#f8f4fe" align="right" style="background-color:#f8f4fe; padding:14px 18px; font-family:Arial,Helvetica,sans-serif; font-size:18px; font-weight:bold; color:#2f0053; white-space:nowrap;">
+        {{ total }}
+      </td>
+    </tr>
+  </table>
+
+  {% if tiene_envio %}
+    {% include 'emails/_p.html' with texto="Te avisaremos por correo apenas despachemos tu kit, con el número de seguimiento." %}
+  {% endif %}
+  {% if tiene_acceso %}
+    {% include 'emails/_p.html' with texto="Tu acceso al Aula Virtual ya quedó activo. Si es tu primera compra, recibirás otro correo para definir tu contraseña." %}
+  {% endif %}
+
+  {% include 'emails/_boton.html' with url=link texto="Ir a mis cursos" %}
+{% endblock %}

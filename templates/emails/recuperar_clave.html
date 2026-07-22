@@ -1,0 +1,27 @@
+{% extends 'emails/base.html' %}
+
+{% block asunto %}Restablece tu contraseña{% endblock %}
+{% block preheader %}Enlace de un solo uso para crear una contraseña nueva.{% endblock %}
+{% block titulo %}Restablece tu contraseña{% endblock %}
+
+{% block contenido %}
+  {% include 'emails/_p.html' with texto="Recibimos una solicitud para cambiar la contraseña de tu cuenta. Crea una nueva desde el botón:" %}
+
+  {% include 'emails/_boton.html' with url=link texto="Crear contraseña nueva" %}
+
+  <p style="margin:16px 0 14px; font-family:Arial,Helvetica,sans-serif; font-size:13px; line-height:1.7; color:#8a8095;">
+    El enlace es de un solo uso y expira. Si no funciona, vuelve a pedirlo desde
+    la página de ingreso.
+  </p>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 0;">
+    <tr>
+      <td bgcolor="#fdf6ec" style="background-color:#fdf6ec; border-left:4px solid #ff6101; border-radius:8px; padding:14px 18px;">
+        <p style="margin:0; font-family:Arial,Helvetica,sans-serif; font-size:14px; line-height:1.6; color:#7a4a12;">
+          <strong>¿No fuiste tú?</strong> Ignora este correo: tu contraseña actual
+          sigue funcionando y nadie puede cambiarla sin este enlace.
+        </p>
+      </td>
+    </tr>
+  </table>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'emails/base.html' %}
+
+{% block asunto %}¡Tu kit va en camino!{% endblock %}
+{% block preheader %}Despachamos tu pedido. Acá va el seguimiento.{% endblock %}
+{% block titulo %}¡Tu kit va en camino, {{ nombre }}!{% endblock %}
+
+{% block contenido %}
+  {% include 'emails/_p.html' with texto="Despachamos tu pedido. Puedes seguirlo con estos datos:" %}
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="margin:20px 0; border:1px solid #ece5f4; border-radius:10px; border-collapse:separate;">
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Courier</td>
+      <td align="right" style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:bold; color:#2f0053; border-bottom:1px solid #f4f1f7;">{{ courier }}</td>
+    </tr>
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Seguimiento</td>
+      <td align="right" style="padding:13px 18px; font-family:'Courier New',monospace; font-size:14px; font-weight:bold; color:#2f0053; border-bottom:1px solid #f4f1f7;">{{ tracking }}</td>
+    </tr>
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095;">Destino</td>
+      <td align="right" style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158;">{{ destino }}</td>
+    </tr>
+  </table>
+
+  {% if tracking_url %}
+    {% include 'emails/_boton.html' with url=tracking_url texto="Seguir mi envío" %}
+  {% endif %}
+
+  {% if estimado %}
+    {% include 'emails/_p.html' with texto=estimado %}
+  {% endif %}
+
+  {% include 'emails/_p.html' with texto="Mientras llega, recuerda que tu Aula Virtual ya está disponible: puedes ir mirando el primer modelo." %}
+{% endblock %}

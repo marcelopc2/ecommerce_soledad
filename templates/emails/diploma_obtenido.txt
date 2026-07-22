@@ -1,0 +1,14 @@
+¡Felicitaciones, {{ nombre }}!
+
+Completaste la etapa y te ganaste un diploma. ¡Buen trabajo!
+
+  *** {{ diploma_titulo }} ***
+{% if fecha %}  Obtenido el {{ fecha }}
+{% endif %}
+Ver mi diploma: {{ link }}
+
+Puedes descargarlo o imprimirlo cuando quieras desde tu Aula Virtual.
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

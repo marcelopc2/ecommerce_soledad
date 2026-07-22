@@ -38,7 +38,13 @@ class QuoteShippingView(APIView):
             return Response({'error': 'Falta la comuna de destino'}, status=status.HTTP_400_BAD_REQUEST)
 
         package = build_package_from_products(products)
-        quotes = get_shipping_quotes(commune_name=commune_name, commune_id=commune_id, package=package)
+        # Valor declarado para el seguro de Shipit: el precio real que se cobra
+        # (con oferta si corresponde), no el de lista.
+        checkout_price = int(sum(p.effective_price for p in products))
+        quotes = get_shipping_quotes(
+            commune_name=commune_name, commune_id=commune_id,
+            package=package, checkout_price=checkout_price,
+        )
 
         return Response({
             'shipping_required': True,

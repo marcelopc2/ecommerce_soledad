@@ -1,0 +1,47 @@
+{% for v in videos %}
+  <tr>
+    <td style="width:132px">
+      {% if v.cover %}
+        <img src="{{ v.cover.url }}" alt="{{ v.title }}"
+             style="width:116px;height:66px;object-fit:cover;border-radius:8px;display:block">
+      {% else %}
+        <span class="badge-soft gray">Sin portada</span>
+      {% endif %}
+    </td>
+    <td>
+      <div class="cell-title">{{ v.title }}</div>
+      <div class="cell-sub text-truncate" style="max-width:420px">{{ v.description }}</div>
+    </td>
+    <td>
+      {% if v.youtube_id %}
+        <a href="https://www.youtube.com/watch?v={{ v.youtube_id }}" target="_blank" rel="noreferrer"
+           class="cell-sub" title="Abrir en YouTube">
+          <i class="bi bi-youtube text-danger"></i> {{ v.youtube_id }}
+        </a>
+      {% else %}
+        <span class="badge-soft gray">Link inválido</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if v.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculto</span>{% endif %}
+    </td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <a href="{% url 'panel:video_edit' v.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:video_delete' v.pk %}"
+                hx-confirm="¿Eliminar el video «{{ v.title }}»?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="5" class="empty-cell">
+      No hay videos. <a href="{% url 'panel:video_new' %}">Agregar el primero</a> o
+      <a href="#" hx-post="{% url 'panel:video_restore_defaults' %}" hx-confirm="¿Restaurar los videos a los valores por defecto? Las portadas hay que volver a subirlas.">restaurar los de por defecto</a>.
+    </td>
+  </tr>
+{% endfor %}

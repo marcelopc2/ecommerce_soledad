@@ -1,0 +1,35 @@
+{% for row in rows %}
+  {% with m=row.m %}
+  <tr>
+    <td>
+      <div class="cell-title">{{ m.student_name|default:"(sin nombre)" }}</div>
+      <div class="cell-sub">{{ m.user.email }}</div>
+    </td>
+    <td class="cell-sub">{{ m.parent_name|default:"—" }}</td>
+    <td class="cell-sub">{{ m.created_at|date:'d M Y' }}</td>
+    <td class="cell-sub">{{ m.expires_at|date:'d M Y' }}</td>
+    <td>
+      <div class="mprogress-wrap" title="{% if row.current_course %}Curso actual: {{ row.current_course.title }}{% else %}Sin cursos pendientes{% endif %}">
+        <div class="mprogress"><div class="mprogress-bar" style="width: {{ row.pct }}%"></div></div>
+        <span class="mprogress-label">{{ row.completed }}/{{ row.total }}</span>
+      </div>
+    </td>
+    <td>{% include 'panel/partials/membership_status_badge.html' with m=m %}</td>
+    <td class="text-end">
+      <a href="{% url 'panel:membership_detail' m.pk %}" class="btn-icon" title="Ver detalle">
+        <i class="bi bi-eye"></i>
+      </a>
+    </td>
+  </tr>
+  {% endwith %}
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="7" class="empty-cell">
+      {% if q %}
+        <i class="bi bi-search"></i> Sin resultados para «{{ q }}».
+      {% else %}
+        Aún no hay membresías. Se crean automáticamente cuando un cliente compra un producto con cursos.
+      {% endif %}
+    </td>
+  </tr>
+{% endfor %}

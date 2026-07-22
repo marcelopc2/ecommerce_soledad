@@ -1,0 +1,16 @@
+¡Nuevo modelo desbloqueado!
+
+{{ saludo }}
+
+  Modelo {{ numero }}
+  {{ curso_titulo }}
+{% if curso_descripcion %}
+{{ curso_descripcion }}
+{% endif %}
+Construir este modelo: {{ link }}
+
+Recuerda: para que se libere el siguiente, primero hay que completar este.
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

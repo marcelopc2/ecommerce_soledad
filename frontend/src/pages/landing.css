@@ -44,6 +44,27 @@
 
 .lp section { position: relative; }
 
+/* aire al llegar a una sección vía ancla del navbar (que no corte el título) */
+.lp section[id] { scroll-margin-top: 44px; }
+
+/* ---------- Reveal al hacer scroll ---------- */
+/* Los bloques entran con un fade + leve desplazamiento hacia arriba. El estado
+   oculto solo se aplica si el usuario no pidió menos movimiento. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp .lp-reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition:
+      opacity 0.7s ease,
+      transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+    will-change: opacity, transform;
+  }
+  .lp .lp-reveal.lp-in {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ---------- Piezas comunes ---------- */
 
 .lp .lp-h2 {
@@ -115,6 +136,36 @@
 .lp .lp-btn-yellow:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 16px -4px rgba(0, 0, 0, 0.25);
+}
+.lp .lp-btn-yellow:disabled {
+  background: #d8d3df;
+  color: #7d7488;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.lp .lp-btn-yellow:disabled:hover { transform: none; box-shadow: none; }
+
+/* Efecto compartido de los CTA (banner "comprar ahora" y "cómo empezar a
+   construir"): despegue + pequeño "pop" de escala, fade morado al hacer hover
+   y un morado más oscuro al presionar, para feedback satisfactorio. */
+.lp .lp-btn-cta {
+  transition: transform 0.15s, box-shadow 0.15s, background-color 0.12s ease, color 0.12s ease;
+}
+.lp .lp-btn-cta:hover {
+  background: var(--lp-purple);
+  color: #fff;
+  transform: translateY(-2px) scale(1.03); /* despegue + pop */
+}
+.lp .lp-btn-cta:active {
+  background: var(--lp-purple-dark);
+  color: #fff;
+  transform: translateY(0) scale(0.97); /* se hunde al presionar */
+}
+.lp .lp-btn-cta:disabled:hover,
+.lp .lp-btn-cta:disabled:active {
+  background: #d8d3df;
+  color: #7d7488;
+  transform: none;
 }
 
 .lp .lp-purple-text { color: var(--lp-accent); }
@@ -200,7 +251,9 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(243deg, #2f0053 15%, #590599 68%);
+  /* oscuro arriba-izquierda (detrás del logo, para que no se pierda) →
+     claro abajo-derecha. 135deg = diagonal hacia abajo-derecha. */
+  background: linear-gradient(135deg, #2f0053 15%, #590599 68%);
   clip-path: polygon(0 0, 100% 0, 100% 86%, 0 100%);
 }
 .lp-hero-grid {
@@ -256,31 +309,6 @@
   /* la mesa blanca de la foto cae sobre la sección blanca de abajo */
   margin-bottom: -17%;
 }
-.lp-sticker {
-  position: absolute;
-  top: 6%;
-  left: -4%;
-  width: 150px;
-  height: 150px;
-  transform: rotate(-12deg);
-}
-.lp-sticker svg { position: absolute; inset: 0; }
-.lp-sticker span {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  box-sizing: border-box;
-  padding: 38px 34px;
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1.35;
-  color: var(--lp-purple-dark);
-}
-.lp-sticker em { font-style: normal; }
-
 /* ---------- Cómo funciona ---------- */
 
 .lp-como {
@@ -301,20 +329,23 @@
 .lp-paso-foto {
   position: relative;
   width: 96%;
-  margin: 0 auto 56px;
+  margin: 0 auto 84px;
 }
 .lp-paso-foto::before {
   /* el cuadro de color es apenas más grande que la foto:
-     asoma sobre todo en las esquinas por la rotación */
+     asoma sobre todo en las esquinas por la rotación.
+     --tilt-deg es la inclinación base (distinta por tarjeta, abajo);
+     el wobble en loop oscila alrededor de ese valor. */
+  --tilt-deg: -3.4deg;
   content: '';
   position: absolute;
   inset: -6px -4px;
   background: var(--tilt-color);
   border-radius: 18px;
-  transform: rotate(-3.4deg);
+  transform: rotate(var(--tilt-deg));
 }
-.lp-paso:nth-child(2) .lp-paso-foto::before { transform: rotate(2.8deg); }
-.lp-paso:nth-child(3) .lp-paso-foto::before { transform: rotate(-2.6deg); }
+.lp-paso:nth-child(2) .lp-paso-foto::before { --tilt-deg: 2.8deg; }
+.lp-paso:nth-child(3) .lp-paso-foto::before { --tilt-deg: -2.6deg; }
 .lp-paso-foto img {
   /* la foto va derecha; lo rotado es solo el cuadro de color de atrás */
   position: relative;
@@ -324,6 +355,35 @@
   border-radius: 16px;
   display: block;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Movimiento sutil en loop: la foto flota, el cuadro de atrás bambolea a un
+   ritmo levemente distinto (parallax discreto). Delays negativos para que
+   ninguna tarjeta empiece sincronizada con las demás. Respeta reduced-motion:
+   sin la media query, todo queda quieto en su posición base. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-paso-foto img { animation: lp-photo-float 4.5s ease-in-out infinite; }
+  .lp-paso:nth-child(1) .lp-paso-foto img { animation-delay: -0.6s; }
+  .lp-paso:nth-child(2) .lp-paso-foto img { animation-delay: -2.1s; }
+  .lp-paso:nth-child(3) .lp-paso-foto img { animation-delay: -3.4s; }
+
+  .lp-paso-foto::before { animation: lp-tilt-wobble 6.5s ease-in-out infinite; }
+  .lp-paso:nth-child(1) .lp-paso-foto::before { animation-delay: -1.2s; }
+  .lp-paso:nth-child(2) .lp-paso-foto::before { animation-delay: -3.4s; }
+  .lp-paso:nth-child(3) .lp-paso-foto::before { animation-delay: -5.2s; }
+}
+/* la foto casi no se mueve: apenas una escala mínima para que no quede estática
+   (el que se mueve de verdad es el cuadro de color de atrás). */
+@keyframes lp-photo-float {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
+/* Vaivén protagonista: gira de un lado a otro (±6°) alrededor de la inclinación
+   base de cada tarjeta, con una leve respiración de escala para que asome más
+   por detrás de la foto. Es el elemento que más se mueve del paso. */
+@keyframes lp-tilt-wobble {
+  0%, 100% { transform: rotate(calc(var(--tilt-deg) - 6deg)) scale(1); }
+  50% { transform: rotate(calc(var(--tilt-deg) + 6deg)) scale(1.03); }
 }
 .lp-paso-body { position: relative; }
 .lp-paso-num {
@@ -349,7 +409,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  margin-bottom: 12px;
+  margin-bottom: 18px;
   color: #fff;
 }
 .lp-paso-body h3 {
@@ -359,7 +419,7 @@
   font-weight: 700;
   font-size: 24px;
   color: var(--lp-ink);
-  margin: 0 0 16px;
+  margin: 0 0 12px;
 }
 .lp-paso-body p {
   position: relative;
@@ -377,17 +437,41 @@
 }
 .lp-paso-arrow svg { width: min(66px, 3.4vw); height: auto; }
 
-.lp-btn-play svg { color: #2f0053; }
+/* Flechas: al "activarse" en secuencia (1º chevron, luego el 2º) se encienden a
+   morado de marca — no solo cambian de opacidad — para que el flujo 1→2→3 se note
+   mucho más. El color CSS gana sobre el stroke gris puesto en el SVG. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-chevron { animation: lp-chevron-flow 1.7s ease-in-out infinite; }
+  .lp-chevron-2 { animation-delay: 0.28s; }
+}
+@keyframes lp-chevron-flow {
+  0%, 100% { opacity: 0.28; stroke: #cfd4dd; }
+  35%, 55% { opacity: 1; stroke: #8200db; }
+}
+
+.lp-btn-play svg { color: #2f0053; transition: color 0.1s ease; }
+.lp-btn-play:hover svg,
+.lp-btn-play:active svg { color: #fff; }
 
 /* ---------- Beneficios ---------- */
 
 .lp-beneficios {
+  /* mismas 3 columnas que "cómo funciona" (.lp-pasos): el texto ocupa 1,
+     la caja amarilla ocupa las otras 2, así quedan alineadas verticalmente. */
   display: grid;
-  grid-template-columns: minmax(300px, 459px) minmax(0, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 32px;
   width: var(--lp-content);
   margin: 0 auto;
   padding: 100px 0;
+}
+.lp-beneficios-box {
+  grid-column: span 2;
+  /* por defecto un grid item se estira (align-items:stretch) a la altura de
+     la fila, que puede terminar definida por la columna de texto en vez de
+     por el propio contenido de la caja. Con start, la caja mide exactamente
+     su contenido + padding, sin depender de qué tan alto sea el texto. */
+  align-self: start;
 }
 .lp-beneficios-col .lp-chip { margin-bottom: 4px; }
 .lp-beneficios-col .lp-h2 { text-align: left; }
@@ -433,14 +517,75 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 30px;
 }
-.lp-video-card {
+/* prefijo .lp para ganarle en especificidad (y por orden de fuente) a las
+   reglas del reveal (.lp .lp-reveal), que si no gobiernan el transform/transition
+   y harían el hover lento en vez del "pop". */
+.lp .lp-video-card {
+  /* reset del <button> (la tarjeta ahora es clickeable). Dos bugs distintos
+     causaban las fotos descuadradas:
+     1) un <button>, a diferencia de un div/article, tiene un ancho mínimo
+        intrínseco basado en su contenido dentro de un grid (min-width:auto
+        por defecto en controles de formulario). Con títulos de largo
+        distinto, cada tarjeta terminaba con un ancho de columna ligeramente
+        distinto en vez de las tres 1fr exactamente iguales, y como la foto
+        depende de ese ancho para su alto (aspect-ratio), quedaban
+        descuadradas entre sí. min-width:0 fuerza a que sí respete el 1fr.
+     2) con las 3 tarjetas ya del mismo alto (align-items:stretch del grid
+        exterior las estira a la altura de la más alta, la del párrafo más
+        largo), el <button> metía el espacio sobrante ARRIBA de la foto en
+        vez de al final, en las tarjetas más cortas — comportamiento propio
+        de <button> que display:block por sí solo no anula del todo en
+        algunos motores. display:flex en columna sí tiene un reparto 100%
+        predecible: el espacio sobrante queda al final, como en un div normal. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  appearance: none;
+  text-align: left;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
   background: #fff;
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transform: none;
+  /* curva con leve overshoot → efecto "pop" al agrandarse */
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s ease;
 }
-.lp-video-thumb { position: relative; }
-.lp-video-thumb img { width: 100%; aspect-ratio: 16 / 9.2; object-fit: cover; display: block; }
+.lp .lp-video-card:hover {
+  /* crece y gira un poco (el ángulo es aleatorio por tarjeta, vía --hover-rot) */
+  transform: scale(1.05) rotate(var(--hover-rot, 2deg));
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1; /* la tarjeta agrandada queda sobre sus hermanas */
+}
+.lp .lp-video-card:active {
+  transform: scale(0.97) rotate(0deg);
+  transition-duration: 0.1s;
+}
+.lp .lp-video-card:hover .lp-video-play { transform: translate(-50%, -50%) scale(1.14); }
+/* aspect-ratio va en el contenedor (no en la img): dos de las tres fotos son
+   recortes muy chicos (168x95px) y con una imagen tan pequeña como fuente,
+   algunos navegadores no respetan el aspect-ratio puesto directo en el <img>.
+   inset:0 (top/right/bottom/left:0) ya alcanza para fijar el alto del <img>
+   al del contenedor: agregar además height:100% es redundante y, confirmado
+   en DevTools, hace que algunos navegadores caigan al ratio nativo de cada
+   imagen en vez de estirarse al del contenedor (por eso las 2 fotos chicas
+   se veían más bajas que la grande). */
+.lp-video-thumb { position: relative; aspect-ratio: 16 / 9.2; overflow: hidden; }
+/* height:100% es imprescindible: con `inset:0` + `width:100%` la caja queda
+   sobre-restringida y el navegador descarta el `bottom`, dejando que cada
+   imagen imponga SU proporción (una portada 1024x518 renderiza más baja que
+   una 168x95 y aparece un hueco antes del texto). Con el alto fijo al 100%
+   del contenedor, `object-fit: cover` recorta lo que sobre sin deformar, y
+   las tres portadas miden igual sin importar el tamaño que suba la clienta. */
+.lp-video-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .lp-video-play {
   position: absolute;
   top: 50%;
@@ -455,6 +600,7 @@
   justify-content: center;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   cursor: pointer;
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .lp-video-body { padding: 16px 18px 20px; }
 .lp-video-body h4 {
@@ -466,14 +612,92 @@
 }
 .lp-video-body p { font-size: 12.5px; line-height: 1.6; margin: 0; color: #62748e; }
 
+/* ---------- Modal de video (se monta en document.body vía portal, por eso
+   los selectores van SIN prefijo .lp y con colores literales, no variables) ---------- */
+.lp-vmodal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 0, 30, 0.82);
+  animation: lp-vmodal-fade 0.2s ease;
+}
+@keyframes lp-vmodal-fade { from { opacity: 0; } to { opacity: 1; } }
+.lp-vmodal-inner {
+  position: relative;
+  width: min(920px, 100%);
+  animation: lp-vmodal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes lp-vmodal-pop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.lp-vmodal-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+}
+.lp-vmodal-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.lp-vmodal-close {
+  position: absolute;
+  top: -46px;
+  right: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.lp-vmodal-close:hover { background: rgba(255, 255, 255, 0.32); }
+
 /* ---------- Kits ---------- */
 
 .lp-kits {
+  position: relative;
+  /* z-index explícito (no solo position:relative) para que esta sección abra
+     su PROPIO contexto de apilamiento: si no, el z-index:-1 del ::before de
+     abajo se escapa hacia arriba y termina detrás del fondo blanco de toda
+     la página (.lp { background:#fff }) en vez de solo detrás del degradé. */
+  z-index: 0;
   background: linear-gradient(243deg, #2f0053 24%, #590599 85%);
-  padding: 90px 24px 110px;
+  padding: 64px 24px 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+.lp-kits::before {
+  /* misma grilla sutil que el hero (.lp-hero-grid), para que ambas franjas
+     moradas se sientan de la misma familia. z-index:-1: queda sobre el
+     degradé de fondo pero detrás de las tarjetas y el resto del contenido. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
 }
 .lp-kits-intro {
   color: rgba(255, 255, 255, 0.9);
@@ -481,11 +705,11 @@
   line-height: 1.8;
   text-align: center;
   max-width: min(1100px, var(--lp-content));
-  margin: 6px 0 46px;
+  margin: 6px 0 34px;
 }
 .lp-pagos {
   height: 92px;
-  margin-bottom: 60px;
+  margin-bottom: 42px;
 }
 .lp-cards {
   display: grid;
@@ -498,28 +722,43 @@
   position: relative;
   background: #fff;
   border-radius: 24px;
-  padding: 34px;
+  padding: 30px 34px 34px;
   box-shadow: var(--lp-card-shadow);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.lp-card > .lp-chip { position: absolute; top: 32px; right: 32px; }
+/* fila del chip en flujo normal: mantiene los títulos alineados entre tarjetas.
+   Si la tarjeta tiene ribbon (esquina der.), el chip se va a la izquierda. */
+.lp-card-top {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  min-height: 30px;
+  margin-bottom: 8px;
+}
+.lp-card-top.has-ribbon { justify-content: flex-start; }
 .lp-card h3 {
   font-family: var(--lp-heading);
   font-weight: 700;
   font-size: 30px;
   color: var(--lp-ink);
-  margin: 44px 0 20px;
+  margin: 4px 0 18px;
 }
 .lp-card-desc { font-size: 14px; line-height: 1.65; margin: 0 0 26px; }
 .lp-checks {
   list-style: none;
   padding: 0;
-  margin: 0 0 auto;
+  margin: 0 0 26px;
   display: flex;
   flex-direction: column;
   gap: 13px;
+}
+/* el bloque de precio + botón se ancla al fondo → todas las tarjetas alinean */
+.lp-card-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
 }
 .lp-checks li {
   display: flex;
@@ -538,7 +777,7 @@
   align-items: baseline;
   justify-content: center;
   gap: 8px;
-  margin: 30px 0 14px;
+  margin: 0 0 14px;
 }
 .lp-price {
   font-family: var(--lp-font);
@@ -552,10 +791,10 @@
 /* Membresía (tarjeta morada) */
 .lp-card-purple {
   background: linear-gradient(210deg, #45007a 0%, #2e0052 75%);
+  border: 1.5px solid var(--lp-yellow);
   color: rgba(255, 255, 255, 0.88);
 }
-.lp-card-purple > .lp-chip { position: absolute; top: 32px; left: 34px; right: auto; }
-.lp-card-purple h3 { color: #fff; margin-top: 58px; }
+.lp-card-purple h3 { color: #fff; }
 .lp-card-purple .lp-price-box { background: #fff; border-color: #fff; }
 .lp-card-purple .lp-price-note { color: var(--lp-purple-mid); }
 
@@ -576,16 +815,22 @@
 }
 .lp-ribbon-red { background: #e7000b; color: #fff; }
 
-/* Oferta */
+/* Oferta: mismas 3 columnas iguales que .lp-cards (mismo fr, mismo gap), para
+   que sus 3 secciones (info / checklist / precio) queden alineadas con las
+   3 tarjetas de arriba en vez de tener su propia proporción. */
 .lp-oferta {
   position: relative;
   background: #fff;
   border-radius: 24px;
   box-shadow: var(--lp-card-shadow);
   width: var(--lp-content);
+  /* sin esto, el padding se SUMA al width (content-box es el default del
+     navegador) y la tarjeta queda 92px más ancha que .lp-cards, que no tiene
+     padding propio. Con border-box, width ya incluye el padding. */
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(260px, 1.1fr) minmax(260px, 1fr) minmax(260px, 1fr);
-  gap: 40px;
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  gap: 32px;
   align-items: center;
   padding: 38px 46px;
   overflow: hidden;
@@ -606,25 +851,48 @@
 .lp-price-red { color: #e7000b; }
 .lp-price-antes { font-size: 13px; color: #62748e; }
 
+/* Hover: pequeño scale para destacar la tarjeta. Se engancha en .lp-in (ya
+   revelada) y redeclara transition con su propia duración para transform,
+   sin perder la de opacity del reveal de entrada (que sigue en 0.7s). */
+.lp .lp-card.lp-in,
+.lp .lp-oferta.lp-in {
+  transition: opacity 0.7s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.lp .lp-card.lp-in:hover,
+.lp .lp-oferta.lp-in:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 34px -12px rgba(47, 0, 83, 0.22);
+}
+
 /* ---------- Quiénes somos ---------- */
 
 .lp-quienes {
-  padding: 100px 24px 90px;
+  /* bottom chico: la foto (más alta que el párrafo) ya deja aire propio antes
+     de Testimonios; con 90px + el padding-top de Testimonios quedaba un
+     salto enorme que no está en el Figma. */
+  padding: 100px 24px 30px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 .lp-quienes-inner {
+  /* mismas 3 columnas del sistema del Figma (como "cómo funciona" y beneficios):
+     la foto del niño ocupa 1 columna, el texto las otras 2. */
   display: grid;
-  grid-template-columns: minmax(300px, 459px) minmax(0, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 32px;
-  align-items: center;
+  /* start (no center): con center, el texto -más corto que la foto de 470px-
+     quedaba centrado verticalmente en la fila y "flotaba" lejos del título. */
+  align-items: start;
   width: var(--lp-content);
-  margin-top: 30px;
+  margin-top: 12px;
 }
+.lp-quienes-texto { grid-column: span 2; }
 .lp-quienes-foto {
   position: relative;
   min-height: 470px;
+  /* solo la foto (con sus círculos) sube más que el párrafo, no ambos */
+  margin-top: -60px;
 }
 .lp-circle-dotted {
   position: absolute;
@@ -669,6 +937,36 @@
   margin: 0 auto;
   display: block;
 }
+
+/* Círculos decorativos con vida propia: cada uno "respira" (escala) a un ritmo,
+   amplitud y fase distintos para que no se muevan sincronizados. El punteado
+   además gira lento (se ve lindo en un anillo de puntos). Los círculos están
+   posicionados en absoluto y escalan desde su centro, así que no desplazan nada.
+   Respeta reduced-motion: sin la media query quedan quietos. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-circle-dotted { animation: lp-circle-spin-breath 20s linear infinite; }
+  .lp-circle-gray   { animation: lp-circle-breath 6s ease-in-out infinite; }
+  .lp-circle-yellow { animation: lp-circle-breath-lg 4.5s ease-in-out -1.6s infinite; }
+  .lp-circle-purple { animation: lp-circle-pop 3s ease-in-out -0.9s infinite; }
+}
+@keyframes lp-circle-spin-breath {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.1); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes lp-circle-breath {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.14); }
+}
+@keyframes lp-circle-breath-lg {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.22); }
+}
+@keyframes lp-circle-pop {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.4); }
+}
+
 .lp-quienes-texto p { font-size: 15.5px; line-height: 1.8; margin: 0 0 20px; }
 
 /* ---------- Testimonios ---------- */
@@ -686,13 +984,25 @@
   width: var(--lp-content);
   margin-top: 36px;
 }
-.lp-testimonio {
+/* La tarjeta externa es el "target" del reveal (entrada al hacer scroll); el
+   wrapper interno lleva lo visual + el hover. Así el transform del reveal y el
+   del hover viven en elementos distintos y no se pisan, y el hover es instantáneo
+   (el interno no arrastra el transition-delay escalonado del reveal). */
+.lp-testimonio { position: relative; height: 100%; }
+.lp-testimonio-in {
   position: relative;
+  height: 100%;
   background: #fff;
   border: 1px solid rgba(226, 232, 240, 0.6);
   border-radius: 24px;
   padding: 30px 32px 24px;
   box-shadow: var(--lp-card-shadow);
+  transition: transform 0.34s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.34s ease, border-color 0.34s ease;
+}
+.lp-testimonio:hover .lp-testimonio-in {
+  transform: translateY(-8px);
+  box-shadow: 0 26px 42px -14px rgba(47, 0, 83, 0.24);
+  border-color: rgba(130, 0, 219, 0.35);
 }
 .lp-stars { display: flex; gap: 2px; margin-bottom: 18px; }
 .lp-quote {
@@ -704,6 +1014,18 @@
   line-height: 1;
   color: #f3e8ff;
   user-select: none;
+}
+/* la comilla decorativa se balancea suave en loop (fase distinta por tarjeta):
+   da vida constante a la sección sin mover la tarjeta completa. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-quote { animation: lp-quote-bob 4.6s ease-in-out infinite; transform-origin: 60% 60%; }
+  .lp-testimonio:nth-child(2) .lp-quote { animation-delay: -1.4s; }
+  .lp-testimonio:nth-child(3) .lp-quote { animation-delay: -2.6s; }
+  .lp-testimonio:nth-child(4) .lp-quote { animation-delay: -3.5s; }
+}
+@keyframes lp-quote-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-5px) rotate(-6deg); }
 }
 .lp-testimonio p {
   font-size: 14px;
@@ -812,26 +1134,58 @@
   text-align: left;
   padding: 22px 24px;
 }
+/* Signo +/− dibujado con dos barras (centrado perfecto, sin depender del glifo
+   de la fuente) que además anima el morph de "+" a "−" al abrir. */
 .lp-faq-toggle {
+  position: relative;
   flex-shrink: 0;
   width: 30px;
   height: 30px;
   border-radius: 50%;
   background: var(--lp-purple-mid);
-  color: #fff;
-  font-size: 20px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
+  transition: background 0.25s ease;
 }
-.lp-faq-toggle.minus { background: var(--lp-yellow); color: #000; }
+.lp-faq-toggle::before,
+.lp-faq-toggle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: #fff;
+  transform: translate(-50%, -50%);
+  transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), background 0.25s ease;
+}
+.lp-faq-toggle::after { transform: translate(-50%, -50%) rotate(90deg); } /* barra vertical del "+" */
+.lp-faq-item.open .lp-faq-toggle { background: var(--lp-yellow); }
+.lp-faq-item.open .lp-faq-toggle::before,
+.lp-faq-item.open .lp-faq-toggle::after { background: #000; }
+/* al abrir, la barra vertical gira hasta la horizontal → queda solo "−" */
+.lp-faq-item.open .lp-faq-toggle::after { transform: translate(-50%, -50%) rotate(0deg); }
+
+/* Desplegable animado: grid-template-rows 0fr→1fr anima la altura hasta la del
+   contenido sin hardcodear medidas. El hijo se recorta mientras está colapsado. */
+.lp-faq-a-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.lp-faq-item.open .lp-faq-a-wrap { grid-template-rows: 1fr; }
 .lp-faq-a {
-  padding: 0 76px 26px 48px;
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 76px 0 48px;
   font-size: 15px;
   line-height: 1.75;
   color: var(--lp-body-c);
+  opacity: 0;
+  transition: opacity 0.28s ease, padding-bottom 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.lp-faq-item.open .lp-faq-a {
+  opacity: 1;
+  padding-bottom: 26px;
 }
 .lp-vermas {
   margin-top: 30px;
@@ -906,6 +1260,14 @@
   margin-left: auto;
   padding: 15px 32px;
 }
+.lp-contacto-msg {
+  margin: 16px 0 0;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+}
+.lp-contacto-msg-ok { color: #8ff0c0; }
+.lp-contacto-msg-error { color: #ffb4b4; }
 
 /* ---------- Footer ---------- */
 
@@ -951,6 +1313,8 @@
   .lp-oferta-foto { display: none; }
   .lp-testimonios-grid { grid-template-columns: repeat(2, 1fr); }
   .lp-beneficios { grid-template-columns: 1fr; }
+  /* en 1 columna, cancelar el "span 2" para que no cree una columna implícita */
+  .lp-beneficios-box { grid-column: auto; }
   .lp-videos { grid-template-columns: repeat(3, 1fr); }
 }
 
@@ -964,12 +1328,15 @@
   .lp-pasos { grid-template-columns: 1fr; max-width: 520px; }
   .lp-videos { grid-template-columns: 1fr; }
   .lp-quienes-inner { grid-template-columns: 1fr; }
+  /* en 1 columna, cancelar el "span 2" para que no cree una columna implícita */
+  .lp-quienes-texto { grid-column: auto; }
   .lp-testimonios-grid { grid-template-columns: 1fr; max-width: 480px; }
   .lp-concurso { grid-template-columns: 1fr; padding: 34px; gap: 40px; }
   .lp-contacto-inner { grid-template-columns: 1fr; gap: 46px; }
   .lp-form-row { grid-template-columns: 1fr; gap: 0; }
   .lp-oferta { grid-template-columns: 1fr; }
   .lp-footer { flex-direction: column; text-align: center; }
-  .lp-faq-a { padding: 0 24px 24px; }
+  .lp-faq-a { padding-left: 24px; padding-right: 24px; }
+  .lp-faq-item.open .lp-faq-a { padding-bottom: 24px; }
   .lp-pagos { max-width: 100%; height: auto; }
 }

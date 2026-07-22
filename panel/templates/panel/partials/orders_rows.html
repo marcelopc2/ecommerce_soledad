@@ -1,0 +1,51 @@
+{% load humanize %}
+{% for o in orders %}
+  <tr>
+    <td>
+      <div class="cell-title">{{ o.customer_email }}</div>
+      <div class="cell-sub mono">#{{ o.order_id|stringformat:'s'|slice:':8' }}</div>
+    </td>
+    <td class="mono">{{ o.invoice.folio|default:"—" }}</td>
+    <td class="text-end fw-semibold">${{ o.total_amount|floatformat:0|intcomma }}</td>
+    <td>{% include 'panel/partials/order_status_badge.html' with o=o %}</td>
+    <td>
+      {% if o.invoice %}
+        {% include 'panel/partials/invoice_status_badge.html' with i=o.invoice %}
+      {% elif o.status == 'PAID' %}
+        <span class="badge-soft red" title="Pedido cobrado sin boleta emitida"><i class="bi bi-exclamation-triangle"></i> Sin boleta</span>
+      {% else %}
+        <span class="badge-soft gray">—</span>
+      {% endif %}
+    </td>
+    <td class="cell-sub">{{ o.created_at|date:'d M Y' }}</td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        {% if o.invoice.pdf_base64 %}
+          <a href="{% url 'panel:invoice_pdf' o.invoice.pk %}" class="btn-icon" title="Descargar boleta (PDF)"><i class="bi bi-download"></i></a>
+        {% endif %}
+        {% if o.status == 'PAID' and o.invoice.status != 'ISSUED' %}
+          <button class="btn-icon" title="{% if o.invoice %}Reintentar emisión de la boleta{% else %}Emitir boleta{% endif %} en OpenFactura"
+                  hx-post="{% url 'panel:order_invoice_issue' o.pk %}"
+                  hx-confirm="{% if o.invoice %}¿Reintentar la emisión de esta boleta en OpenFactura?{% else %}¿Emitir la boleta de este pedido en OpenFactura?{% endif %}">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        {% endif %}
+        <a href="{% url 'panel:order_detail' o.pk %}" class="btn-icon" title="Ver detalle"><i class="bi bi-eye"></i></a>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="7" class="empty-cell">
+      {% if q %}
+        <i class="bi bi-search"></i> Sin resultados para «{{ q }}».
+      {% elif estado == 'sin_boleta' %}
+        <i class="bi bi-check-circle"></i> Todos los pedidos cobrados tienen su boleta emitida.
+      {% elif estado %}
+        No hay pedidos en este estado.
+      {% else %}
+        Aún no hay pedidos. Aparecen aquí apenas un cliente inicia una compra en la tienda.
+      {% endif %}
+    </td>
+  </tr>
+{% endfor %}

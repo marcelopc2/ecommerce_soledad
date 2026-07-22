@@ -1,0 +1,13 @@
+{% extends 'error_base.html' %}
+
+{% block title %}Página no encontrada{% endblock %}
+{% block code %}404{% endblock %}
+{% block heading %}Esta pieza no encaja{% endblock %}
+{% block message %}
+  La página que buscas no existe o cambió de lugar. Puede que el enlace esté
+  antiguo o que haya un error de tipeo en la dirección.
+{% endblock %}
+{% block actions %}
+  <a class="btn btn-amarillo" href="/">Volver al inicio</a>
+  <a class="btn btn-borde" href="/#kits">Ver los kits</a>
+{% endblock %}

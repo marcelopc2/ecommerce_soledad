@@ -1,0 +1,179 @@
+{% extends 'panel/base.html' %}
+{% load humanize %}
+
+{% block title %}Pedido #{{ order.order_id|stringformat:'s'|slice:':8' }}{% endblock %}
+{% block crumb %}Panel · Tienda · Pedidos{% endblock %}
+{% block heading %}Pedido #{{ order.order_id|stringformat:'s'|slice:':8' }}{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:orders' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  {# ---------- Pago ---------- #}
+  <div class="col-lg-5">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-credit-card-2-front"></i> Pago</div>
+      <div class="mdetail-status-bar mb-3">
+        {% include 'panel/partials/order_status_badge.html' with o=order %}
+      </div>
+      <div class="mdetail-kv"><span>Total</span><strong>${{ order.total_amount|floatformat:0|intcomma }}</strong></div>
+      <div class="mdetail-kv">
+        <span>Medio de pago</span>
+        <strong>{% if order.tbk_token %}Webpay (Transbank){% else %}MercadoPago{% endif %}</strong>
+      </div>
+      <div class="mdetail-kv"><span>Cliente</span><strong>{{ order.customer_email }}</strong></div>
+      <div class="mdetail-kv"><span>Creado</span><strong>{{ order.created_at|date:'d M Y H:i' }}</strong></div>
+      <div class="mdetail-kv"><span>Actualizado</span><strong>{{ order.updated_at|date:'d M Y H:i' }}</strong></div>
+      <div class="mdetail-kv"><span>N.º de pedido</span><strong class="mono">{{ order.order_id }}</strong></div>
+      {% if order.tbk_token %}
+        <div class="mdetail-kv"><span>Token Webpay</span><strong class="mono text-truncate" style="max-width:190px" title="{{ order.tbk_token }}">{{ order.tbk_token }}</strong></div>
+      {% endif %}
+    </div></div>
+  </div>
+
+  {# ---------- Productos ---------- #}
+  <div class="col-lg-7">
+    <div class="pnl-card h-100"><div class="card-pad pb-2">
+      <div class="form-section-title"><i class="bi bi-box-seam"></i> Productos comprados</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table pnl-table">
+        <tbody>
+          {% for p in order.products.all %}
+            <tr>
+              <td>
+                <div class="cell-title">{{ p.name }}</div>
+                <div class="cell-sub">/{{ p.slug }}{% if p.access_months %} · {{ p.access_months }} mes{{ p.access_months|pluralize:"es" }} de acceso{% endif %}</div>
+              </td>
+              <td class="text-end fw-semibold">${{ p.price|floatformat:0|intcomma }}</td>
+            </tr>
+          {% empty %}
+            <tr class="no-hover"><td class="empty-cell">Este pedido no tiene productos asociados.</td></tr>
+          {% endfor %}
+          {% if shipment and shipment.shipping_cost %}
+            <tr>
+              <td>
+                <div class="cell-title">Despacho</div>
+                <div class="cell-sub">{{ shipment.courier }}{% if shipment.service_name %} · {{ shipment.service_name }}{% endif %}</div>
+              </td>
+              <td class="text-end fw-semibold">${{ shipment.shipping_cost|floatformat:0|intcomma }}</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+    </div>
+  </div>
+
+  {# ---------- Boleta ---------- #}
+  <div class="col-lg-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-receipt"></i> Boleta electrónica</div>
+      {% if invoice %}
+        <div class="mdetail-status-bar mb-3">
+          {% include 'panel/partials/invoice_status_badge.html' with i=invoice %}
+        </div>
+        <div class="mdetail-kv"><span>Folio</span><strong class="mono">{{ invoice.folio|default:"—" }}</strong></div>
+        <div class="mdetail-kv"><span>Tipo</span><strong>DTE {{ invoice.dte_type }} (boleta)</strong></div>
+        <div class="mdetail-kv">
+          <span>Emitida</span>
+          <strong>{% if invoice.issued_at %}{{ invoice.issued_at|date:'d M Y H:i' }}{% else %}—{% endif %}</strong>
+        </div>
+        {% if invoice.status == 'ERROR' and invoice.error_message %}
+          <p class="mdetail-note mt-3 mb-0"><i class="bi bi-exclamation-triangle"></i> {{ invoice.error_message }}</p>
+        {% endif %}
+        <div class="mdetail-actions mt-3">
+          {% if invoice.pdf_base64 %}
+            <a href="{% url 'panel:invoice_pdf' invoice.pk %}" class="btn btn-ghost"><i class="bi bi-download me-1"></i> Descargar PDF</a>
+          {% endif %}
+          {% if invoice.status != 'ISSUED' and order.status == 'PAID' %}
+            <button class="btn btn-brand"
+                    hx-post="{% url 'panel:order_invoice_issue' order.pk %}"
+                    hx-confirm="¿Reintentar la emisión de esta boleta en OpenFactura?">
+              <i class="bi bi-arrow-clockwise me-1"></i> Reintentar emisión
+            </button>
+          {% endif %}
+        </div>
+      {% else %}
+        <p class="mdetail-note mb-0">
+          <i class="bi bi-info-circle"></i>
+          {% if order.status == 'PAID' %}
+            Este pedido está pagado pero no tiene boleta asociada.
+          {% else %}
+            La boleta se emite automáticamente cuando se confirma el pago.
+          {% endif %}
+        </p>
+        {% if order.status == 'PAID' %}
+          <div class="mdetail-actions mt-3">
+            <button class="btn btn-brand"
+                    hx-post="{% url 'panel:order_invoice_issue' order.pk %}"
+                    hx-confirm="¿Emitir la boleta de este pedido en OpenFactura?">
+              <i class="bi bi-receipt me-1"></i> Emitir boleta
+            </button>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div></div>
+  </div>
+
+  {# ---------- Despacho ---------- #}
+  <div class="col-lg-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-truck"></i> Despacho</div>
+      {% if shipment %}
+        <div class="mdetail-status-bar mb-3">
+          <span class="badge-soft {% if shipment.status == 'DELIVERED' %}green{% elif shipment.status == 'ERROR' %}red{% else %}yellow{% endif %}">
+            {{ shipment.get_status_display }}
+          </span>
+        </div>
+        <div class="mdetail-kv"><span>Destinatario</span><strong>{{ shipment.recipient_name }}</strong></div>
+        <div class="mdetail-kv"><span>Teléfono</span><strong>{{ shipment.recipient_phone }}</strong></div>
+        <div class="mdetail-kv">
+          <span>Dirección</span>
+          <strong>{{ shipment.address_street }} {{ shipment.address_number }}{% if shipment.address_detail %}, {{ shipment.address_detail }}{% endif %}</strong>
+        </div>
+        <div class="mdetail-kv"><span>Comuna / región</span><strong>{{ shipment.commune }}, {{ shipment.region }}</strong></div>
+        <div class="mdetail-kv"><span>Courier</span><strong>{{ shipment.courier }}</strong></div>
+        {% if shipment.tracking_number %}
+          <div class="mdetail-kv"><span>Seguimiento</span><strong class="mono">{{ shipment.tracking_number }}</strong></div>
+        {% endif %}
+        {% if shipment.label_url %}
+          <div class="mdetail-actions mt-3">
+            <a href="{{ shipment.label_url }}" target="_blank" rel="noopener" class="btn btn-ghost"><i class="bi bi-tag me-1"></i> Ver etiqueta</a>
+          </div>
+        {% endif %}
+      {% else %}
+        <p class="mdetail-note mb-0"><i class="bi bi-info-circle"></i> Este pedido no tiene envío (solo productos digitales o cursos).</p>
+      {% endif %}
+    </div></div>
+  </div>
+
+  {# ---------- Acceso otorgado ---------- #}
+  <div class="col-12">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-mortarboard"></i> Acceso otorgado</div>
+      {% for m in order.memberships.all %}
+        <div class="mdetail-kv">
+          <span>{{ m.student_name|default:m.user.email }}</span>
+          <strong>
+            <a href="{% url 'panel:membership_detail' m.pk %}">Ver membresía <i class="bi bi-arrow-right-short"></i></a>
+          </strong>
+        </div>
+      {% empty %}
+        <p class="mdetail-note mb-0">
+          <i class="bi bi-info-circle"></i>
+          {% if order.status == 'PAID' %}
+            Este pedido no otorgó acceso a cursos (sus productos no incluyen membresía).
+          {% else %}
+            El acceso se otorga cuando se confirma el pago.
+          {% endif %}
+        </p>
+      {% endfor %}
+    </div></div>
+  </div>
+
+</div>
+{% endblock %}

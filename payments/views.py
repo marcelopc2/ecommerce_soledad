@@ -16,7 +16,7 @@ class CreateWebpayTransactionView(APIView):
 
     def post(self, request):
         # Arma la orden (+ envío si corresponde) y valida el costo de envío en el servidor.
-        order, error = build_order_from_request(request.data)
+        order, error = build_order_from_request(request.data, user=request.user)
         if error:
             return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -98,7 +98,7 @@ class CreateMercadoPagoTransactionView(APIView):
 
     def post(self, request):
         # Arma la orden (+ envío si corresponde) y valida el costo de envío en el servidor.
-        order, error = build_order_from_request(request.data)
+        order, error = build_order_from_request(request.data, user=request.user)
         if error:
             return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
 

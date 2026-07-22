@@ -1,0 +1,83 @@
+{% for item in items %}
+  {% if item.kind == 'course' %}
+    {% with c=item.obj %}
+    <tr{% if not q %} class="pnl-drag-row" data-id="course-{{ c.id }}"{% endif %}>
+      <td class="order-cell">
+        <div class="order-cell-inner">
+          {% if not q %}<span class="drag-handle" title="Arrastrar"><i class="bi bi-grip-vertical"></i></span>{% endif %}
+          <span class="drag-pos">{{ forloop.counter }}</span>
+        </div>
+      </td>
+      <td>
+        <div class="cell-title"><i class="bi bi-mortarboard text-purple"></i> {{ c.title }}</div>
+        <div class="cell-sub">/{{ c.slug }}</div>
+      </td>
+      <td class="text-center">
+        <div class="resource-counts">
+          <span class="badge-soft teal" title="{{ c.pdf_count }} PDF"><i class="bi bi-file-earmark-pdf"></i> {{ c.pdf_count }}</span>
+          <span class="badge-soft purple" title="{{ c.video_count }} video(s)"><i class="bi bi-play-circle"></i> {{ c.video_count }}</span>
+          <span class="badge-soft yellow" title="{{ c.image_count }} imagen(es)"><i class="bi bi-image"></i> {{ c.image_count }}</span>
+        </div>
+      </td>
+      <td class="cell-sub">{{ c.created_at|date:'d M Y' }}</td>
+      <td>
+        {% if c.is_active %}<span class="badge-soft green">Activo</span>{% else %}<span class="badge-soft gray">Inactivo</span>{% endif %}
+      </td>
+      <td class="text-end">
+        <div class="d-inline-flex gap-2">
+          <a href="{% url 'panel:course_edit' c.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+          <button class="btn-icon" title="Duplicar"
+                  hx-post="{% url 'panel:course_duplicate' c.pk %}" hx-confirm="¿Duplicar «{{ c.title }}» con todos sus recursos?">
+            <i class="bi bi-copy"></i>
+          </button>
+          <button class="btn-icon danger" title="Eliminar"
+                  hx-post="{% url 'panel:course_delete' c.pk %}"
+                  hx-confirm="¿Eliminar el curso «{{ c.title }}» y todos sus recursos?"
+                  hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+    {% endwith %}
+  {% else %}
+    {% with d=item.obj %}
+    <tr class="diploma-row{% if not q %} pnl-drag-row{% endif %}"{% if not q %} data-id="diploma-{{ d.id }}"{% endif %}>
+      <td class="order-cell">
+        <div class="order-cell-inner">
+          {% if not q %}<span class="drag-handle" title="Arrastrar"><i class="bi bi-grip-vertical"></i></span>{% endif %}
+          <span class="drag-pos diploma"><i class="bi bi-award-fill"></i></span>
+        </div>
+      </td>
+      <td>
+        <div class="cell-title"><i class="bi bi-award text-yellow"></i> {{ d.title }}</div>
+        <div class="cell-sub">Diploma · se gana al completar los cursos anteriores</div>
+      </td>
+      <td class="text-center cell-sub">—</td>
+      <td class="cell-sub">{{ d.created_at|date:'d M Y' }}</td>
+      <td>
+        {% if d.is_active %}<span class="badge-soft green">Activo</span>{% else %}<span class="badge-soft gray">Inactivo</span>{% endif %}
+      </td>
+      <td class="text-end">
+        <div class="d-inline-flex gap-2">
+          <a href="{% url 'panel:diploma_preview' d.pk %}" class="btn-icon" title="Vista previa" target="_blank"><i class="bi bi-eye"></i></a>
+          <a href="{% url 'panel:diploma_edit' d.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+          <button class="btn-icon danger" title="Eliminar"
+                  hx-post="{% url 'panel:diploma_delete' d.pk %}"
+                  hx-confirm="¿Eliminar el diploma «{{ d.title }}»?"
+                  hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+    {% endwith %}
+  {% endif %}
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="6" class="empty-cell">
+      {% if q %}<i class="bi bi-search"></i> Sin resultados para «{{ q }}».
+      {% else %}Aún no hay cursos. <a href="{% url 'panel:course_new' %}">Crear el primero</a>.{% endif %}
+    </td>
+  </tr>
+{% endfor %}

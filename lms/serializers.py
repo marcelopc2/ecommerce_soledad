@@ -1,21 +1,30 @@
 from rest_framework import serializers
-from catalog.models import Product, Category, ProductImage
-from .models import Course, Lesson, Membership
+from .models import Course, Lesson
 
 
 # ---------- LMS (alumno) ----------
 
 class LessonStudentSerializer(serializers.ModelSerializer):
-    """Lección para el alumno. La URL del video solo se incluye si la membresía está activa
-    (lo decide la vista); el PDF siempre se baja por el endpoint protegido."""
+    """Recurso para el alumno. La URL del video solo se incluye si la membresía
+    está activa (lo decide la vista); PDF e imagen se sirven por endpoint protegido.
+    `completed` se inyecta desde el contexto (set de ids completados)."""
     has_pdf = serializers.SerializerMethodField()
+    has_image = serializers.SerializerMethodField()
+    completed = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
-        fields = ['id', 'title', 'order', 'lesson_type', 'video_embed_url', 'has_pdf']
+        fields = ['id', 'title', 'description', 'order', 'lesson_type',
+                  'video_embed_url', 'has_pdf', 'has_image', 'completed']
 
     def get_has_pdf(self, obj):
         return bool(obj.pdf_file)
+
+    def get_has_image(self, obj):
+        return bool(obj.image_file)
+
+    def get_completed(self, obj):
+        return obj.id in self.context.get('completed_lesson_ids', set())
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -40,58 +49,23 @@ class CourseListSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'slug', 'description', 'image_url', 'lessons_count']
 
 
-# ---------- CMS (staff) ----------
+class ProfileSerializer(serializers.Serializer):
+    """Edición de los nombres desde el perfil del alumno.
 
-class LessonCMSSerializer(serializers.ModelSerializer):
-    pdf_filename = serializers.SerializerMethodField()
+    Reutiliza `validar_nombre` del checkout (payments/serializers.py) para que
+    las reglas sean LAS MISMAS en los dos lugares: si acá fueran más laxas, se
+    podría dejar en el diploma un nombre que el checkout habría rechazado.
+    """
+    student_name = serializers.CharField(max_length=200, required=False)
+    parent_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
 
-    class Meta:
-        model = Lesson
-        fields = ['id', 'course', 'title', 'order', 'lesson_type', 'video_embed_url', 'pdf_file', 'pdf_filename']
-        extra_kwargs = {'pdf_file': {'write_only': True, 'required': False}}
+    def validate_student_name(self, v):
+        from payments.serializers import validar_nombre
+        return validar_nombre(v, 'nombre del niño o niña')
 
-    def get_pdf_filename(self, obj):
-        return obj.pdf_file.name.split('/')[-1] if obj.pdf_file else ''
-
-
-class CourseCMSSerializer(serializers.ModelSerializer):
-    lessons = LessonCMSSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Course
-        fields = ['id', 'title', 'slug', 'description', 'image_url', 'is_active', 'lessons']
-
-
-class ProductImageCMSSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductImage
-        fields = ['id', 'image_url', 'is_main']
-
-
-class ProductCMSSerializer(serializers.ModelSerializer):
-    images = ProductImageCMSSerializer(many=True, read_only=True)
-    category_name = serializers.CharField(source='category.name', read_only=True)
-
-    class Meta:
-        model = Product
-        fields = [
-            'id', 'category', 'category_name', 'name', 'slug', 'description', 'price',
-            'stock', 'is_digital', 'is_active', 'weight_kg', 'width_cm', 'height_cm',
-            'length_cm', 'courses', 'access_months', 'images',
-        ]
-
-
-class CategoryCMSSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ['id', 'name', 'slug']
-
-
-class MembershipCMSSerializer(serializers.ModelSerializer):
-    email = serializers.CharField(source='user.email', read_only=True)
-    is_active = serializers.BooleanField(read_only=True)
-    courses_count = serializers.IntegerField(source='courses.count', read_only=True)
-
-    class Meta:
-        model = Membership
-        fields = ['id', 'email', 'expires_at', 'is_active', 'courses_count', 'created_at']
+    def validate_parent_name(self, v):
+        # El del apoderado sí puede quedar vacío: no sale en ningún documento.
+        if not (v or '').strip():
+            return ''
+        from payments.serializers import validar_nombre
+        return validar_nombre(v, 'nombre del apoderado')

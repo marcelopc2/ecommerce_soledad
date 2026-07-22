@@ -1,0 +1,9 @@
+{% extends 'error_base.html' %}
+
+{% block title %}Solicitud inválida{% endblock %}
+{% block code %}400{% endblock %}
+{% block heading %}No entendimos la petición{% endblock %}
+{% block message %}
+  La solicitud llegó mal formada o incompleta. Si llegaste desde un enlace,
+  puede estar cortado; prueba entrando desde el inicio.
+{% endblock %}

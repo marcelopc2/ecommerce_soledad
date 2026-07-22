@@ -3,6 +3,15 @@
 db.sqlite3
 protected_media/
 
+# Generado por collectstatic: se reconstruye en cada despliegue
+staticfiles/
+
+# media/ SÍ se versiona: hoy solo tiene el contenido semilla de la portada
+# (pasos y portadas de video) que las migraciones 0012/0014 copian desde
+# frontend/src/assets/. Versionarlo garantiza que un clon recién desplegado
+# se vea completo. Cuando la clienta empiece a subir sus propias imágenes en
+# el servidor habrá que sacarlo de aquí y respaldarlo por separado.
+
 # Python
 venv/
 __pycache__/

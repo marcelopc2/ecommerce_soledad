@@ -1,0 +1,462 @@
+/* ============================================================
+   Checkout con el diseño de la landing.
+   Reutiliza los tokens de landing.css (hay que envolver en .lp).
+   ============================================================ */
+
+.co-page { min-height: 100vh; background: var(--lp-gray-bg); }
+
+/* ---------- Barra superior morada ---------- */
+
+.co-top {
+  position: relative;
+  background: linear-gradient(135deg, #2f0053 12%, #590599 82%);
+  padding: 26px 24px 74px;
+  overflow: hidden;
+}
+.co-top::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+.co-top-inner {
+  position: relative;
+  z-index: 1;
+  width: var(--lp-content);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.co-logo { display: block; }
+.co-logo img { width: 132px; height: auto; display: block; }
+.co-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  padding: 9px 18px;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.co-volver:hover { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.6); color: #fff; }
+
+.co-titulo {
+  position: relative;
+  z-index: 1;
+  width: var(--lp-content);
+  margin: 26px auto 0;
+}
+.co-titulo h1 {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 34px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #fff;
+  margin: 0 0 8px;
+}
+.co-titulo .lp-underline { margin: 0 0 0; }
+
+/* ---------- Cuerpo ---------- */
+
+.co-body {
+  width: var(--lp-content);
+  margin: -48px auto 70px;
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+}
+
+.co-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: var(--lp-card-shadow);
+  padding: 28px 30px;
+  margin-bottom: 20px;
+}
+.co-card:last-child { margin-bottom: 0; }
+
+.co-paso-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.co-paso-num {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--lp-accent);
+  color: #fff;
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.co-paso-cabecera h2 {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--lp-ink);
+  margin: 0;
+}
+
+/* ---------- Campos ---------- */
+
+.co-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.co-fila-dir { grid-template-columns: 1fr 130px; }
+
+.co-campo { margin-bottom: 14px; }
+.co-campo label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lp-ink);
+  margin-bottom: 6px;
+}
+.co-campo input,
+.co-campo select {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--lp-font);
+  font-size: 14.5px;
+  color: var(--lp-ink);
+  background: #fff;
+  border: 1.5px solid var(--lp-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.co-campo input:focus,
+.co-campo select:focus {
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 3px rgba(130, 0, 219, 0.14);
+}
+.co-campo input:read-only {
+  background: #f8fafc;
+  color: var(--lp-body-c);
+  cursor: default;
+}
+.co-campo select:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+
+/* ---------- Combobox buscable (región / comuna) ---------- */
+
+.cbx { position: relative; }
+.cbx-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--lp-font);
+  font-size: 14.5px;
+  color: var(--lp-ink);
+  background: #fff;
+  border: 1.5px solid var(--lp-border);
+  border-radius: 10px;
+  padding: 12px 38px 12px 14px;   /* espacio a la derecha para la flecha */
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.cbx-input:focus {
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 3px rgba(130, 0, 219, 0.14);
+}
+.cbx-input:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+.cbx-flecha {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.cbx-lista {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  box-shadow: 0 16px 32px -8px rgba(47, 0, 83, 0.2);
+}
+.cbx-opcion {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--lp-ink);
+  cursor: pointer;
+}
+.cbx-opcion.resaltada { background: #faf6ff; }
+.cbx-opcion.elegida { color: var(--lp-accent); font-weight: 600; }
+.cbx-vacio {
+  padding: 12px;
+  font-size: 13.5px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* ---------- Mensajes de validación ---------- */
+
+.co-campo input.co-input-error,
+.co-campo select.co-input-error {
+  border-color: #e7000b;
+  background: #fffafa;
+}
+.co-campo input.co-input-error:focus {
+  border-color: #e7000b;
+  box-shadow: 0 0 0 3px rgba(231, 0, 11, 0.13);
+}
+.co-error {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #c0392b;
+}
+.co-ayuda {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.co-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--lp-body-c);
+  background: var(--lp-gray-bg);
+  border-left: 3px solid var(--lp-accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0 0 4px;
+}
+.co-nota-info { border-left-color: var(--lp-accent); }
+.co-nota-ok { border-left-color: var(--lp-green); }
+
+/* ---------- Cotización de envío ---------- */
+
+.co-btn-cotizar {
+  font-family: var(--lp-font);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--lp-accent);
+  background: #fff;
+  border: 1.5px solid var(--lp-accent);
+  border-radius: 10px;
+  padding: 12px 22px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background-color 0.15s, color 0.15s;
+}
+.co-btn-cotizar:hover:not(:disabled) { background: var(--lp-accent); color: #fff; }
+.co-btn-cotizar:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.co-cotizaciones { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.co-cotizacion {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 1.5px solid var(--lp-border);
+  border-radius: 12px;
+  padding: 13px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.co-cotizacion:hover { border-color: var(--lp-accent); }
+.co-cotizacion.activa { border-color: var(--lp-accent); background: #faf6ff; }
+.co-cotizacion input { accent-color: var(--lp-accent); width: 17px; height: 17px; }
+.co-cot-nombre { font-size: 14px; font-weight: 600; color: var(--lp-ink); }
+.co-cot-dias { display: block; font-size: 12.5px; font-weight: 400; color: var(--lp-body-c); margin-top: 2px; }
+.co-cot-precio { font-size: 15px; font-weight: 700; color: var(--lp-ink); white-space: nowrap; }
+
+.co-msg { font-size: 13.5px; margin: 12px 0 0; }
+.co-msg-error { color: #c0392b; }
+
+/* ---------- Resumen ---------- */
+
+.co-resumen {
+  position: sticky;
+  top: 20px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: var(--lp-card-shadow);
+  padding: 26px 26px 28px;
+}
+.co-resumen h2 {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--lp-ink);
+  margin: 0 0 4px;
+}
+.co-resumen-sub {
+  font-size: 12.5px;
+  color: var(--lp-body-c);
+  margin: 0 0 18px;
+}
+
+.co-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 14px;
+  color: var(--lp-body-c);
+  padding: 11px 0;
+  border-bottom: 1px solid var(--lp-border);
+}
+.co-item-nombre { color: var(--lp-ink); font-weight: 600; }
+.co-item-antes { font-size: 12.5px; color: #94a3b8; text-decoration: line-through; margin-right: 6px; }
+.co-item-oferta { color: #e7000b; font-weight: 700; }
+
+.co-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 0 4px;
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  color: var(--lp-ink);
+}
+.co-total span:first-child { font-size: 16px; }
+.co-total span:last-child { font-size: 26px; }
+
+.co-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: #f3e8ff;
+  color: var(--lp-accent);
+  border-radius: 999px;
+  padding: 5px 12px;
+  margin-bottom: 12px;
+}
+
+.co-pagos { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.co-btn-pagar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  font-family: var(--lp-btn-font);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border: none;
+  border-radius: 14px;
+  padding: 16px 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s, box-shadow 0.15s, background-color 0.12s, color 0.12s;
+}
+.co-btn-webpay { background: var(--lp-yellow); color: #000; }
+.co-btn-webpay:hover:not(:disabled) {
+  background: var(--lp-purple);
+  color: #fff;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 16px -4px rgba(0, 0, 0, 0.25);
+}
+.co-btn-mp { background: var(--lp-ink); color: #fff; }
+.co-btn-mp:hover:not(:disabled) {
+  background: var(--lp-accent);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 16px -4px rgba(0, 0, 0, 0.25);
+}
+.co-btn-pagar:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+.co-btn-pagar:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.co-hint {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--lp-body-c);
+  text-align: center;
+  margin: 14px 0 0;
+}
+.co-seguro {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #8a8095;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--lp-border);
+}
+
+/* ---------- Estados vacío / bloqueado ---------- */
+
+.co-aviso {
+  width: min(560px, 100%);
+  margin: -48px auto 70px;
+  position: relative;
+  z-index: 2;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: var(--lp-card-shadow);
+  padding: 40px 38px;
+  text-align: center;
+}
+.co-aviso h2 {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--lp-ink);
+  margin: 0 0 10px;
+}
+.co-aviso p { font-size: 15px; line-height: 1.7; color: var(--lp-body-c); margin: 0 0 16px; }
+.co-aviso-acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 980px) {
+  .co-body { grid-template-columns: 1fr; }
+  .co-resumen { position: static; }
+}
+@media (max-width: 560px) {
+  .co-top { padding: 20px 18px 66px; }
+  .co-titulo h1 { font-size: 26px; }
+  .co-card { padding: 22px 20px; }
+  .co-fila, .co-fila-dir { grid-template-columns: 1fr; }
+  .co-logo img { width: 112px; }
+}

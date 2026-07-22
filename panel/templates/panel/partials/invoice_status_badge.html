@@ -1,0 +1,7 @@
+{% if i.status == 'ISSUED' %}
+  <span class="badge-soft green"><i class="bi bi-check-circle"></i> Emitida</span>
+{% elif i.status == 'ERROR' %}
+  <span class="badge-soft red" title="{{ i.error_message }}"><i class="bi bi-exclamation-triangle"></i> Error</span>
+{% else %}
+  <span class="badge-soft gray"><i class="bi bi-hourglass-split"></i> Pendiente</span>
+{% endif %}

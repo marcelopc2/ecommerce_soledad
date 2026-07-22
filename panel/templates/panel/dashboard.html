@@ -1,0 +1,105 @@
+{% extends 'panel/base.html' %}
+{% load humanize %}
+
+{% block title %}Resumen{% endblock %}
+{% block crumb %}Panel · General{% endblock %}
+{% block heading %}Resumen{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-tile"><i class="bi bi-box-seam"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.products }}</div>
+      <div class="stat-label">Productos ({{ stats.active_products }} activos)</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-tile"><i class="bi bi-cash-coin"></i></div>
+    <div>
+      <div class="stat-value">${{ stats.revenue|floatformat:0|intcomma }}</div>
+      <div class="stat-label">Ventas pagadas ({{ stats.paid_orders }} órdenes)</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-tile"><i class="bi bi-mortarboard"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.courses }}</div>
+      <div class="stat-label">Cursos · {{ stats.lessons }} lecciones</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-tile"><i class="bi bi-people"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.active_memberships }}</div>
+      <div class="stat-label">Membresías activas de {{ stats.students }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="pnl-card">
+      <div class="card-pad pb-0">
+        <h3 class="fs-6 mb-1">Últimas ventas</h3>
+        <div class="cell-sub mb-2">Órdenes con pago confirmado</div>
+      </div>
+      {% if recent_orders %}
+        <table class="table pnl-table">
+          <thead><tr><th>Cliente</th><th>Fecha</th><th class="text-end">Total</th></tr></thead>
+          <tbody>
+            {% for o in recent_orders %}
+              <tr>
+                <td class="cell-title">{{ o.customer_email }}</td>
+                <td class="cell-sub">{{ o.created_at|date:'d M Y, H:i' }}</td>
+                <td class="text-end fw-semibold">${{ o.total_amount|floatformat:0|intcomma }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <span class="big">🧱</span>
+          <p>Aún no hay ventas pagadas.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="pnl-card">
+      <div class="card-pad pb-0">
+        <h3 class="fs-6 mb-1">Alumnos recientes</h3>
+        <div class="cell-sub mb-2">Últimas membresías actualizadas</div>
+      </div>
+      {% if recent_memberships %}
+        <table class="table pnl-table">
+          <thead><tr><th>Alumno</th><th class="text-end">Estado</th></tr></thead>
+          <tbody>
+            {% for m in recent_memberships %}
+              <tr>
+                <td>
+                  <div class="cell-title">{{ m.user.email }}</div>
+                  <div class="cell-sub">Vence {{ m.expires_at|date:'d M Y' }}</div>
+                </td>
+                <td class="text-end">
+                  {% if m.is_active %}
+                    <span class="badge-soft green"><i class="bi bi-check-circle-fill"></i> Activa</span>
+                  {% else %}
+                    <span class="badge-soft red"><i class="bi bi-clock-history"></i> Vencida</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <span class="big">🎓</span>
+          <p>Todavía no hay alumnos.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

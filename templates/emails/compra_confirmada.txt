@@ -1,0 +1,21 @@
+¡Pago confirmado!
+
+Recibimos tu pago correctamente. Este es el detalle de tu pedido:
+
+Pedido {{ numero_pedido }}
+------------------------------------------------------
+{% for item in productos %}{{ item.nombre }} — {{ item.precio }}
+{% endfor %}{% if envio_costo %}Envío{% if envio_courier %} ({{ envio_courier }}){% endif %} — {{ envio_costo }}
+{% endif %}------------------------------------------------------
+TOTAL: {{ total }}
+
+{% if tiene_envio %}Te avisaremos por correo apenas despachemos tu kit, con el
+número de seguimiento.
+{% endif %}{% if tiene_acceso %}Tu acceso al Aula Virtual ya quedó activo. Si es tu primera compra,
+recibirás otro correo para definir tu contraseña.
+{% endif %}
+Ir a mis cursos: {{ link }}
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

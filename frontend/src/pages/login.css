@@ -1,0 +1,388 @@
+/* ============================================================
+   Login — "Bienvenido a tu Aula Virtual" (diseño de la diseñadora)
+   Reutiliza los tokens y las secciones de landing.css: esta hoja
+   solo agrega el hero partido (morado a la izquierda, blanco a la
+   derecha) con la tarjeta de login cruzando el borde.
+   ============================================================ */
+
+/* Pantalla completa sin scroll: el login es una sola vista, sin contacto ni
+   footer debajo.
+   - 100dvh (no 100vh): en móvil la barra del navegador se muestra/oculta y con
+     100vh la pantalla queda cortada o con scroll fantasma; dvh sigue el alto
+     real visible.
+   - El padding vertical es flexible (clamp) para que en pantallas bajas el
+     contenido se comprima en vez de desbordar y aparecer barra de scroll. */
+.lg-hero {
+  position: relative;
+  background: #fff;
+  overflow: hidden;
+  min-height: 100dvh;
+  /* border-box es imprescindible: este proyecto NO tiene un reset global de
+     box-sizing, así que sin esto el padding se SUMA a los 100dvh y la página
+     termina con ~200px de scroll, justo lo que se quiere evitar. */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(96px, 14vh, 132px) 24px clamp(40px, 8vh, 96px);
+}
+
+/* Panel morado. Termina en 68% del ancho: la tarjeta de login arranca
+   antes de ese corte, así que lo cruza tal como en el Figma. */
+.lg-panel {
+  position: absolute;
+  inset: 0 32% 0 0;
+  background: linear-gradient(135deg, #2f0053 12%, #590599 72%);
+}
+.lg-panel-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+/* La foto queda teñida del morado del panel: luminosity conserva las
+   luces y sombras del niño pero toma el color del fondo. */
+.lg-panel-foto {
+  position: absolute;
+  right: 2%;
+  bottom: 0;
+  height: 88%;
+  width: auto;
+  object-fit: contain;
+  mix-blend-mode: luminosity;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ---------- Barra superior ---------- */
+
+.lg-topbar {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  width: var(--lp-content);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.lg-logo { width: 148px; height: auto; display: block; }
+
+.lg-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lp-btn-font);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  text-decoration: none;
+  color: var(--lp-accent);
+  background: #fff;
+  border: 2px solid var(--lp-accent);
+  border-radius: 999px;
+  padding: 13px 30px;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s;
+}
+.lg-btn-outline:hover {
+  background: var(--lp-accent);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+/* ---------- Contenido ---------- */
+
+.lg-inner {
+  position: relative;
+  z-index: 3;
+  width: var(--lp-content);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 48px;
+}
+
+.lg-copy h1 {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1.22;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0 0 26px;
+}
+.lg-copy h1 .lg-amarillo { color: var(--lp-yellow); }
+.lg-copy p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 15.5px;
+  line-height: 1.75;
+  margin: 0 0 20px;
+  max-width: 30em;
+}
+.lg-copy-pregunta {
+  font-weight: 700;
+  color: #fff !important;
+  margin-bottom: 26px !important;
+}
+
+.lg-btn-light {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lp-btn-font);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  text-decoration: none;
+  color: var(--lp-purple-dark);
+  background: #efe6fb;
+  border-radius: 14px;
+  padding: 16px 32px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.18);
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s, box-shadow 0.15s;
+}
+.lg-btn-light:hover {
+  background: var(--lp-yellow);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 10px 16px -4px rgba(0, 0, 0, 0.28);
+}
+.lg-btn-light:active { transform: translateY(0) scale(0.97); }
+
+/* ---------- Tarjeta de login ---------- */
+
+.lg-card-wrap {
+  position: relative;
+  justify-self: end;
+  width: 100%;
+  max-width: 420px;
+}
+/* Cuadrados de atrás: asoman por las esquinas de la tarjeta. */
+.lg-sq {
+  position: absolute;
+  border-radius: 20px;
+  z-index: 0;
+}
+.lg-sq-lila {
+  width: 190px;
+  height: 150px;
+  top: -46px;
+  right: -52px;
+  background: #f0e9fb;
+}
+.lg-sq-amarillo {
+  width: 200px;
+  height: 170px;
+  bottom: -44px;
+  right: -46px;
+  background: var(--lp-yellow);
+  opacity: 0.9;
+}
+
+.lg-card {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border-radius: 26px;
+  padding: 42px 44px 36px;
+  box-shadow: 0 24px 48px -12px rgba(47, 0, 83, 0.28);
+  display: flex;
+  flex-direction: column;
+}
+.lg-card-hola {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 36px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--lp-accent);
+  text-align: center;
+  margin: 0 0 2px;
+}
+.lg-card-sub {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 19px;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--lp-yellow);
+  text-align: center;
+  margin: 0 0 26px;
+}
+
+.lg-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lp-ink);
+  margin-bottom: 7px;
+}
+.lg-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--lp-font);
+  font-size: 15px;
+  color: var(--lp-ink);
+  background: #fff;
+  border: 1.5px solid var(--lp-accent);
+  border-radius: 10px;
+  padding: 13px 15px;
+  margin-bottom: 18px;
+  outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.lg-input:focus {
+  border-color: var(--lp-purple);
+  box-shadow: 0 0 0 3px rgba(130, 0, 219, 0.16);
+}
+
+.lg-olvide {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: -8px 0 22px;
+  font-family: var(--lp-font);
+  font-size: 12.5px;
+  color: var(--lp-body-c);
+  cursor: pointer;
+  text-decoration: none;
+}
+.lg-olvide:hover { color: var(--lp-accent); text-decoration: underline; }
+
+.lg-btn-ingresar {
+  align-self: center;
+  min-width: 180px;
+  font-family: var(--lp-btn-font);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: #000;
+  background: var(--lp-yellow);
+  border: none;
+  border-radius: 12px;
+  padding: 15px 34px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.15s, box-shadow 0.15s;
+}
+.lg-btn-ingresar:hover {
+  background: var(--lp-purple);
+  color: #fff;
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 10px 16px -4px rgba(0, 0, 0, 0.25);
+}
+.lg-btn-ingresar:active {
+  background: var(--lp-purple-dark);
+  color: #fff;
+  transform: translateY(0) scale(0.97);
+}
+.lg-btn-ingresar:disabled {
+  background: #d8d3df;
+  color: #7d7488;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.lg-card-pie {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--lp-body-c);
+  margin: 18px 0 0;
+}
+.lg-card-pie a { color: var(--lp-accent); font-weight: 600; text-decoration: none; }
+.lg-card-pie a:hover { text-decoration: underline; }
+
+.lg-msg {
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 10px;
+  padding: 10px 13px;
+  margin: 0 0 16px;
+}
+.lg-msg-error { background: #fdecec; color: #b3261e; }
+.lg-msg-ok { background: #e7f7ee; color: #0a7040; }
+
+/* ---------- Adornos ---------- */
+
+.lg-deco {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.lg-punto {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  display: block;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .lg-panel { inset: 0 22% 0 0; }
+  .lg-copy h1 { font-size: 34px; }
+  .lg-card { padding: 36px 32px 30px; }
+}
+
+@media (max-width: 900px) {
+  .lg-hero { padding: clamp(88px, 12vh, 110px) 24px clamp(28px, 5vh, 48px); }
+  /* En vertical el panel morado pasa a ser el fondo completo del bloque
+     de texto y la tarjeta queda debajo, ya sobre blanco. */
+  .lg-panel { inset: 0 0 52% 0; }
+  .lg-panel-foto { opacity: 0.32; height: 74%; right: -6%; }
+  .lg-inner { grid-template-columns: 1fr; gap: clamp(20px, 4vh, 34px); }
+  .lg-card-wrap { justify-self: center; max-width: 460px; }
+  .lg-copy h1 { font-size: clamp(21px, 5.2vw, 27px); margin-bottom: 14px; }
+  .lg-copy p { max-width: none; }
+  .lg-deco { display: none; }
+
+  /* Apilado, el texto explicativo y el CTA de compra no caben junto al
+     formulario. Se ocultan para que la pantalla entre sin scroll: lo que la
+     persona vino a hacer acá es entrar, y la tarjeta ya tiene su propio
+     enlace "¿No tienes cuenta? Compra tu kit" para el otro caso. */
+  .lg-copy p:not(.lg-copy-pregunta),
+  .lg-copy-pregunta,
+  .lg-btn-light { display: none; }
+}
+
+/* Pantallas de poca altura (laptops chicas, ventana a media pantalla):
+   se comprime el espaciado en vez de aparecer scroll. */
+@media (max-height: 700px) {
+  .lg-hero { padding-top: clamp(76px, 11vh, 96px); padding-bottom: 24px; }
+  .lg-topbar { top: 22px; }
+  .lg-card { padding: 26px 32px 24px; }
+  .lg-card-hola { font-size: 28px; }
+  .lg-card-sub { font-size: 16px; margin-bottom: 16px; }
+  .lg-input { padding: 10px 14px; margin-bottom: 12px; }
+  .lg-copy h1 { font-size: clamp(22px, 3vw, 30px); margin-bottom: 16px; }
+  .lg-copy p { margin-bottom: 12px; }
+}
+
+@media (max-width: 560px) {
+  /* Paddings flexibles (no fijos): en teléfonos chicos el alto es lo escaso,
+     así que el espaciado se comprime antes que aparecer scroll. */
+  .lg-hero { padding: clamp(74px, 11vh, 100px) 18px clamp(20px, 4vh, 40px); }
+  .lg-topbar { top: clamp(16px, 3vh, 26px); }
+  .lg-logo { width: 108px; }
+  .lg-btn-outline { padding: 10px 18px; font-size: 11px; }
+  .lg-copy h1 { font-size: clamp(19px, 5.4vw, 24px); margin-bottom: 10px; }
+  .lg-card { padding: clamp(20px, 3.5vh, 30px) 22px clamp(18px, 3vh, 24px); }
+  .lg-card-hola { font-size: clamp(24px, 7vw, 30px); margin-bottom: 0; }
+  .lg-card-sub { font-size: 15px; margin-bottom: clamp(12px, 2.5vh, 22px); }
+  .lg-label { margin-bottom: 5px; }
+  .lg-input { padding: 10px 13px; margin-bottom: clamp(10px, 2vh, 16px); }
+  .lg-olvide { margin: -6px 0 clamp(12px, 2.5vh, 20px); }
+  .lg-btn-ingresar { padding: 13px 30px; }
+  .lg-card-pie { margin-top: 14px; }
+  .lg-sq-lila, .lg-sq-amarillo { display: none; }
+}

@@ -1,0 +1,21 @@
+{% extends 'error_base.html' %}
+
+{% comment %}
+  Django usa esta plantilla (no 403.html) cuando falla la verificación CSRF.
+  El caso real más común no es un ataque sino algo inocente: el formulario
+  quedó abierto tanto rato que la sesión venció, o la persona volvió con el
+  botón "atrás". Por eso el mensaje explica cómo salir del paso en vez de
+  hablar de seguridad.
+{% endcomment %}
+
+{% block title %}Sesión vencida{% endblock %}
+{% block code %}403{% endblock %}
+{% block heading %}Tu sesión expiró{% endblock %}
+{% block message %}
+  Por seguridad, el formulario dejó de ser válido: pasó demasiado tiempo abierto
+  o la sesión se cerró. Vuelve a cargar la página e inténtalo otra vez.
+{% endblock %}
+{% block actions %}
+  <a class="btn btn-amarillo" href="javascript:location.reload()">Recargar la página</a>
+  <a class="btn btn-borde" href="/">Volver al inicio</a>
+{% endblock %}
