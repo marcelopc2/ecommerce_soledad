@@ -1,11 +1,24 @@
-# Despliegue — servidor de pruebas
+# Despliegue
 
-Servidor: Hetzner · https://ecommercesoledad.duckdns.org
+Dominio: **https://ingenioblocks.com**
 Rama: `redesign-figma`
 
-Sigue siendo un entorno de **pruebas**: las pasarelas apuntan a sus ambientes de
-integración, no se mueve plata real y las boletas son simuladas (sin validez
-ante el SII).
+Las pasarelas de pago SIGUEN en sus ambientes de integración: no se mueve plata
+real y las boletas son simuladas (sin validez ante el SII). Antes de vender de
+verdad hay que poner las credenciales reales (ver el final de este archivo).
+
+## Antes de empezar: el DNS
+
+El dominio `ingenioblocks.com` tiene que apuntar al servidor. En el panel DNS
+del dominio, crear:
+
+```
+A     @      <IP del servidor>
+A     www    <IP del servidor>
+```
+
+La propagación tarda de minutos a unas horas. Recién cuando `ping ingenioblocks.com`
+responda con la IP del servidor se puede emitir el certificado (paso 8).
 
 ---
 
@@ -55,7 +68,7 @@ sudo cp deploy/nginx.conf /etc/nginx/sites-available/ingenioblocks
 sudo ln -sf /etc/nginx/sites-available/ingenioblocks /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d ecommercesoledad.duckdns.org
+sudo certbot --nginx -d ingenioblocks.com -d www.ingenioblocks.com
 
 # 9. Permisos (el servicio corre como www-data)
 sudo chown -R www-data:www-data /srv/ingenioblocks
@@ -106,7 +119,7 @@ sale con error.
 
 ```bash
 sudo systemctl status ingenioblocks
-curl -s -o /dev/null -w '%{http_code}\n' https://ecommercesoledad.duckdns.org/api/catalog/products/
+curl -s -o /dev/null -w '%{http_code}\n' https://ingenioblocks.com/api/catalog/products/
 tail -f logs/ingenioblocks.log
 tail -f logs/pagos.log        # todo lo que toca plata
 ```
@@ -167,12 +180,16 @@ en el servidor hay que sacarlo del repositorio y respaldarlo aparte.
 
 ## Lo que falta antes de vender de verdad
 
-- Contraseña de aplicación de Gmail (hoy los correos se escriben en el log, no
-  se envían).
-- Credenciales de producción de Transbank, MercadoPago y OpenFactura.
-- ~~El cron del goteo semanal~~ ya existe (`enviar_avisos_desbloqueo`), pero no
-  sirve de nada hasta que el correo salga de verdad (falta la clave de Gmail).
-- Términos y condiciones, política de privacidad y el derecho a retracto de 10
-  días. El sitio pide el nombre de un menor de edad para el diploma.
-- Copiar `/srv/respaldos` fuera del servidor.
+- **DNS de ingenioblocks.com apuntando al servidor** + certificado (certbot).
+- **Credenciales de producción** de Transbank, MercadoPago y OpenFactura (hoy
+  son de integración: no mueven plata y las boletas son simuladas).
+- **La contraseña de aplicación de Gmail** en el `.env` del servidor. Ya está
+  probada localmente; en el servidor va en `EMAIL_HOST_PASSWORD` (sin espacios).
+- **Revisar los textos legales con un abogado** y completar los datos de la
+  empresa (`[ ]` en `frontend/src/pages/Legal.jsx`): el sitio pide el nombre de
+  un menor para el diploma, así que esto no es opcional.
+- Copiar `/srv/respaldos` fuera del servidor (los respaldos actuales viven en el
+  mismo disco: sirven para un error propio, no para una caída del servidor).
+- Registrar el sitio en Google Search Console y mandarle el sitemap
+  (`https://ingenioblocks.com/sitemap.xml`).
 - Migrar a Postgres si se espera algo de tráfico.

@@ -14,6 +14,9 @@ set -euo pipefail
 RAIZ="${RAIZ:-/srv/ingenioblocks}"
 RAMA="${RAMA:-redesign-figma}"
 SERVICIO="${SERVICIO:-ingenioblocks}"
+# Dominio contra el que se comprueba al final. Mientras el DNS de ingenioblocks.com
+# no apunte al servidor, correr con:  DOMINIO=ecommercesoledad.duckdns.org ./deploy/desplegar.sh
+DOMINIO="${DOMINIO:-ingenioblocks.com}"
 
 cd "$RAIZ"
 
@@ -51,14 +54,16 @@ sudo systemctl is-active --quiet "$SERVICIO" || {
 }
 
 # Comprobación real: que el sitio responda, no solo que el proceso exista.
-CODIGO=$(curl -s -o /dev/null -w '%{http_code}' https://ecommercesoledad.duckdns.org/api/catalog/products/)
+CODIGO=$(curl -s -o /dev/null -w '%{http_code}' "https://$DOMINIO/api/catalog/products/")
 if [ "$CODIGO" != "200" ]; then
-    echo "ERROR: la API respondió HTTP $CODIGO (se esperaba 200)."
+    echo "ERROR: la API en $DOMINIO respondió HTTP $CODIGO (se esperaba 200)."
+    echo "  Si el DNS de $DOMINIO todavía no apunta al servidor, repite con:"
+    echo "  DOMINIO=ecommercesoledad.duckdns.org ./deploy/desplegar.sh"
     sudo journalctl -u "$SERVICIO" -n 40 --no-pager
     exit 1
 fi
 
 echo
 echo "Listo. La API responde 200 y el servicio está activo."
-echo "   Sitio:  https://ecommercesoledad.duckdns.org"
-echo "   Panel:  https://ecommercesoledad.duckdns.org/gestion/"
+echo "   Sitio:  https://$DOMINIO"
+echo "   Panel:  https://$DOMINIO/gestion/"

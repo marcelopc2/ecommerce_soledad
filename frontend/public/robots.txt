@@ -12,4 +12,4 @@ Disallow: /curso/
 Disallow: /definir-clave/
 Allow: /legal/
 
-Sitemap: https://ecommercesoledad.duckdns.org/sitemap.xml
+Sitemap: https://ingenioblocks.com/sitemap.xml
