@@ -12,6 +12,26 @@ import pagosBadges from '../assets/landing/pagos-badges.svg'
 import quienesSomosNino from '../assets/landing/quienes-somos-nino.png'
 import concurso3d from '../assets/landing/concurso-3d.png'
 
+/* ---------- Datos estructurados (SEO) ----------
+   La cuadrícula de FAQ y los productos vienen de la API, así que su JSON-LD se
+   arma en el cliente (Googlebot ejecuta JavaScript y lo lee; los crawlers de
+   redes sociales no, pero para ellos ya están las etiquetas Open Graph fijas
+   del index.html). El FAQPage puede hacer que las preguntas salgan desplegables
+   en los resultados de Google. */
+const SITE_URL = (import.meta.env.VITE_SITE_URL || '').replace(/\/$/, '')
+
+function useJsonLd(id, data) {
+  useEffect(() => {
+    if (!data) return
+    const el = document.createElement('script')
+    el.type = 'application/ld+json'
+    el.id = id
+    el.textContent = JSON.stringify(data)
+    document.head.appendChild(el)
+    return () => { el.remove() }
+  }, [id, data])
+}
+
 /* ---------- Iconos SVG inline ---------- */
 
 const IconCart = () => (
@@ -668,6 +688,18 @@ function Faq() {
       .catch(() => {}) // la landing funciona igual sin preguntas frecuentes
   }, [])
 
+  // FAQPage: le da a Google las preguntas y respuestas en un formato que puede
+  // mostrar desplegable directo en los resultados.
+  useJsonLd('ld-faq', useMemo(() => (faqs.length ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map(f => ({
+      '@type': 'Question',
+      name: f.question,
+      acceptedAnswer: { '@type': 'Answer', text: f.answer },
+    })),
+  } : null), [faqs]))
+
   const visibles = verMas ? faqs : faqs.slice(0, 6)
 
   return (
@@ -789,6 +821,34 @@ export default function Landing() {
       .then(res => setProducts(res.data))
       .catch(() => {}) // la landing funciona igual sin catálogo
   }, [])
+
+  // Cada kit como Product de Schema.org, con su precio. Ayuda a Google a
+  // entender que es una tienda y puede mostrar el precio en el resultado.
+  useJsonLd('ld-products', useMemo(() => {
+    const vendibles = products.filter(p => !p.is_coming_soon)
+    if (!vendibles.length) return null
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      itemListElement: vendibles.map((p, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        item: {
+          '@type': 'Product',
+          name: p.name,
+          description: p.description || undefined,
+          brand: { '@type': 'Brand', name: 'Ingenio Blocks' },
+          offers: {
+            '@type': 'Offer',
+            price: parseInt(p.effective_price ?? p.price, 10),
+            priceCurrency: 'CLP',
+            availability: 'https://schema.org/InStock',
+            url: `${SITE_URL}/#kits`,
+          },
+        },
+      })),
+    }
+  }, [products]))
 
   // Los <a href="#kits"> normales solo saltan al ancla si ya estamos en "/"
   // (es scroll nativo del navegador). Si el link viene de otra página con

@@ -1,0 +1,14 @@
+{
+  "name": "Ingenio Blocks",
+  "short_name": "Ingenio Blocks",
+  "description": "Kit de bloques educativos + aula virtual con un modelo nuevo cada semana.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2f0053",
+  "theme_color": "#2f0053",
+  "lang": "es-CL",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

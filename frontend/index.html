@@ -17,15 +17,20 @@
          El crawler de WhatsApp/Instagram no ejecuta JavaScript, así que tienen
          que estar en el HTML inicial, no puestas desde React. -->
     <meta name="description" content="Kit de bloques de más de 400 piezas con motor y batería, más un aula virtual con más de 100 modelos motorizados paso a paso. Para niños desde los 6 años. Despacho a todo Chile." />
-    <link rel="canonical" href="https://ecommercesoledad.duckdns.org/" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
+
+    <!-- Le dice a Google que este sitio es de Chile y en español. -->
+    <meta name="geo.region" content="CL" />
+    <meta name="geo.placename" content="Chile" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Ingenio Blocks" />
     <meta property="og:locale" content="es_CL" />
     <meta property="og:title" content="Ingenio Blocks — Despierta su ingenio" />
     <meta property="og:description" content="Kit de más de 400 piezas + aula virtual con un modelo nuevo cada semana. Para niños desde los 6 años." />
-    <meta property="og:url" content="https://ecommercesoledad.duckdns.org/" />
-    <meta property="og:image" content="https://ecommercesoledad.duckdns.org/og-image.png" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Niño construyendo un modelo motorizado con bloques Ingenio Blocks" />
@@ -33,10 +38,41 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Ingenio Blocks — Despierta su ingenio" />
     <meta name="twitter:description" content="Kit de más de 400 piezas + aula virtual con un modelo nuevo cada semana." />
-    <meta name="twitter:image" content="https://ecommercesoledad.duckdns.org/og-image.png" />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
 
     <meta name="theme-color" content="#2f0053" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Datos estructurados (Schema.org). Le explican a Google QUÉ es este sitio
+         y qué marca lo respalda; ayudan a que aparezca el panel de marca y a que
+         entienda que es una tienda, no un blog cualquiera. Las URLs se rellenan
+         desde VITE_SITE_URL al construir. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "%VITE_SITE_URL%/#organizacion",
+          "name": "Ingenio Blocks",
+          "url": "%VITE_SITE_URL%/",
+          "logo": "%VITE_SITE_URL%/apple-touch-icon.png",
+          "email": "contacto@ingenioblocks.com",
+          "areaServed": "CL",
+          "slogan": "Despierta su ingenio"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "%VITE_SITE_URL%/#sitio",
+          "url": "%VITE_SITE_URL%/",
+          "name": "Ingenio Blocks",
+          "inLanguage": "es-CL",
+          "publisher": { "@id": "%VITE_SITE_URL%/#organizacion" }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

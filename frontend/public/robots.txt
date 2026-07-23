@@ -1,8 +1,8 @@
+# Generado por scripts/gen-seo.mjs desde VITE_SITE_URL — no editar a mano.
 User-agent: *
 Allow: /
 
-# Zonas privadas: no tiene sentido que se indexen y no queremos que aparezcan
-# en resultados de búsqueda.
+# Zonas privadas: no tiene sentido indexarlas.
 Disallow: /gestion/
 Disallow: /admin/
 Disallow: /checkout
