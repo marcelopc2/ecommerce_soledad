@@ -5,10 +5,6 @@ import LmsHeader, { LmsLoader } from '../components/LmsHeader'
 import { openDiploma } from '../lib/diploma'
 import './lms.css'
 
-const fmtDate = (d) => d
-  ? new Date(d + 'T00:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
-  : ''
-
 export default function MyCourses() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(false)
@@ -107,7 +103,7 @@ export default function MyCourses() {
           <div className="lms-courses-grid">
             {items.map(it => it.type === 'diploma'
               ? <DiplomaCard key={`d${it.id}`} diploma={it} />
-              : <CourseCard key={`c${it.id}`} course={it} active={active} />
+              : <CourseCard key={`c${it.id}`} course={it} active={active} onReady={cargar} />
             )}
           </div>
         )}
@@ -116,31 +112,79 @@ export default function MyCourses() {
   )
 }
 
-function CourseCard({ course: c, active }) {
+// Re-renderiza cada minuto para que el contador «se abre en X» baje solo si el
+// alumno deja la página abierta. El goteo es por día, así que con el minuto basta.
+function useMinuteTick() {
+  const [, set] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => set(t => t + 1), 60000)
+    return () => clearInterval(id)
+  }, [])
+}
+
+// Cuánto falta para que se abra, en lenguaje natural. El goteo compara fechas en
+// hora de Chile y libera a las 00:00, así que el objetivo es la medianoche local
+// de unlock_date (para un usuario en Chile, su medianoche = la del servidor).
+function faltaTexto(unlockDate) {
+  const objetivo = new Date(`${unlockDate}T00:00:00`).getTime()
+  const diff = objetivo - Date.now()
+  if (diff <= 0) return 'hoy'
+  const dias = Math.floor(diff / 86400000)
+  if (dias >= 2) return `en ${dias} días`
+  if (dias === 1) return 'mañana'
+  const horas = Math.floor(diff / 3600000)
+  if (horas >= 1) return `en ${horas} h`
+  return `en ${Math.max(1, Math.floor(diff / 60000))} min`
+}
+
+function CourseCard({ course: c, active, onReady }) {
+  useMinuteTick()
+  // Misterio: un curso que el goteo todavía no libera. Se oculta nombre, foto y
+  // descripción para dar expectativa; queda solo el contador. La membresía
+  // vencida NO es misterio (el alumno ya tuvo el curso), se muestra normal.
+  const misterio = active && !c.completed && !c.unlocked
   const locked = !active || !c.unlocked
-  return (
-    <Link to={`/curso/${c.slug}`} className={'lms-course-card' + (locked ? ' locked' : '')}>
+  const porFecha = c.lock_reason !== 'previo'
+
+  // Cuando llega la hora exacta, recargar para que el curso se libere solo, sin
+  // que el alumno tenga que refrescar. Un único timeout, no un sondeo.
+  useEffect(() => {
+    if (!misterio || !porFecha) return
+    const objetivo = new Date(`${c.unlock_date}T00:00:00`).getTime()
+    const falta = objetivo - Date.now()
+    if (falta <= 0) { onReady?.(); return }
+    const id = setTimeout(() => onReady?.(), falta + 1000)
+    return () => clearTimeout(id)
+  }, [misterio, porFecha, c.unlock_date, onReady])
+
+  const cuerpo = (
+    <>
       <div className="lms-course-cover">
-        {c.image_url ? <img src={c.image_url} alt={c.title} /> : <span className="fallback">🧱</span>}
+        {misterio
+          ? <span className="fallback misterio-ojos" aria-hidden="true">👀</span>
+          : (c.image_url ? <img src={c.image_url} alt={c.title} /> : <span className="fallback">🧱</span>)}
         {c.completed ? (
           <span className="lock-badge done">✓ Completado</span>
         ) : !active ? (
           <span className="lock-badge">🔒 Membresía vencida</span>
         ) : !c.unlocked ? (
-          /* El bloqueo tiene dos motivos y hay que distinguirlos: cuando está
-             trabado porque falta terminar el curso anterior, mostrar la fecha
-             lucía un día YA PASADO y el apoderado concluía que la plataforma
-             estaba fallando. El motivo lo calcula el backend (lock_reason). */
+          /* Dos motivos de bloqueo, hay que distinguirlos: por fecha (goteo) va
+             un contador; por curso previo, mostrar la fecha lucía un día YA
+             PASADO y el apoderado creía que la plataforma fallaba. */
           c.lock_reason === 'previo' && c.required_course_title ? (
-            <span className="lock-badge">🔒 Termina «{c.required_course_title}»</span>
+            <span className="lock-badge">🔒 Termina el modelo anterior</span>
           ) : (
-            <span className="lock-badge">🔒 Se abre el {fmtDate(c.unlock_date)}</span>
+            <span className="lock-badge">🔒 Se abre {faltaTexto(c.unlock_date)}</span>
           )
         ) : null}
       </div>
       <div className="lms-course-body">
-        <h3>{c.title}</h3>
-        <p>{c.description}</p>
+        <h3>{misterio ? 'Un modelo nuevo 👀' : c.title}</h3>
+        <p>{misterio
+          ? (porFecha
+              ? 'Se viene algo nuevo. Te avisamos por correo apenas se abra.'
+              : 'Termina el modelo anterior para descubrir cuál es.')
+          : c.description}</p>
         {active && c.unlocked && c.total > 0 && (
           <div className="lms-progress">
             <div className="lms-progress-track"><div className="lms-progress-bar" style={{ width: `${c.pct}%` }} /></div>
@@ -148,12 +192,22 @@ function CourseCard({ course: c, active }) {
           </div>
         )}
         <div className="lms-course-foot">
-          <span className="lms-lessons-chip">{c.done}/{c.total} pasos</span>
-          <span className="go">{c.completed ? 'Revisar →' : 'Entrar →'}</span>
+          {misterio
+            ? <span className="lms-lessons-chip muted">Muy pronto</span>
+            : <>
+                <span className="lms-lessons-chip">{c.done}/{c.total} pasos</span>
+                <span className="go">{c.completed ? 'Revisar →' : 'Entrar →'}</span>
+              </>}
         </div>
       </div>
-    </Link>
+    </>
   )
+
+  // El curso misterio no es clickeable: evita un callejón sin salida y que el
+  // nombre se filtre por la URL (/curso/su-slug).
+  return misterio
+    ? <div className="lms-course-card locked misterio">{cuerpo}</div>
+    : <Link to={`/curso/${c.slug}`} className={'lms-course-card' + (locked ? ' locked' : '')}>{cuerpo}</Link>
 }
 
 function DiplomaCard({ diploma: d }) {
