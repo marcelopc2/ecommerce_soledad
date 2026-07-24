@@ -18,7 +18,7 @@ A     www    <IP del servidor>
 ```
 
 La propagación tarda de minutos a unas horas. Recién cuando `ping ingenioblocks.com`
-responda con la IP del servidor se puede emitir el certificado (paso 8).
+responda con la IP del servidor se puede emitir el certificado (paso 9).
 
 ---
 
@@ -27,7 +27,8 @@ responda con la IP del servidor se puede emitir el certificado (paso 8).
 ```bash
 # 1. Paquetes del sistema
 sudo apt update
-sudo apt install -y python3-venv python3-pip nginx git sqlite3 certbot python3-certbot-nginx
+sudo apt install -y python3-venv python3-pip nginx git certbot python3-certbot-nginx \
+                    postgresql postgresql-contrib libpq-dev
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
@@ -49,32 +50,43 @@ python -c "from django.core.management.utils import get_random_secret_key as k; 
 nano .env          # pegar la SECRET_KEY y completar lo marcado con <<< >>>
 chmod 600 .env
 
-# 5. Base de datos y estáticos
+# 5. Crear la base en Postgres
+#    (la clave que pongas acá es la que va en DB_PASSWORD del .env)
+sudo -u postgres psql <<'SQL'
+CREATE USER ingenioblocks WITH PASSWORD 'la-clave-que-elegiste';
+CREATE DATABASE ingenioblocks OWNER ingenioblocks;
+SQL
+
+# Comprobar que la app se conecta ANTES de migrar. Si responde "postgresql",
+# el .env quedó bien; si dice "sqlite3", falta DB_NAME y hay que corregirlo.
+python -c "import django,os;os.environ['DJANGO_SETTINGS_MODULE']='core.settings';django.setup();from django.db import connection;print(connection.vendor)"
+
+# 6. Migraciones y estáticos
 python manage.py migrate
 python manage.py collectstatic --no-input
 python manage.py createsuperuser
 
-# 6. Frontend
+# 7. Frontend
 cd frontend && npm ci && npm run build && cd ..
 
-# 7. Servicio
+# 8. Servicio
 sudo cp deploy/ingenioblocks.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now ingenioblocks
 sudo systemctl status ingenioblocks
 
-# 8. nginx + certificado
+# 9. nginx + certificado
 sudo cp deploy/nginx.conf /etc/nginx/sites-available/ingenioblocks
 sudo ln -sf /etc/nginx/sites-available/ingenioblocks /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d ingenioblocks.com -d www.ingenioblocks.com
 
-# 9. Permisos (el servicio corre como www-data)
+# 10. Permisos (el servicio corre como www-data)
 sudo chown -R www-data:www-data /srv/ingenioblocks
 sudo chmod 600 /srv/ingenioblocks/.env
 
-# 10. Tareas programadas
+# 11. Tareas programadas
 chmod +x deploy/*.sh
 crontab -e
 ```
@@ -148,8 +160,13 @@ Para restaurar la base (detener el servicio primero):
 
 ```bash
 sudo systemctl stop ingenioblocks
-gunzip -c /srv/respaldos/base-AAAAMMDD-HHMMSS.sqlite3.gz > db.sqlite3
-sudo chown www-data:www-data db.sqlite3
+
+# El respaldo borra y recrea la base, así que primero hay que soltarla.
+sudo -u postgres psql -c "DROP DATABASE ingenioblocks;"
+sudo -u postgres psql -c "CREATE DATABASE ingenioblocks OWNER ingenioblocks;"
+gunzip -c /srv/respaldos/base-AAAAMMDD-HHMMSS.sql.gz | \
+  PGPASSWORD='<clave>' psql -h 127.0.0.1 -U ingenioblocks ingenioblocks
+
 sudo systemctl start ingenioblocks
 ```
 
@@ -192,4 +209,3 @@ en el servidor hay que sacarlo del repositorio y respaldarlo aparte.
   mismo disco: sirven para un error propio, no para una caída del servidor).
 - Registrar el sitio en Google Search Console y mandarle el sitemap
   (`https://ingenioblocks.com/sitemap.xml`).
-- Migrar a Postgres si se espera algo de tráfico.
