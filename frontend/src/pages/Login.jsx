@@ -94,8 +94,8 @@ export default function Login() {
             </h1>
             <p>
               Para ingresar a nuestra Aula Virtual, debes contar con una membresía
-              activa. Recuerda que el acceso se incluye automáticamente al comprar tu
-              Kit Estándar, el Pack de 8 Modelos o tu suscripción Ingenio Plus.
+              activa. El acceso se incluye automáticamente al comprar cualquiera de
+              nuestros kits o planes.
             </p>
             <p className="lg-copy-pregunta">¿Aún no tienes el tuyo?</p>
             <Link to="/#kits" className="lg-btn-light">comprar ahora</Link>
