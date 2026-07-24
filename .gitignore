@@ -53,3 +53,6 @@ dist-ssr
 *.sln
 *.sw?
 
+
+# Archivos temporales de Office (se crean al abrir un .xlsx/.docx)
+~$*
