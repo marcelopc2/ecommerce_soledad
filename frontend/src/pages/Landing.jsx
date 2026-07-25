@@ -616,8 +616,32 @@ function QuienesSomos() {
   )
 }
 
+/* Zona lateral del carrusel. Va FUERA de Testimonios a propósito: definida
+   dentro, React la trata como un tipo de componente distinto en cada render y
+   desmonta el botón, que es la forma más fácil de perder un hover en curso. */
+function CostadoTestimonios({ dir, etiqueta, onEntrar, onSalir, onClic }) {
+  return (
+    <button
+      type="button"
+      className={`lp-testi-costado ${dir < 0 ? 'izq' : 'der'}`}
+      aria-label={etiqueta}
+      onMouseEnter={() => onEntrar(dir)}
+      onMouseLeave={onSalir}
+      onFocus={() => onEntrar(dir)}
+      onBlur={onSalir}
+      onClick={() => onClic(dir)}
+    >
+      <span aria-hidden="true">{dir < 0 ? '‹' : '›'}</span>
+    </button>
+  )
+}
+
 function Testimonios() {
   const [testimonials, setTestimonials] = useState([])
+  const [desborda, setDesborda] = useState(false)
+  const pistaRef = useRef(null)
+  const dirRef = useRef(0)
+  const rafRef = useRef(0)
 
   useEffect(() => {
     api.get('/catalog/testimonials/')
@@ -625,27 +649,80 @@ function Testimonios() {
       .catch(() => {}) // la landing funciona igual sin testimonios
   }, [])
 
+  // Las zonas laterales solo aparecen si de verdad hay algo fuera de vista: con
+  // 3 testimonios caben todos y unas flechas que no llevan a ninguna parte solo
+  // confunden. Se recalcula al cambiar el ancho porque en móvil caben menos.
+  useEffect(() => {
+    const el = pistaRef.current
+    if (!el) return
+    const medir = () => setDesborda(el.scrollWidth > el.clientWidth + 4)
+    medir()
+    const ro = new ResizeObserver(medir)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [testimonials])
+
+  // Desplazamiento continuo mientras el puntero está sobre un costado.
+  const paso = () => {
+    const el = pistaRef.current
+    if (el && dirRef.current) el.scrollLeft += dirRef.current * 7
+    rafRef.current = requestAnimationFrame(paso)
+  }
+  const arrancar = (dir) => {
+    // Quien pidió menos animación no espera que la página se mueva sola bajo el
+    // cursor; ahí el costado sigue sirviendo, pero solo con clic.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    dirRef.current = dir
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(paso)
+  }
+  const frenar = () => {
+    dirRef.current = 0
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = 0
+  }
+  // Al hacer clic salta una "página" completa, que es lo que espera quien no
+  // descubre el desplazamiento por hover (y lo que hace el teclado con Enter).
+  const saltar = (dir) => {
+    const el = pistaRef.current
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' })
+  }
+  // Detener siempre al desmontar: si no, el requestAnimationFrame sigue vivo.
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
+
   return (
     <section className="lp-testimonios">
       <span className="lp-chip lp-chip-lila">comunidad feliz</span>
       <h2 className="lp-h2">testimonios</h2>
       <span className="lp-underline" />
-      <div className="lp-testimonios-grid">
-        {testimonials.map((t) => (
-          <article className="lp-testimonio" key={t.id}>
-            <div className="lp-testimonio-in">
-              <div className="lp-stars">
-                {Array.from({ length: t.rating }).map((_, j) => <IconStar key={j} />)}
+
+      <div className={'lp-testi-carrusel' + (desborda ? ' con-costados' : '')}>
+        {desborda && (
+          <CostadoTestimonios dir={-1} etiqueta="Ver testimonios anteriores"
+                              onEntrar={arrancar} onSalir={frenar} onClic={saltar} />
+        )}
+
+        <div className="lp-testi-pista" ref={pistaRef}>
+          {testimonials.map((t) => (
+            <article className="lp-testimonio" key={t.id}>
+              <div className="lp-testimonio-in">
+                <div className="lp-stars">
+                  {Array.from({ length: t.rating }).map((_, j) => <IconStar key={j} />)}
+                </div>
+                <span className="lp-quote" aria-hidden="true">“</span>
+                <p>"{t.quote}"</p>
+                <footer>
+                  <strong>{t.name}</strong>
+                  <span>{t.location}</span>
+                </footer>
               </div>
-              <span className="lp-quote" aria-hidden="true">“</span>
-              <p>"{t.quote}"</p>
-              <footer>
-                <strong>{t.name}</strong>
-                <span>{t.location}</span>
-              </footer>
-            </div>
-          </article>
-        ))}
+            </article>
+          ))}
+        </div>
+
+        {desborda && (
+          <CostadoTestimonios dir={1} etiqueta="Ver más testimonios"
+                              onEntrar={arrancar} onSalir={frenar} onClic={saltar} />
+        )}
       </div>
     </section>
   )

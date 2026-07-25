@@ -1042,15 +1042,83 @@
   flex-direction: column;
   align-items: center;
 }
-.lp-testimonios-grid {
-  display: grid;
-  /* auto-fit y no repeat(4, …): con 4 testimonios se ven 4 columnas igual, pero
-     con 3 (o 2) se reparten el ancho en vez de dejar un hueco a la derecha.
-     La cantidad la decide la clienta desde el panel, así que no puede ser fija. */
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 32px;
+/* Carrusel de testimonios.
+   La cantidad la decide la clienta desde el panel, así que la sección tiene que
+   verse igual de bien con 3 que con 30. Antes era una grilla y con 10 crecía a
+   1500px de alto —una pared de tarjetas con huecos en la última fila—. Ahora la
+   altura es siempre la misma y lo que sobra se desplaza hacia el lado. */
+.lp-testi-carrusel {
+  position: relative;
   width: var(--lp-content);
   margin-top: 36px;
+}
+.lp-testi-pista {
+  display: flex;
+  gap: 32px;
+  overflow-x: auto;
+  /* OJO: nada de scroll-snap acá. El desplazamiento por hover avanza ~7px por
+     cuadro y el snap devolvía la pista a la tarjeta más cercana en cada uno, así
+     que no avanzaba nunca (el clic sí funcionaba, porque es un salto grande de
+     una sola vez). El snap se activa solo en móvil, donde el gesto del dedo sí
+     lo aprovecha y no hay hover. */
+  /* Sitio para la sombra de las tarjetas: con overflow el navegador la recorta. */
+  padding: 6px 4px 14px;
+  scrollbar-width: none;           /* Firefox */
+  -ms-overflow-style: none;        /* Edge antiguo */
+}
+.lp-testi-pista::-webkit-scrollbar { display: none; }
+
+/* Sin desborde (el caso normal: 3 o 4 testimonios) se centran, para que no
+   queden pegados a la izquierda con un hueco a la derecha. */
+.lp-testi-carrusel:not(.con-costados) .lp-testi-pista { justify-content: center; }
+
+.lp-testi-pista > .lp-testimonio {
+  /* Cuatro por pantalla contando los 3 espacios de 32px entre medio. */
+  flex: 0 0 calc((100% - 96px) / 4);
+  scroll-snap-align: start;
+  /* El height:100% de la regla general resolvía a auto dentro del flex y cada
+     tarjeta quedaba del alto de su texto; los testimonios largos descuadraban
+     la fila. Con align-self se estiran todas a la más alta. */
+  height: auto;
+  align-self: stretch;
+}
+
+/* Zonas laterales: al dejar el puntero encima, la pista se desplaza sola hacia
+   ese lado; al hacer clic salta una pantalla. Son <button> de verdad para que
+   también funcionen con teclado y las anuncie un lector de pantalla. */
+.lp-testi-costado {
+  position: absolute;
+  top: 0;
+  bottom: 14px;
+  width: 72px;
+  z-index: 2;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--lp-purple, #8200db);
+  transition: opacity 0.2s ease;
+  opacity: 0.75;
+}
+.lp-testi-costado:hover { opacity: 1; }
+.lp-testi-costado.izq {
+  left: -8px;
+  justify-content: flex-start;
+  padding-left: 6px;
+  background: linear-gradient(to right, var(--lp-bg, #fff) 35%, transparent);
+}
+.lp-testi-costado.der {
+  right: -8px;
+  justify-content: flex-end;
+  padding-right: 6px;
+  background: linear-gradient(to left, var(--lp-bg, #fff) 35%, transparent);
+}
+.lp-testi-costado:focus-visible {
+  outline: 3px solid var(--lp-purple, #8200db);
+  outline-offset: -3px;
+  border-radius: 12px;
 }
 /* La tarjeta externa es el "target" del reveal (entrada al hacer scroll); el
    wrapper interno lleva lo visual + el hover. Así el transform del reveal y el
@@ -1398,7 +1466,8 @@
   .lp-cards { grid-template-columns: 1fr; max-width: 560px; }
   .lp-oferta { grid-template-columns: 1fr 1fr; padding: 34px; }
   .lp-oferta-foto { display: none; }
-  .lp-testimonios-grid { grid-template-columns: repeat(2, 1fr); }
+  /* Menos tarjetas por pantalla; el resto se sigue desplazando al costado. */
+  .lp-testi-pista > .lp-testimonio { flex: 0 0 calc((100% - 32px) / 2); }
   .lp-beneficios { grid-template-columns: 1fr; }
   /* en 1 columna, cancelar el "span 2" para que no cree una columna implícita */
   .lp-beneficios-box { grid-column: auto; }
@@ -1417,7 +1486,11 @@
   .lp-quienes-inner { grid-template-columns: 1fr; }
   /* en 1 columna, cancelar el "span 2" para que no cree una columna implícita */
   .lp-quienes-texto { grid-column: auto; }
-  .lp-testimonios-grid { grid-template-columns: 1fr; max-width: 480px; }
+  .lp-testi-pista > .lp-testimonio { flex: 0 0 min(100%, 400px); }
+  /* En celular no hay puntero: se desliza con el dedo y las zonas laterales
+     solo taparían las tarjetas. */
+  .lp-testi-costado { display: none; }
+  .lp-testi-pista { scroll-snap-type: x mandatory; }
   .lp-concurso { grid-template-columns: 1fr; padding: 34px; gap: 40px; }
   .lp-contacto-inner { grid-template-columns: 1fr; gap: 46px; }
   .lp-form-row { grid-template-columns: 1fr; gap: 0; }
@@ -1458,7 +1531,7 @@
   .lp-hero-copy h1 { line-height: 1.12; }
   .lp-hero-copy p { font-size: 15px; }
 
-  .lp-cards, .lp-pasos, .lp-testimonios-grid { max-width: 100%; }
+  .lp-cards, .lp-pasos, .lp-testi-carrusel { max-width: 100%; }
   .lp-card, .lp-paso, .lp-testimonio { padding: 22px; }
   .lp-oferta, .lp-concurso { padding: 24px; }
   .lp-beneficios-box { padding: 24px; }
