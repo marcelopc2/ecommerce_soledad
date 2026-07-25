@@ -90,10 +90,25 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--limpiar', action='store_true',
                             help='Borra el contenido de prueba y termina.')
+        parser.add_argument('--forzar', action='store_true',
+                            help='Permite correr con DEBUG=False (servidor de pruebas). '
+                                 'Hay que escribirlo a propósito: es la única forma de '
+                                 'meter contenido falso en un servidor.')
+        parser.add_argument('--alumno', default='alumno.demo@test.cl',
+                            help='Correo de la membresía a la que se le marca avance. '
+                                 'Si no existe, se usa la primera que haya.')
+        parser.add_argument('--reemplazar-todo', action='store_true',
+                            help='Borra TODOS los cursos y diplomas antes de crear, no solo '
+                                 'los de prueba. Se lleva por delante el contenido real.')
 
     def handle(self, *args, **opciones):
-        if not settings.DEBUG:
-            raise CommandError('Solo corre con DEBUG=True: no debe tocar producción.')
+        # La guarda evita el accidente; --forzar deja la puerta para el servidor
+        # de pruebas, donde DEBUG va en False pero el contenido igual es falso.
+        if not settings.DEBUG and not opciones['forzar']:
+            raise CommandError(
+                'Con DEBUG=False esto no corre solo. Si de verdad quieres sembrar '
+                'contenido de prueba en este servidor, repite con --forzar.'
+            )
 
         if opciones['limpiar']:
             n, _ = Course.objects.filter(slug__startswith=PREFIJO).delete()
@@ -101,12 +116,18 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Borrado: {n} registros de cursos, {d} de diplomas.'))
             return
 
-        # Se parte de cero para que el orden quede parejo al correrlo dos veces.
-        # Se llevan también los cursos sueltos de seed_dummy_data: si no, quedan
-        # mezclados con estos y la secuencia se ve desordenada.
-        Course.objects.filter(slug__startswith=PREFIJO).delete()
-        Course.objects.filter(slug__startswith='curso-demo').delete()
-        Diploma.objects.filter(title__startswith='Diploma Constructor').delete()
+        if opciones['reemplazar_todo']:
+            n, _ = Course.objects.all().delete()
+            d, _ = Diploma.objects.all().delete()
+            self.stdout.write(self.style.WARNING(
+                f'Se borró TODO el contenido anterior ({n} registros de cursos, {d} de diplomas).'))
+        else:
+            # Se parte de cero para que el orden quede parejo al correrlo dos
+            # veces. Se llevan también los cursos sueltos de seed_dummy_data: si
+            # no, quedan mezclados y la secuencia se ve desordenada.
+            Course.objects.filter(slug__startswith=PREFIJO).delete()
+            Course.objects.filter(slug__startswith='curso-demo').delete()
+            Diploma.objects.filter(title__startswith='Diploma Constructor').delete()
 
         colores = [(130, 0, 219), (255, 203, 0), (0, 166, 62), (255, 97, 1),
                    (47, 0, 83), (89, 5, 153), (6, 124, 113), (192, 52, 52)]
@@ -157,7 +178,8 @@ class Command(BaseCommand):
         # Sin esto la membresía es de hoy y solo el primer modelo estaría
         # abierto: no se vería ni un curso completado ni el contador del
         # siguiente. Se corre la fecha de compra 5 semanas hacia atrás.
-        m = Membership.objects.filter(user__email='alumno.demo@test.cl').first()
+        m = (Membership.objects.filter(user__email=opciones['alumno']).first()
+             or Membership.objects.first())
         if m:
             m.created_at = timezone.now() - timedelta(weeks=5)
             m.save(update_fields=['created_at'])
@@ -170,7 +192,7 @@ class Command(BaseCommand):
                 mark_lesson_completed(m, l)
 
             self.stdout.write(
-                '\nalumno.demo@test.cl: 3 modelos completos, 1 a medias, '
+                f'\n{m.user.email}: 3 modelos completos, 1 a medias, '
                 'el resto esperando su semana.\n'
-                'Los otros alumnos de prueba parten desde cero.'
+                'Las demás membresías parten desde cero.'
             )
