@@ -1076,11 +1076,15 @@
   /* Cuatro por pantalla contando los 3 espacios de 32px entre medio. */
   flex: 0 0 calc((100% - 96px) / 4);
   scroll-snap-align: start;
-  /* El height:100% de la regla general resolvía a auto dentro del flex y cada
-     tarjeta quedaba del alto de su texto; los testimonios largos descuadraban
-     la fila. Con align-self se estiran todas a la más alta. */
-  height: auto;
-  align-self: stretch;
+  /* Alto FIJO, no stretch-to-tallest. La cantidad y el largo de los
+     testimonios los decide la clienta desde el panel: con testimonios largos
+     "estirar todas a la más alta" hacía que la fila completa creciera sin
+     límite y además la pista (ver más abajo, overflow-x:auto) las recortaba
+     verticalmente, porque overflow-x no-visible fuerza a overflow-y a
+     computarse como auto también —regla de la spec CSS, no se puede evitar
+     poniendo overflow-y:visible—. Con alto fijo + texto truncado, todas las
+     tarjetas quedan parejas y nunca exceden el espacio disponible. */
+  height: 296px;
 }
 
 /* Zonas laterales: al dejar el puntero encima, la pista se desplaza sola hacia
@@ -1120,12 +1124,16 @@
   outline-offset: -3px;
   border-radius: 12px;
 }
-/* La tarjeta externa es el "target" del reveal (entrada al hacer scroll); el
-   wrapper interno lleva lo visual + el hover. Así el transform del reveal y el
-   del hover viven en elementos distintos y no se pisan, y el hover es instantáneo
-   (el interno no arrastra el transition-delay escalonado del reveal). */
+/* La tarjeta externa es el "target" del reveal (entrada al hacer scroll) y del
+   truco de expansión de abajo. El wrapper interno lleva lo visual. */
 .lp-testimonio { position: relative; height: 100%; }
 .lp-testimonio-in {
+  /* box-sizing: el proyecto no trae un reset global a border-box, y sin esto
+     el padding se SUMA a height:100% en vez de restarse de él: la tarjeta
+     terminaba midiendo 352px en vez de los 296px fijados en .lp-testimonio,
+     y la pista (overflow-x:auto ⇒ overflow-y:auto forzado, ver más arriba) le
+     recortaba esos 56px de más. */
+  box-sizing: border-box;
   position: relative;
   height: 100%;
   background: #fff;
@@ -1133,13 +1141,46 @@
   border-radius: 24px;
   padding: 30px 32px 24px;
   box-shadow: var(--lp-card-shadow);
-  transition: transform 0.34s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.34s ease, border-color 0.34s ease;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: opacity 0.22s ease;
 }
+
+/* Pequeño feedback al pasar el mouse: invita a hacer clic sin mover la
+   tarjeta. El texto completo se abre con un modal (ver TestimonioModal más
+   abajo en Landing.jsx), no con :hover — se probó primero con :hover
+   disparando position:fixed (la tarjeta "saltaba" al centro de la pantalla) y
+   resultó inestable: al saltar, el mouse deja de estar físicamente sobre la
+   tarjeta, así que el navegador cancela el :hover de inmediato y la tarjeta
+   vuelve a su sitio, que reactiva el :hover, que la vuelve a mandar al
+   centro… un parpadeo infinito con cualquier mouse real, no solo en las
+   pruebas automatizadas. Un modal disparado por clic no tiene ese problema:
+   el estado lo controla React, no la posición del cursor. */
 .lp-testimonio:hover .lp-testimonio-in {
-  transform: translateY(-8px);
-  box-shadow: 0 26px 42px -14px rgba(47, 0, 83, 0.24);
-  border-color: rgba(130, 0, 219, 0.35);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 34px -12px rgba(47, 0, 83, 0.22);
+  border-color: rgba(130, 0, 219, 0.3);
 }
+.lp-testimonio-in:focus-visible {
+  outline: 3px solid var(--lp-purple, #8200db);
+  outline-offset: 2px;
+}
+.lp-testimonio-leermas {
+  align-self: flex-start;
+  margin-top: -14px;                 /* se monta sobre el degradado del ::after */
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lp-accent, #8200db);
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+.lp-testimonio-leermas:hover,
+.lp-testimonio-leermas:focus-visible { text-decoration: underline; }
 .lp-stars { display: flex; gap: 2px; margin-bottom: 18px; }
 .lp-quote {
   position: absolute;
@@ -1168,6 +1209,24 @@
   line-height: 1.65;
   color: var(--lp-body-c);
   margin: 0 0 20px;
+  /* Siempre recortado a 5 líneas: la tarjeta compacta es una vista previa, el
+     texto completo se lee en el modal (clic en "leer más" o en la tarjeta). */
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Aviso de que el texto sigue, degradado hacia el blanco de la tarjeta para no
+   cortar la última línea en seco. */
+.lp-testimonio-in::after {
+  content: '';
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 90px;
+  height: 28px;
+  background: linear-gradient(to bottom, transparent, #fff);
+  pointer-events: none;
 }
 .lp-testimonio footer {
   border-top: 1px solid #f1f5f9;
@@ -1175,6 +1234,9 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  /* .lp-testimonio-in es flex-column: esto lo empuja siempre al fondo de la
+     tarjeta, sea cual sea el largo del testimonio recortado arriba. */
+  margin-top: auto;
 }
 .lp-testimonio footer strong {
   font-size: 14px;
@@ -1188,6 +1250,72 @@
   text-transform: uppercase;
   color: var(--lp-accent);
 }
+
+/* Modal del testimonio completo. Mismo patrón que .lp-vmodal (el del video):
+   portal a document.body, backdrop que cierra al clic, Escape, foco devuelto
+   al cerrar. Ancho angosto y alto acotado con scroll interno propio -no
+   depende de la altura de ningún ancestro, así que nunca puede recortarse
+   sea cual sea el largo del testimonio. */
+.lp-testi-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 0, 30, 0.72);
+  animation: lp-vmodal-fade 0.2s ease;
+}
+.lp-testi-modal-inner {
+  position: relative;
+  width: min(480px, 100%);
+  max-height: min(80vh, 620px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 24px;
+  padding: 36px 32px 30px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+  animation: lp-vmodal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.lp-testi-modal .lp-stars { margin-bottom: 16px; }
+.lp-testi-modal p {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--lp-body-c);
+  margin: 0 0 22px;
+}
+.lp-testi-modal footer {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lp-testi-modal footer strong { font-size: 15px; font-weight: 800; color: var(--lp-ink); }
+.lp-testi-modal footer span {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--lp-accent);
+}
+.lp-testi-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #f3e8ff;
+  color: var(--lp-accent, #8200db);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.lp-testi-modal-close:hover { background: #e6d3fb; }
 
 /* ---------- Concurso ---------- */
 

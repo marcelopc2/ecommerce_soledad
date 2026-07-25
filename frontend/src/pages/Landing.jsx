@@ -639,6 +639,7 @@ function CostadoTestimonios({ dir, etiqueta, onEntrar, onSalir, onClic }) {
 function Testimonios() {
   const [testimonials, setTestimonials] = useState([])
   const [desborda, setDesborda] = useState(false)
+  const [abierto, setAbierto] = useState(null)   // testimonio mostrado en el modal, o null
   const pistaRef = useRef(null)
   const dirRef = useRef(0)
   const rafRef = useRef(0)
@@ -704,12 +705,40 @@ function Testimonios() {
         <div className="lp-testi-pista" ref={pistaRef}>
           {testimonials.map((t) => (
             <article className="lp-testimonio" key={t.id}>
-              <div className="lp-testimonio-in">
+              {/* El texto completo se lee en un modal (clic o Enter/Espacio),
+                  no al pasar el mouse: se probó con :hover disparando un
+                  "salto" a pantalla completa y resultó inestable — al saltar,
+                  el mouse deja de estar sobre la tarjeta, el navegador cancela
+                  el :hover, la tarjeta vuelve a su sitio, se reactiva el
+                  :hover… un parpadeo infinito. Un modal por clic no depende de
+                  dónde esté el cursor. */}
+              <div
+                className="lp-testimonio-in"
+                role="button"
+                tabIndex={0}
+                aria-haspopup="dialog"
+                aria-label={`Leer el testimonio completo de ${t.name}`}
+                onClick={() => setAbierto(t)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAbierto(t) }
+                }}
+              >
                 <div className="lp-stars">
                   {Array.from({ length: t.rating }).map((_, j) => <IconStar key={j} />)}
                 </div>
                 <span className="lp-quote" aria-hidden="true">“</span>
                 <p>"{t.quote}"</p>
+                {/* type="button" + stopPropagation: es un botón DENTRO de la
+                    tarjeta clickeable; sin frenar la burbuja, el clic abriría
+                    el modal dos veces (una por este botón, otra por la
+                    tarjeta) sin causar error, pero es redundante y confuso. */}
+                <button
+                  type="button"
+                  className="lp-testimonio-leermas"
+                  onClick={(e) => { e.stopPropagation(); setAbierto(t) }}
+                >
+                  Leer completo →
+                </button>
                 <footer>
                   <strong>{t.name}</strong>
                   <span>{t.location}</span>
@@ -724,7 +753,43 @@ function Testimonios() {
                               onEntrar={arrancar} onSalir={frenar} onClic={saltar} />
         )}
       </div>
+
+      {abierto && <TestimonioModal testimonio={abierto} onClose={() => setAbierto(null)} />}
     </section>
+  )
+}
+
+// Mismo patrón que VideoModal: portal a document.body (así el modal nunca
+// depende del overflow de ningún ancestro, ni de la pista horizontal de
+// testimonios ni de nada más), backdrop que cierra al clic, Escape, scroll de
+// fondo bloqueado mientras está abierto.
+function TestimonioModal({ testimonio: t, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [onClose])
+
+  return createPortal(
+    <div className="lp-testi-modal" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Testimonio de ${t.name}`}>
+      <div className="lp-testi-modal-inner" onClick={(e) => e.stopPropagation()}>
+        <button className="lp-testi-modal-close" onClick={onClose} aria-label="Cerrar">×</button>
+        <div className="lp-stars">
+          {Array.from({ length: t.rating }).map((_, j) => <IconStar key={j} />)}
+        </div>
+        <p>"{t.quote}"</p>
+        <footer>
+          <strong>{t.name}</strong>
+          <span>{t.location}</span>
+        </footer>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
