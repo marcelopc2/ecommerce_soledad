@@ -143,12 +143,13 @@ class MembershipForm(BootstrapFormMixin, forms.ModelForm):
 class CourseForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Course
-        fields = ['title', 'slug', 'description', 'image_url', 'is_active']
+        fields = ['title', 'slug', 'description', 'image_file', 'image_url', 'is_active']
         labels = {
             'title': 'Título',
             'slug': 'Dirección web (se genera sola desde el título)',
             'description': 'Descripción',
-            'image_url': 'Imagen de portada (URL)',
+            'image_file': 'Imagen de portada',
+            'image_url': '…o pegar una dirección de internet',
             'is_active': 'Curso activo',
         }
         widgets = {
@@ -236,11 +237,12 @@ class LessonForm(BootstrapFormMixin, forms.ModelForm):
 class DiplomaForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Diploma
-        fields = ['title', 'description', 'image_url', 'is_active']
+        fields = ['title', 'description', 'image_file', 'image_url', 'is_active']
         labels = {
             'title': 'Título del diploma',
             'description': 'Mensaje del diploma',
-            'image_url': 'Imagen/fondo (opcional)',
+            'image_file': 'Imagen del diploma (opcional)',
+            'image_url': '…o pegar una dirección de internet',
             'is_active': 'Activo',
         }
         widgets = {

@@ -51,9 +51,11 @@ class LandingVideoSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'youtube_id', 'cover_url']
 
     def get_cover_url(self, obj):
-        if not obj.cover:
+        url = obj.portada_url          # portada subida o, si no hay, la de YouTube
+        if not url:
             return None
-        url = obj.cover.url
+        if url.startswith('http'):
+            return url                 # la de YouTube ya viene absoluta
         # URL absoluta: en desarrollo el front (5173) y el back (8000) están en
         # puertos distintos, así que una ruta relativa apuntaría a Vite.
         request = self.context.get('request')

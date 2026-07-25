@@ -16,7 +16,7 @@
 {% endblock %}
 
 {% block content %}
-<form method="post" novalidate>
+<form method="post" enctype="multipart/form-data" novalidate>
   {% csrf_token %}
   <div class="row g-4">
     <div class="col-lg-8">
@@ -32,9 +32,17 @@
           {{ form.description }}
         </div>
         <div class="mb-3">
+          <label class="form-label">{{ form.image_file.label }}</label>
+          {% if diploma and diploma.image_file %}
+            <div class="mb-2"><img src="{{ diploma.image_file.url }}" alt="" style="max-height:110px;border-radius:10px"></div>
+          {% endif %}
+          {{ form.image_file }}
+          <div class="pnl-campo-ayuda">Si lo dejas vacío se usa el diseño lúdico por defecto de Ingenio Blocks (con el nombre del alumno).</div>
+        </div>
+        <div class="mb-3">
           <label class="form-label">{{ form.image_url.label }}</label>
           {{ form.image_url }}
-          <div class="cell-sub mt-1">Si lo dejas vacío se usa el diseño lúdico por defecto de IngenioBlocks (con el nombre del alumno).</div>
+          <div class="pnl-campo-ayuda">Solo si la imagen ya está publicada en otro sitio. La subida de arriba manda sobre esta.</div>
         </div>
         <div class="form-check form-switch">
           {{ form.is_active }}

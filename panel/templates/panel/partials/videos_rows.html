@@ -1,9 +1,17 @@
 {% for v in videos %}
   <tr>
     <td style="width:132px">
-      {% if v.cover %}
-        <img src="{{ v.cover.url }}" alt="{{ v.title }}"
+      {% comment %}
+        portada_url ya resuelve "la subida o, si no hay, la de YouTube", así que
+        acá se ve lo mismo que verá el visitante. La etiqueta avisa cuál es,
+        para que se note que no hace falta subir nada si el link basta.
+      {% endcomment %}
+      {% if v.portada_url %}
+        <img src="{{ v.portada_url }}" alt="{{ v.title }}"
              style="width:116px;height:66px;object-fit:cover;border-radius:8px;display:block">
+        {% if not v.cover %}
+          <span class="cell-sub" style="font-size:11px">de YouTube</span>
+        {% endif %}
       {% else %}
         <span class="badge-soft gray">Sin portada</span>
       {% endif %}

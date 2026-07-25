@@ -269,6 +269,21 @@ def extract_youtube_id(value):
     return ''
 
 
+def youtube_thumbnail(value):
+    """Miniatura que YouTube publica para un video, o '' si no se reconoce el link.
+
+    Sirve de portada cuando no se subió una propia: es preferible mostrar el
+    fotograma del video que un hueco gris, y ahorra tener que preparar una
+    imagen por cada uno.
+
+    Se usa `hqdefault` y no `maxresdefault` porque esta última no existe para
+    todos los videos (solo si se subieron en alta resolución) y devuelve un 404
+    que se vería como imagen rota. `hqdefault` la genera YouTube siempre.
+    """
+    vid = extract_youtube_id(value)
+    return f'https://img.youtube.com/vi/{vid}/hqdefault.jpg' if vid else ''
+
+
 class LandingVideoManager(models.Manager):
     def restore_defaults(self):
         """Vuelve a los 3 videos originales de la sección "Sobre el Mundo Ingenio
@@ -315,6 +330,18 @@ class LandingVideo(models.Model):
     @property
     def youtube_id(self):
         return extract_youtube_id(self.youtube_url)
+
+    @property
+    def portada_url(self):
+        """Portada a mostrar: la subida si existe, si no la miniatura de YouTube.
+
+        Así subir una imagen propia pasa a ser opcional: con pegar el link del
+        video ya se ve algo, y quien quiera una portada distinta la sube y esa
+        manda.
+        """
+        if self.cover:
+            return self.cover.url
+        return youtube_thumbnail(self.youtube_url)
 
     def __str__(self):
         return self.title

@@ -14,7 +14,7 @@
 {% block content %}
 
 {# ---------- Sección 1: datos del curso ---------- #}
-<form method="post" id="course-form" novalidate>
+<form method="post" id="course-form" enctype="multipart/form-data" novalidate>
   {% csrf_token %}
   <input type="hidden" name="form_name" value="course">
 
@@ -37,8 +37,20 @@
       {{ form.description }}
     </div>
     <div class="mb-3">
+      <label class="form-label">{{ form.image_file.label }}</label>
+      {% if course and course.image_file %}
+        <div class="mb-2"><img src="{{ course.image_file.url }}" alt="" style="max-height:110px;border-radius:10px"></div>
+      {% endif %}
+      {{ form.image_file }}
+      <div class="pnl-campo-ayuda">
+        {{ form.image_file.help_text }}
+        Si no subes ninguna, se usa la miniatura del primer video del curso.
+      </div>
+    </div>
+    <div class="mb-3">
       <label class="form-label">{{ form.image_url.label }}</label>
       {{ form.image_url }}
+      <div class="pnl-campo-ayuda">Solo si la imagen ya está publicada en otro sitio. La subida de arriba manda sobre esta.</div>
     </div>
     <div class="form-check form-switch">
       {{ form.is_active }}

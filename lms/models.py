@@ -22,7 +22,20 @@ class Course(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
-    image_url = models.URLField(max_length=500, blank=True, help_text="Imagen de portada (URL)")
+    # Dos vías para la portada porque pedir una URL obliga a hospedar la imagen
+    # en otra parte, y quien administra el sitio no tiene por qué saber hacerlo.
+    # Se prioriza el archivo subido; image_url queda para los cursos que ya la
+    # tenían y para pegar una imagen que vive en otro lado.
+    # FileField y no ImageField: ImageField exige Pillow, que no es dependencia
+    # del proyecto. Es el mismo criterio que ya usa LandingVideo.cover.
+    image_file = models.FileField(
+        upload_to='cursos/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Imagen de portada',
+        help_text='JPG, PNG o WEBP. Ideal horizontal (16:9). Si la subes acá, manda sobre la URL.',
+    )
+    image_url = models.URLField(max_length=500, blank=True,
+                               help_text='Alternativa: dirección de una imagen ya publicada en internet.')
     is_active = models.BooleanField(default=True)
     order = models.PositiveIntegerField(
         default=0,
@@ -32,6 +45,29 @@ class Course(models.Model):
 
     class Meta:
         ordering = ['order', 'id']
+
+    @property
+    def portada_url(self):
+        """Portada del curso, en orden de preferencia.
+
+        1. La imagen subida.
+        2. Una URL pegada a mano.
+        3. La miniatura del primer video del curso.
+
+        El paso 3 es el que evita el ladrillo gris genérico: casi todos los
+        modelos abren con un video, así que sin hacer nada la tarjeta ya muestra
+        un fotograma del contenido real.
+        """
+        from catalog.models import youtube_thumbnail
+
+        if self.image_file:
+            return self.image_file.url
+        if self.image_url:
+            return self.image_url
+        primer_video = self.lessons.filter(
+            lesson_type='VIDEO', video_embed_url__gt='',
+        ).order_by('order', 'id').first()
+        return youtube_thumbnail(primer_video.video_embed_url) if primer_video else ''
 
     def __str__(self):
         return self.title
@@ -166,9 +202,15 @@ class Diploma(models.Model):
     la lista arrastrable del panel mezcla cursos y diplomas."""
     title = models.CharField(max_length=200, help_text="Ej: 'Diploma Nivel Básico'")
     description = models.TextField(blank=True, help_text="Mensaje que aparece en el diploma")
+    image_file = models.FileField(
+        upload_to='diplomas/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Imagen del diploma',
+        help_text='Opcional (JPG, PNG o WEBP). Si no subes nada se usa el diseño por defecto.',
+    )
     image_url = models.URLField(
         max_length=500, blank=True,
-        help_text="Imagen/fondo del diploma (opcional). Si se deja vacío se usa el diseño por defecto de IngenioBlocks.",
+        help_text='Alternativa: dirección de una imagen ya publicada en internet.',
     )
     order = models.PositiveIntegerField(default=0, help_text="Posición en la secuencia (compartida con los cursos)")
     is_active = models.BooleanField(default=True)
@@ -176,6 +218,13 @@ class Diploma(models.Model):
 
     class Meta:
         ordering = ['order', 'id']
+
+    @property
+    def portada_url(self):
+        """Imagen del diploma: la subida manda sobre la pegada por URL."""
+        if self.image_file:
+            return self.image_file.url
+        return self.image_url or ''
 
     def __str__(self):
         return f"🎓 {self.title}"

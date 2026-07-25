@@ -35,6 +35,10 @@ class LessonStudentSerializer(serializers.ModelSerializer):
 
 class CourseStudentSerializer(serializers.ModelSerializer):
     lessons = LessonStudentSerializer(many=True, read_only=True)
+    # image_url sigue siendo la portada que consume el frontend, pero ya no sale
+    # del campo crudo: `portada_url` resuelve archivo subido > URL pegada >
+    # miniatura del primer video del curso.
+    image_url = serializers.CharField(source='portada_url', read_only=True)
 
     class Meta:
         model = Course
@@ -43,6 +47,7 @@ class CourseStudentSerializer(serializers.ModelSerializer):
 
 class CourseListSerializer(serializers.ModelSerializer):
     lessons_count = serializers.IntegerField(source='lessons.count', read_only=True)
+    image_url = serializers.CharField(source='portada_url', read_only=True)
 
     class Meta:
         model = Course

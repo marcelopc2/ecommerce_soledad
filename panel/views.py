@@ -315,7 +315,7 @@ def course_form(request, pk=None):
             messages.success(request, f'Recurso "{lesson.title}" agregado.')
             return redirect('panel:course_edit', pk=course.pk)
     elif request.method == 'POST':
-        form = CourseForm(request.POST, instance=course)
+        form = CourseForm(request.POST, request.FILES, instance=course)
         if form.is_valid():
             obj = form.save()
             messages.success(request, f'Curso "{obj.title}" guardado.')
@@ -394,7 +394,7 @@ def course_duplicate(request, pk):
 @staff_required
 def diploma_form(request, pk=None):
     diploma = get_object_or_404(Diploma, pk=pk) if pk else None
-    form = DiplomaForm(request.POST or None, instance=diploma)
+    form = DiplomaForm(request.POST or None, request.FILES or None, instance=diploma)
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
         messages.success(request, f'Diploma "{obj.title}" guardado.')
