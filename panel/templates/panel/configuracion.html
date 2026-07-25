@@ -44,6 +44,12 @@
         <i class="bi bi-signpost-2-fill me-1"></i> Cómo funciona
       </button>
     </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link{% if tab == 'aula' %} active{% endif %}" id="tab-aula-btn" data-cfg-tab="aula"
+              type="button" role="tab" aria-controls="tab-aula" aria-selected="{% if tab == 'aula' %}true{% else %}false{% endif %}">
+        <i class="bi bi-mortarboard-fill me-1"></i> Aula Virtual
+      </button>
+    </li>
   </ul>
 
   <div class="tab-content pt-3">
@@ -133,6 +139,72 @@
         </table>
       </div>
     </div>
+
+    <div class="tab-pane fade{% if tab == 'aula' %} show active{% endif %}" id="tab-aula" role="tabpanel">
+      <div class="pnl-toolbar">
+        <span class="pnl-hint">
+          <i class="bi bi-info-circle"></i>
+          Controlan el ritmo con que el alumno recibe los modelos y cuánto alcanza a ver de lo que viene.
+        </span>
+      </div>
+
+      <form method="post" class="card-pad">
+        {% csrf_token %}
+        <input type="hidden" name="form" value="aula">
+
+        <div class="row g-4">
+          <div class="col-md-5">
+            <label class="form-label" for="{{ ajustes_form.cursos_iniciales.id_for_label }}">
+              {{ ajustes_form.cursos_iniciales.label }}
+            </label>
+            {{ ajustes_form.cursos_iniciales }}
+            {% if ajustes_form.cursos_iniciales.errors %}
+              <div class="pnl-field-error">{{ ajustes_form.cursos_iniciales.errors.0 }}</div>
+            {% endif %}
+            <div class="pnl-campo-ayuda">
+              Cuántos modelos quedan disponibles apenas se compra, para que el alumno
+              tenga con qué empezar. Se abren <strong>en orden</strong>: al terminar uno
+              se abre el siguiente al instante, sin esperar la semana.
+              Del siguiente en adelante vuelve el ritmo de <strong>uno por semana</strong>.
+            </div>
+          </div>
+
+          <div class="col-md-5">
+            <label class="form-label" for="{{ ajustes_form.bloqueados_visibles.id_for_label }}">
+              {{ ajustes_form.bloqueados_visibles.label }}
+            </label>
+            {{ ajustes_form.bloqueados_visibles }}
+            {% if ajustes_form.bloqueados_visibles.errors %}
+              <div class="pnl-field-error">{{ ajustes_form.bloqueados_visibles.errors.0 }}</div>
+            {% endif %}
+            <div class="pnl-campo-ayuda">
+              Cuántos modelos por venir se muestran tapados (con el candado y los ojitos),
+              para dar a entender que hay más. Con <strong>0</strong> se muestran todos
+              los que faltan de una vez.
+            </div>
+          </div>
+        </div>
+
+        <div class="alert pnl-alert mt-4 mb-3" style="background:#f7f4fa; border:1px solid var(--purple-100);">
+          <i class="bi bi-eye"></i>
+          <strong>Cómo se ve hoy:</strong> el alumno que acaba de comprar entra y
+          encuentra <strong>1 modelo abierto</strong>
+          {% if ajustes_form.instance.bloqueados_visibles %}
+            más <strong>{{ ajustes_form.instance.bloqueados_visibles }}</strong> tapado{{ ajustes_form.instance.bloqueados_visibles|pluralize }}.
+          {% else %}
+            y <strong>todos</strong> los demás tapados.
+          {% endif %}
+          A medida que completa, se le van abriendo hasta el
+          <strong>{{ ajustes_form.instance.cursos_iniciales }}º</strong>; desde ahí
+          espera una semana por cada uno.
+          {% if total_cursos %}Hoy hay {{ total_cursos }} modelo{{ total_cursos|pluralize }} publicado{{ total_cursos|pluralize }}.{% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-brand btn-sm">
+          <i class="bi bi-check-lg me-1"></i> Guardar ajustes
+        </button>
+      </form>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -191,12 +263,23 @@
       var cfg = CFG[tabName]
       var newBtn = document.getElementById('cfg-new-btn')
       var restoreBtn = document.getElementById('cfg-restore-btn')
-      newBtn.setAttribute('href', cfg.newUrl)
-      document.getElementById('cfg-new-label').textContent = cfg.newLabel
-      restoreBtn.setAttribute('hx-post', cfg.restoreUrl)
-      restoreBtn.setAttribute('hx-confirm', cfg.restoreConfirm)
-      document.getElementById('cfg-restore-label').textContent = cfg.restoreLabel
-      if (window.htmx) htmx.process(restoreBtn)
+
+      // "Aula Virtual" es una pestaña de ajustes: no tiene lista que crear ni
+      // valores por defecto que restaurar, así que no aparece en CFG. Sin este
+      // corte, cfg quedaba undefined y reventaba en cfg.newUrl.
+      if (!cfg) {
+        newBtn.style.display = 'none'
+        restoreBtn.style.display = 'none'
+      } else {
+        newBtn.style.display = ''
+        restoreBtn.style.display = ''
+        newBtn.setAttribute('href', cfg.newUrl)
+        document.getElementById('cfg-new-label').textContent = cfg.newLabel
+        restoreBtn.setAttribute('hx-post', cfg.restoreUrl)
+        restoreBtn.setAttribute('hx-confirm', cfg.restoreConfirm)
+        document.getElementById('cfg-restore-label').textContent = cfg.restoreLabel
+        if (window.htmx) htmx.process(restoreBtn)
+      }
 
       var url = new URL(window.location)
       url.searchParams.set('tab', tabName)

@@ -15,7 +15,9 @@ from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
-from .models import Course, Membership, CourseProgress, LessonProgress, Diploma, DiplomaAward
+from .models import (
+    AjustesAula, Course, Membership, CourseProgress, LessonProgress, Diploma, DiplomaAward,
+)
 
 User = get_user_model()
 log = logging.getLogger('ingenioblocks.pagos')
@@ -31,7 +33,7 @@ log = logging.getLogger('ingenioblocks.pagos')
 # bloqueado hasta que lo termine (no se salta la fila). Comprar un kit adicional
 # agrega más cursos al final de esta misma secuencia: el calendario no se reinicia.
 
-def _unlock_date(start_date, index):
+def _unlock_date(start_date, index, iniciales=1):
     """Fecha programada de liberación del curso en la posición `index` (0-based).
 
     El calendario es RELATIVO a la fecha de compra de cada alumno, no a un día
@@ -44,8 +46,13 @@ def _unlock_date(start_date, index):
     que se promete en la portada dejaba de cumplirse para casi todos.
 
     `start_date` ya viene corrido por los días que la membresía estuvo pausada.
+
+    `iniciales` es cuántos modelos quedan abiertos el día de la compra (ajustable
+    desde el panel). Con 3, las posiciones 0, 1 y 2 salen ese mismo día y recién
+    la 3 espera una semana: el recién llegado tiene con qué empezar sin esperar,
+    y de ahí en adelante se mantiene el ritmo semanal que promete la portada.
     """
-    return start_date + timedelta(weeks=index)
+    return start_date + timedelta(weeks=max(0, index - (iniciales - 1)))
 
 
 def _completion_map(membership, courses):
@@ -94,12 +101,13 @@ def get_course_access(membership):
     start_date = (timezone.localtime(membership.created_at).date()
                   + timedelta(days=membership.total_paused_days))
     today = timezone.localdate()
+    iniciales = AjustesAula.obtener().cursos_iniciales
 
     result = []
     blocked = False
     curso_previo = None      # el que hay que terminar para abrir el siguiente
     for i, course in enumerate(courses):
-        unlock_date = _unlock_date(start_date, i)
+        unlock_date = _unlock_date(start_date, i, iniciales)
         info = comp[course.id]
         falta_fecha = today < unlock_date
         unlocked = not falta_fecha and not blocked
@@ -157,7 +165,33 @@ def get_sequence_access(membership):
             if all_prev_courses_done:
                 award, _ = DiplomaAward.objects.get_or_create(membership=membership, diploma=it['diploma'])
                 it['awarded_at'] = award.awarded_at
-    return items
+
+    return _recortar_bloqueados(items, AjustesAula.obtener().bloqueados_visibles)
+
+
+def _recortar_bloqueados(items, limite):
+    """Deja a la vista lo disponible y solo `limite` modelos bloqueados.
+
+    Mostrar de una los 20 modelos que faltan aplasta el avance real del alumno y
+    delata todo el catálogo; dejar uno solo insinúa que viene más. `limite` sale
+    del panel, y 0 significa mostrarlos todos (como era antes).
+
+    Se cuentan solo los CURSOS: un diploma bloqueado que cae dentro del tramo
+    visible se muestra igual —es el premio de ese tramo, no contenido futuro—,
+    y si contara, un diploma intercalado podría tapar el próximo modelo.
+    """
+    if limite <= 0:
+        return items
+
+    salida = []
+    bloqueados = 0
+    for it in items:
+        if it['type'] == 'course' and not it['unlocked']:
+            bloqueados += 1
+            if bloqueados > limite:
+                break   # de acá en adelante no se muestra nada
+        salida.append(it)
+    return salida
 
 
 def get_preview_sequence():

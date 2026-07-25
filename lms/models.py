@@ -219,3 +219,42 @@ class DiplomaAward(models.Model):
 
     def __str__(self):
         return f"{self.membership.user.email} ganó {self.diploma.title}"
+
+
+class AjustesAula(models.Model):
+    """Ajustes del goteo, editables desde el panel. Es una fila única.
+
+    Antes estaban implícitos en el código: se abría un modelo al comprar y se
+    mostraban todos los bloqueados. Los dos son decisiones comerciales —cuánto
+    contenido regalar de entrada y cuánta expectativa dejar a la vista—, así que
+    tienen que poder cambiarse sin tocar código.
+    """
+
+    cursos_iniciales = models.PositiveIntegerField(
+        default=3,
+        help_text='Cuántos modelos quedan disponibles apenas se compra. Del siguiente '
+                  'en adelante se libera uno por semana.',
+    )
+    bloqueados_visibles = models.PositiveIntegerField(
+        default=1,
+        help_text='Cuántos modelos bloqueados se muestran después de los disponibles, '
+                  'para dar a entender que viene más. 0 = mostrarlos todos.',
+    )
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Ajustes del Aula Virtual'
+        verbose_name_plural = 'Ajustes del Aula Virtual'
+
+    def __str__(self):
+        return 'Ajustes del Aula Virtual'
+
+    def save(self, *args, **kwargs):
+        # Fila única: da igual desde dónde se guarde, siempre es la misma.
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

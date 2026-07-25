@@ -569,6 +569,17 @@ tr.diploma-row:hover { background: #fff8dd; }
 }
 .pnl-hint i { color: var(--purple-500); }
 
+/* Texto de ayuda BAJO un campo. No sirve .pnl-hint: esa vive en la barra de
+   herramientas y usa flex + margin-left:auto para irse a la derecha, así que
+   debajo de un input se encabalga con la del campo de al lado. */
+.pnl-campo-ayuda {
+  display: block;
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 /* Error de un campo concreto, bajo el input que lo provocó. */
 .pnl-field-error {
   margin-top: 5px;

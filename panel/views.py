@@ -18,10 +18,10 @@ from django.views.decorators.http import require_POST
 from catalog.models import Product, FAQ, Testimonial, LandingVideo, LandingStep
 from invoicing.models import Invoice
 from invoicing.services import issue_invoice_for_order
-from lms.models import Course, Lesson, Membership, Diploma
+from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 from lms.services import get_course_access, send_reset_email
 from payments.models import Order
-from .forms import LoginForm, ProductForm, CourseForm, LessonForm, MembershipForm, DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm, StaffUserForm
+from .forms import LoginForm, ProductForm, CourseForm, LessonForm, MembershipForm, DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm, StaffUserForm, AjustesAulaForm
 
 
 def staff_required(view):
@@ -829,12 +829,27 @@ def invoice_pdf(request, pk):
 @staff_required
 def configuracion(request):
     tab = request.GET.get('tab', 'faqs')
+
+    # Los ajustes del Aula son una fila única, así que se editan en la misma
+    # página en vez de tener su propio formulario aparte.
+    ajustes = AjustesAula.obtener()
+    if request.method == 'POST' and request.POST.get('form') == 'aula':
+        ajustes_form = AjustesAulaForm(request.POST, instance=ajustes)
+        if ajustes_form.is_valid():
+            ajustes_form.save()
+            messages.success(request, 'Ajustes del Aula Virtual guardados.')
+            return redirect(f"{reverse('panel:config')}?tab=aula")
+    else:
+        ajustes_form = AjustesAulaForm(instance=ajustes)
+
     ctx = {
         'faqs': FAQ.objects.all(),
         'testimonials': Testimonial.objects.all(),
         'videos': LandingVideo.objects.all(),
         'steps': LandingStep.objects.all(),
-        'tab': tab if tab in ('faqs', 'testimonios', 'videos', 'pasos') else 'faqs',
+        'ajustes_form': ajustes_form,
+        'total_cursos': Course.objects.filter(is_active=True).count(),
+        'tab': tab if tab in ('faqs', 'testimonios', 'videos', 'pasos', 'aula') else 'faqs',
         'section': 'config',
     }
     return render(request, 'panel/configuracion.html', ctx)

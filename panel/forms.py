@@ -1,7 +1,7 @@
 from django import forms
 from django.db.models import Max
 from catalog.models import Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id
-from lms.models import Course, Lesson, Membership, Diploma
+from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 
 
 class BootstrapFormMixin:
@@ -441,3 +441,23 @@ class StaffUserForm(BootstrapFormMixin, forms.Form):
         except DjangoValidationError as e:
             raise forms.ValidationError(list(e.messages))
         return pwd
+
+
+class AjustesAulaForm(BootstrapFormMixin, forms.ModelForm):
+    """Ajustes del goteo del Aula Virtual (fila única)."""
+
+    class Meta:
+        model = AjustesAula
+        fields = ['cursos_iniciales', 'bloqueados_visibles']
+        labels = {
+            'cursos_iniciales': 'Modelos disponibles al comprar',
+            'bloqueados_visibles': 'Modelos bloqueados a la vista',
+        }
+
+    def clean_cursos_iniciales(self):
+        # 0 dejaría al recién llegado sin nada que abrir el día que pagó.
+        n = self.cleaned_data['cursos_iniciales']
+        if n < 1:
+            raise forms.ValidationError('Tiene que ser al menos 1: si no, quien compra '
+                                        'entra a un aula sin nada disponible.')
+        return n
