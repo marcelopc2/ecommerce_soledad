@@ -677,6 +677,61 @@ function Concurso({ texto }) {
   )
 }
 
+/* La respuesta llega como texto plano desde el panel, pero la clienta la escribe
+   con estructura: párrafos y punteos. React no respeta los saltos de línea, así
+   que sin esto todo salía corrido en un solo bloque.
+
+   Se arma con elementos de React (nunca dangerouslySetInnerHTML): el texto lo
+   edita la clienta desde el panel y meterlo como HTML sería una vía de XSS. */
+const RE_URL = /(https?:\/\/[^\s]+)/g
+
+function conEnlaces(texto, claveBase) {
+  // split() con grupo de captura devuelve las URLs como elementos propios, así
+  // que basta mirar el comienzo. No se usa RE_URL.test(): con la bandera /g el
+  // regex guarda lastIndex entre llamadas y daría true/false alternado.
+  return texto.split(RE_URL).map((parte, i) =>
+    parte.startsWith('http')
+      ? <a key={`${claveBase}-${i}`} href={parte} target="_blank" rel="noopener noreferrer">{parte}</a>
+      : parte
+  )
+}
+
+function RespuestaFaq({ texto }) {
+  if (!texto) return null
+
+  // Se agrupan las líneas: las que empiezan con viñeta forman una lista, el
+  // resto son párrafos.
+  const bloques = []
+  let lista = []
+  const cerrarLista = () => {
+    if (lista.length) { bloques.push({ tipo: 'lista', items: lista }); lista = [] }
+  }
+
+  for (const cruda of texto.split('\n')) {
+    const linea = cruda.trim()
+    if (!linea) { cerrarLista(); continue }
+    const vinieta = linea.match(/^[•·*\-–—]\s+(.*)$/)
+    if (vinieta) {
+      lista.push(vinieta[1])
+    } else {
+      cerrarLista()
+      bloques.push({ tipo: 'parrafo', texto: linea })
+    }
+  }
+  cerrarLista()
+
+  return (
+    <>
+      {bloques.map((b, i) => b.tipo === 'lista'
+        ? <ul className="lp-faq-lista" key={i}>
+            {b.items.map((it, j) => <li key={j}>{conEnlaces(it, `${i}-${j}`)}</li>)}
+          </ul>
+        : <p className="lp-faq-p" key={i}>{conEnlaces(b.texto, `${i}`)}</p>
+      )}
+    </>
+  )
+}
+
 function Faq() {
   const [faqs, setFaqs] = useState([])
   const [open, setOpen] = useState(-1)
@@ -715,7 +770,7 @@ function Faq() {
               <span className="lp-faq-toggle" aria-hidden="true" />
             </button>
             <div className="lp-faq-a-wrap">
-              <div className="lp-faq-a">{f.answer}</div>
+              <div className="lp-faq-a"><RespuestaFaq texto={f.answer} /></div>
             </div>
           </div>
         ))}

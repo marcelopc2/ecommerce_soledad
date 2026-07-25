@@ -1044,7 +1044,10 @@
 }
 .lp-testimonios-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* auto-fit y no repeat(4, …): con 4 testimonios se ven 4 columnas igual, pero
+     con 3 (o 2) se reparten el ancho en vez de dejar un hueco a la derecha.
+     La cantidad la decide la clienta desde el panel, así que no puede ser fija. */
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 32px;
   width: var(--lp-content);
   margin-top: 36px;
@@ -1248,6 +1251,21 @@
   opacity: 0;
   transition: opacity 0.28s ease, padding-bottom 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
+
+/* La respuesta puede traer varios párrafos y punteos (así los escribe la
+   clienta en el panel). Sin esto React los pegaba todos en un bloque corrido. */
+.lp-faq-a .lp-faq-p { margin: 0 0 10px; }
+.lp-faq-a .lp-faq-p:last-child { margin-bottom: 0; }
+.lp-faq-a .lp-faq-lista {
+  margin: 0 0 10px;
+  padding-left: 22px;
+  list-style: disc;
+}
+.lp-faq-a .lp-faq-lista:last-child { margin-bottom: 0; }
+.lp-faq-a .lp-faq-lista li { margin-bottom: 4px; }
+.lp-faq-a .lp-faq-lista li::marker { color: var(--lp-purple, #8200db); }
+.lp-faq-a a { color: var(--lp-purple, #8200db); font-weight: 600; word-break: break-word; }
+
 .lp-faq-item.open .lp-faq-a {
   opacity: 1;
   padding-bottom: 26px;
