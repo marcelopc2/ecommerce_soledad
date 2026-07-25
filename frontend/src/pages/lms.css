@@ -115,6 +115,20 @@
 .lms-header-nav .lms-navlink:hover,
 .lms-header-nav .lms-navlink.active { color: var(--lms-purple); border-bottom-color: var(--lms-yellow); }
 
+/* Atajo al panel: solo lo ven las cuentas de gestión, así que se diferencia
+   del resto del menú para que se lea como una herramienta interna. */
+.lms-header-nav .lms-navlink-panel {
+  border: 1.5px solid var(--lms-purple);
+  border-radius: 999px;
+  padding: 5px 14px;
+  color: var(--lms-purple);
+}
+.lms-header-nav .lms-navlink-panel:hover {
+  background: var(--lms-purple);
+  color: #fff;
+  border-bottom-color: var(--lms-purple);
+}
+
 .lms-user-chip {
   display: flex;
   align-items: center;
@@ -220,6 +234,8 @@
 }
 .lms-mem-chip.ok { background: rgba(0, 166, 62, 0.18); color: #9ef3bd; border: 1.5px solid rgba(158, 243, 189, 0.4); }
 .lms-mem-chip.bad { background: rgba(255, 107, 107, 0.16); color: #ffb9b9; border: 1.5px solid rgba(255, 185, 185, 0.4); }
+/* Amarillo de la marca: avisa que lo que se ve no es una cuenta de alumno. */
+.lms-mem-chip.preview { background: rgba(255, 203, 0, 0.18); color: #ffe27a; border: 1.5px solid rgba(255, 226, 122, 0.45); }
 
 /* ---------- Contenido ---------- */
 
@@ -803,6 +819,8 @@
   border-radius: 999px;
   padding: 11px 20px;
 }
+/* Vista previa de una cuenta de gestión: no es un logro, es un aviso. */
+.lms-lesson-done.preview { color: #8a6d00; background: #fff6d6; }
 
 /* ---------- Tarjeta de diploma ---------- */
 

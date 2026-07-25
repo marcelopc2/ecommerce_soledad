@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
-from .models import Membership, CourseProgress, LessonProgress, Diploma, DiplomaAward
+from .models import Course, Membership, CourseProgress, LessonProgress, Diploma, DiplomaAward
 
 User = get_user_model()
 log = logging.getLogger('ingenioblocks.pagos')
@@ -157,6 +157,38 @@ def get_sequence_access(membership):
             if all_prev_courses_done:
                 award, _ = DiplomaAward.objects.get_or_create(membership=membership, diploma=it['diploma'])
                 it['awarded_at'] = award.awarded_at
+    return items
+
+
+def get_preview_sequence():
+    """Secuencia completa para la VISTA PREVIA de una cuenta de gestión.
+
+    Devuelve la misma forma que get_sequence_access(), pero sin membresía: todos
+    los cursos y diplomas activos, desbloqueados y sin avance. Sirve para que
+    quien administra el sitio revise cómo le llega el contenido al alumno sin
+    tener que comprar un kit ni esperar el goteo semanal.
+
+    No escribe nada: a diferencia de get_sequence_access(), acá NO se crea
+    ningún DiplomaAward. Una vista previa no debe dejar rastro en los datos del
+    negocio (ni diplomas otorgados, ni progreso, ni membresías fantasma que
+    aparezcan luego en el listado de alumnos o en los KPIs del panel).
+    """
+    items = []
+    for course in Course.objects.filter(is_active=True).order_by('order', 'id'):
+        items.append({
+            'type': 'course', 'order': course.order, 'course': course,
+            'unlocked': True, 'completed': False,
+            'pct': 0, 'done': 0, 'total': course.lessons.count(),
+            'unlock_date': None, 'lock_reason': None, 'required_course': None,
+        })
+    for d in Diploma.objects.filter(is_active=True):
+        items.append({
+            'type': 'diploma', 'order': d.order, 'diploma': d,
+            'unlocked': True, 'awarded_at': None,
+        })
+    # Mismo criterio de orden que la secuencia real: dentro de un mismo `order`,
+    # el curso va antes que el diploma.
+    items.sort(key=lambda x: (x['order'], 0 if x['type'] == 'course' else 1))
     return items
 
 

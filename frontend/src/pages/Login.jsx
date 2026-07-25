@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { api, PANEL_URL } from '../api'
+import { api } from '../api'
 import { useAuth } from '../auth'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 import heroNino from '../assets/landing/hero-nino.png'
@@ -36,12 +36,12 @@ export default function Login() {
     e.preventDefault()
     setError(''); setBusy(true)
     try {
-      const me = await login(email, password)
-      if (me.is_staff && !location.state?.from) {
-        // El panel de gestión ahora vive en el backend (Django).
-        window.location.href = PANEL_URL
-        return
-      }
+      await login(email, password)
+      // Las cuentas de gestión NO se mandan al panel: entran al sitio como
+      // cualquiera. Antes el salto era automático y no había forma de ver la
+      // página como la ve un cliente sin cerrar sesión. El panel queda a un
+      // clic desde el encabezado del Aula, que solo ellas ven.
+      //
       // checkoutProduct: viene de un kit "solo para alumnos" de la portada;
       // se reenvía al checkout para retomar la compra donde quedó.
       const producto = location.state?.checkoutProduct

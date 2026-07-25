@@ -1,0 +1,137 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Cuentas de gestión{% endblock %}
+{% block crumb %}Panel · Configuración{% endblock %}
+{% block heading %}Cuentas de gestión{% endblock %}
+
+{% block content %}
+
+<div class="pnl-card mb-4">
+  <div class="card-pad">
+    <div class="form-section-title"><i class="bi bi-person-plus"></i> Agregar una cuenta</div>
+    <p class="pnl-hint mb-3">
+      <i class="bi bi-info-circle"></i>
+      Quien entra con una cuenta de gestión puede administrar la tienda, los
+      cursos y las membresías. No puede crear ni borrar cuentas: eso queda solo
+      para la cuenta principal.
+    </p>
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger pnl-alert py-2">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <form method="post" class="row g-3 align-items-start">
+      {% csrf_token %}
+      <div class="col-md-4">
+        <label class="form-label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}<div class="pnl-field-error">{{ form.email.errors.0 }}</div>{% endif %}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
+        {{ form.nombre }}
+        <div class="pnl-hint mt-1">{{ form.nombre.help_text }}</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+        {{ form.password }}
+        {% if form.password.errors %}<div class="pnl-field-error">{{ form.password.errors.0 }}</div>{% endif %}
+        <div class="pnl-hint mt-1">{{ form.password.help_text }}</div>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-brand btn-sm">
+          <i class="bi bi-check-lg me-1"></i> Crear cuenta
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="pnl-card">
+  <div class="card-pad pb-2">
+    <div class="form-section-title"><i class="bi bi-people"></i> Cuentas con acceso al panel</div>
+  </div>
+  <div class="table-responsive">
+    <table class="table pnl-table">
+      <thead>
+        <tr>
+          <th>Correo</th>
+          <th>Nombre</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cuentas %}
+          <tr>
+            <td class="fw-semibold">
+              {{ c.email|default:c.username }}
+              {% if c.pk == request.user.pk %}<span class="badge-soft gray ms-1">tú</span>{% endif %}
+            </td>
+            <td class="cell-sub">{{ c.first_name|default:"—" }}</td>
+            <td>
+              {% if c.is_superuser %}
+                <span class="badge-soft purple">Principal</span>
+              {% else %}
+                <span class="badge-soft gray">Gestión</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if c.is_active %}
+                <span class="badge-soft green">Activa</span>
+              {% else %}
+                <span class="badge-soft red">Desactivada</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if c.pk == request.user.pk or c.is_superuser %}
+                {# Ni la propia cuenta ni otra principal: evitar quedarse fuera. #}
+                <span class="cell-sub">—</span>
+              {% else %}
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                  <form method="post" action="{% url 'panel:staff_user_toggle' c.pk %}"
+                        hx-confirm="{% if c.is_active %}¿Desactivar la cuenta de {{ c.email }}? No podrá entrar al panel hasta que la vuelvas a activar.{% else %}¿Volver a activar la cuenta de {{ c.email }}?{% endif %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-ghost btn-sm">
+                      {% if c.is_active %}<i class="bi bi-pause-fill"></i> Desactivar
+                      {% else %}<i class="bi bi-play-fill"></i> Activar{% endif %}
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'panel:staff_user_delete' c.pk %}"
+                        hx-confirm="¿Eliminar la cuenta de {{ c.email }}? Perderá el acceso al panel. Esta acción no se puede deshacer.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger-soft btn-sm">
+                      <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                  </form>
+                </div>
+
+                <details class="mdetail-manual mt-2 text-start">
+                  <summary>Cambiar su contraseña</summary>
+                  <p class="pnl-hint mt-2 mb-2">
+                    <i class="bi bi-info-circle"></i>
+                    Se muestra una sola vez, para que se la dictes.
+                  </p>
+                  <form method="post" action="{% url 'panel:staff_user_password' c.pk %}"
+                        class="d-flex gap-2 flex-wrap align-items-center">
+                    {% csrf_token %}
+                    <input type="text" name="password" class="form-control" style="max-width:260px"
+                           placeholder="Contraseña nueva" required autocomplete="off" minlength="8">
+                    <button type="submit" class="btn btn-brand btn-sm">
+                      <i class="bi bi-key"></i> Asignar
+                    </button>
+                  </form>
+                </details>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="cell-sub">Todavía no hay cuentas de gestión.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -397,3 +397,47 @@ class LandingStepForm(BootstrapFormMixin, forms.ModelForm):
         if commit:
             obj.save()
         return obj
+
+
+class StaffUserForm(BootstrapFormMixin, forms.Form):
+    """Alta de una cuenta de gestión.
+
+    Es un Form y no un ModelForm porque la cuenta se identifica por correo: el
+    login del panel llama a authenticate(username=<correo>), así que `username`
+    y `email` tienen que guardar el mismo valor. Un ModelForm de User invitaría
+    a llenar `username` con otra cosa y la cuenta no podría entrar.
+    """
+
+    email = forms.EmailField(
+        label='Correo',
+        widget=forms.EmailInput(attrs={'placeholder': 'persona@ingenioblocks.com'}),
+    )
+    nombre = forms.CharField(
+        label='Nombre', max_length=150, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Nombre y apellido'}),
+        help_text='Opcional. Solo para reconocer la cuenta en esta lista.',
+    )
+    password = forms.CharField(
+        label='Contraseña', widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
+        help_text='Mínimo 8 caracteres. Se la dictas a la persona; después no vuelve a verse.',
+    )
+
+    def clean_email(self):
+        from django.contrib.auth.models import User
+        email = self.cleaned_data['email'].lower().strip()
+        # Se comprueban los dos campos porque las cuentas de alumno se crean con
+        # username=email, pero cuentas antiguas podrían tener uno distinto.
+        if User.objects.filter(username__iexact=email).exists() or \
+                User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError('Ya existe una cuenta con ese correo.')
+        return email
+
+    def clean_password(self):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        pwd = self.cleaned_data['password']
+        try:
+            validate_password(pwd)
+        except DjangoValidationError as e:
+            raise forms.ValidationError(list(e.messages))
+        return pwd

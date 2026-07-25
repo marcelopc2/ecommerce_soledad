@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { PANEL_URL } from '../api'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 
 export default function LmsHeader() {
@@ -18,6 +19,13 @@ export default function LmsHeader() {
         <nav className="lms-header-nav">
           <NavLink to="/mis-cursos" className="lms-navlink">Mis cursos</NavLink>
           <Link to="/#kits" className="lms-navlink">Tienda</Link>
+          {user?.is_staff && (
+            /* Solo cuentas de gestión. Desde que el login dejó de saltar al
+               panel, esta es la vía para volver a él sin escribir la URL. */
+            <a href={PANEL_URL} className="lms-navlink lms-navlink-panel">
+              Panel de gestión
+            </a>
+          )}
           {user && (
             <>
               {/* El chip lleva al perfil: es donde la gente busca sus datos. */}

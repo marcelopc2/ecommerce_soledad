@@ -149,7 +149,13 @@ export default function CourseView() {
                 <LessonBody lesson={active} membershipActive={membershipActive} onDownloadPdf={downloadPdf} />
                 {active.description && <p className="lms-lesson-desc">{active.description}</p>}
 
-                {membershipActive && (
+                {/* En vista previa no hay membresía donde guardar el avance,
+                    así que el botón no se muestra: apretarlo solo daría error. */}
+                {course.preview ? (
+                  <div className="lms-lesson-done preview">
+                    👁 Vista previa · el avance no se guarda
+                  </div>
+                ) : membershipActive && (
                   active.completed
                     ? <div className="lms-lesson-done">✓ ¡Listo, ya lo hiciste!</div>
                     : <button className="lms-btn yellow lms-mark-btn" onClick={() => markSeen(active)} disabled={busy}>

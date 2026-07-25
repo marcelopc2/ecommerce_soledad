@@ -1,5 +1,6 @@
 from django.http import FileResponse, Http404
 from django.shortcuts import render
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -7,11 +8,69 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import Course, Lesson, Diploma, LessonProgress
 from .serializers import CourseListSerializer, CourseStudentSerializer
-from .services import get_course_access, get_sequence_access, mark_lesson_completed
+from .services import (
+    get_course_access, get_preview_sequence, get_sequence_access, mark_lesson_completed,
+)
 
 
 def _get_membership(user):
     return getattr(user, 'membership', None)
+
+
+def _es_vista_previa(user):
+    """True si es una cuenta de gestión entrando al Aula sin ser alumna.
+
+    Permite revisar el contenido tal como lo recibe el alumno, sin comprar un
+    kit ni esperar el goteo semanal.
+
+    No abre ninguna puerta nueva: quien es staff ya puede ver y descargar los
+    mismos PDF e imágenes desde el panel (panel:lesson_preview_pdf), y además
+    puede editarlos. Lo único que cambia es la comodidad de verlos montados.
+
+    Si la cuenta de gestión SÍ tiene membresía (por ejemplo la clienta compró un
+    kit para probar), manda su membresía real y no la vista previa: así ve
+    exactamente lo mismo que vería su alumno, goteo incluido.
+    """
+    return bool(user.is_staff) and _get_membership(user) is None
+
+
+def _serializar_secuencia(seq):
+    """Convierte la secuencia de cursos y diplomas al JSON que espera el frontend.
+
+    Sirve igual para la secuencia real del alumno y para la vista previa: las dos
+    tienen la misma forma, así la tarjeta del Aula no necesita saber cuál está
+    mirando.
+    """
+    items = []
+    for it in seq:
+        if it['type'] == 'course':
+            data = CourseListSerializer(it['course']).data
+            requerido = it.get('required_course')
+            data.update({
+                'type': 'course',
+                'unlocked': it['unlocked'],
+                'completed': it['completed'],
+                'pct': it['pct'],
+                'done': it['done'],
+                'total': it['total'],
+                'unlock_date': it['unlock_date'],
+                # Para que la tarjeta pueda decir POR QUÉ está cerrado en vez de
+                # mostrar siempre una fecha (que puede estar pasada).
+                'lock_reason': it.get('lock_reason'),
+                'required_course_title': requerido.title if requerido else None,
+            })
+        else:
+            d = it['diploma']
+            data = {
+                'type': 'diploma',
+                'id': d.id,
+                'title': d.title,
+                'description': d.description,
+                'unlocked': it['unlocked'],
+                'awarded_at': it['awarded_at'],
+            }
+        items.append(data)
+    return items
 
 
 class MyCoursesView(APIView):
@@ -21,38 +80,15 @@ class MyCoursesView(APIView):
 
     def get(self, request):
         membership = _get_membership(request.user)
-        if membership is None:
-            return Response({'membership': None, 'items': []})
 
-        items = []
-        for it in get_sequence_access(membership):
-            if it['type'] == 'course':
-                data = CourseListSerializer(it['course']).data
-                requerido = it.get('required_course')
-                data.update({
-                    'type': 'course',
-                    'unlocked': it['unlocked'],
-                    'completed': it['completed'],
-                    'pct': it['pct'],
-                    'done': it['done'],
-                    'total': it['total'],
-                    'unlock_date': it['unlock_date'],
-                    # Para que la tarjeta pueda decir POR QUÉ está cerrado en
-                    # vez de mostrar siempre una fecha (que puede estar pasada).
-                    'lock_reason': it.get('lock_reason'),
-                    'required_course_title': requerido.title if requerido else None,
+        if membership is None:
+            if _es_vista_previa(request.user):
+                return Response({
+                    'membership': None,
+                    'preview': True,
+                    'items': _serializar_secuencia(get_preview_sequence()),
                 })
-            else:
-                d = it['diploma']
-                data = {
-                    'type': 'diploma',
-                    'id': d.id,
-                    'title': d.title,
-                    'description': d.description,
-                    'unlocked': it['unlocked'],
-                    'awarded_at': it['awarded_at'],
-                }
-            items.append(data)
+            return Response({'membership': None, 'items': []})
 
         return Response({
             'membership': {
@@ -60,7 +96,7 @@ class MyCoursesView(APIView):
                 'expires_at': membership.expires_at,
                 'student_name': membership.student_name,
             },
-            'items': items,
+            'items': _serializar_secuencia(get_sequence_access(membership)),
         })
 
 
@@ -71,6 +107,25 @@ class CourseDetailView(APIView):
 
     def get(self, request, slug):
         membership = _get_membership(request.user)
+
+        # Vista previa de una cuenta de gestión: cualquier curso activo, sin
+        # goteo ni progreso (no hay membresía donde guardarlo).
+        if membership is None and _es_vista_previa(request.user):
+            try:
+                course = Course.objects.get(slug=slug, is_active=True)
+            except Course.DoesNotExist:
+                raise Http404
+            data = CourseStudentSerializer(course, context={
+                'membership_active': True,
+                'completed_lesson_ids': set(),
+            }).data
+            data.update({
+                'membership_active': True, 'preview': True,
+                'completed': False, 'pct': 0, 'done': 0,
+                'total': course.lessons.count(),
+            })
+            return Response(data)
+
         if membership is None or not membership.courses.filter(slug=slug).exists():
             return Response({'error': 'No tienes acceso a este curso'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -111,6 +166,13 @@ class LessonCompleteView(APIView):
     def post(self, request, pk):
         membership = _get_membership(request.user)
         if membership is None:
+            if _es_vista_previa(request.user):
+                # En vista previa no hay membresía donde guardar el avance. El
+                # frontend oculta el botón; esto es la red por si igual llega.
+                return Response(
+                    {'error': 'Estás en vista previa: el avance no se guarda.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             return Response({'error': 'Sin membresía'}, status=status.HTTP_403_FORBIDDEN)
         try:
             lesson = Lesson.objects.select_related('course').get(pk=pk)
@@ -168,6 +230,14 @@ def _authorized_lesson_file(request, pk):
     except Lesson.DoesNotExist:
         raise Http404
     membership = _get_membership(request.user)
+
+    # Cuenta de gestión en vista previa: puede abrir cualquier recurso. No es
+    # una fuga de contenido pagado —ya podía descargar estos mismos archivos
+    # desde el panel—, pero sí es la única excepción a los tres chequeos de
+    # abajo, así que va explícita y no escondida dentro de la condición.
+    if membership is None and _es_vista_previa(request.user):
+        return lesson, None
+
     if (membership is None or not membership.is_active
             or not membership.courses.filter(pk=lesson.course_id).exists()):
         raise PermissionDenied('Necesitas una membresía activa para ver este contenido')
@@ -186,6 +256,20 @@ class DiplomaDownloadView(APIView):
 
     def get(self, request, pk):
         membership = _get_membership(request.user)
+
+        # Vista previa: se muestra el diploma con un nombre de ejemplo, para
+        # revisar cómo queda impreso antes de que lo reciba un alumno real.
+        if membership is None and _es_vista_previa(request.user):
+            try:
+                diploma = Diploma.objects.get(pk=pk, is_active=True)
+            except Diploma.DoesNotExist:
+                raise Http404
+            return render(request, 'lms/diploma.html', {
+                'diploma': diploma,
+                'student_name': 'Nombre del alumno',
+                'awarded_at': timezone.localdate(),
+            })
+
         if membership is None:
             raise Http404
         try:

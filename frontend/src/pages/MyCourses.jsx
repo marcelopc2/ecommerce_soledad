@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../api'
+import { api, PANEL_URL } from '../api'
 import LmsHeader, { LmsLoader } from '../components/LmsHeader'
 import { openDiploma } from '../lib/diploma'
 import './lms.css'
@@ -47,7 +47,11 @@ export default function MyCourses() {
   }
 
   const membership = data.membership
-  const active = membership?.active
+  // Cuenta de gestión mirando el Aula sin ser alumna: ve todo el contenido
+  // desbloqueado. No hay membresía, así que se fuerza `active` para que las
+  // tarjetas no se muestren como "membresía vencida".
+  const preview = data.preview === true
+  const active = preview ? true : membership?.active
   const expires = membership?.expires_at
     ? new Date(membership.expires_at).toLocaleDateString('es-CL')
     : null
@@ -61,10 +65,17 @@ export default function MyCourses() {
         <div className="deco d1" /><div className="deco d2" /><div className="deco d3" />
         <div className="lms-hero-inner">
           <div>
-            <h1>Mi academia</h1>
-            <p className="sub">Tu ruta de aprendizaje, paso a paso.</p>
+            <h1>{preview ? 'Vista previa del Aula' : 'Mi academia'}</h1>
+            <p className="sub">
+              {preview
+                ? 'Así ve el Aula un alumno. Todo desbloqueado, sin guardar avance.'
+                : 'Tu ruta de aprendizaje, paso a paso.'}
+            </p>
           </div>
           <div className="lms-hero-right">
+            {preview && (
+              <span className="lms-mem-chip preview">👁 Cuenta de gestión</span>
+            )}
             {membership && (
               active
                 ? <span className="lms-mem-chip ok">✓ Membresía activa hasta el {expires}</span>
@@ -82,7 +93,17 @@ export default function MyCourses() {
           /* Dos situaciones muy distintas que antes mostraban el mismo texto:
              a alguien que acababa de pagar se le decía "compra un kit", que es
              lo peor que puede leer. Se distingue por si tiene membresía. */
-          membership ? (
+          preview ? (
+            <div className="lms-empty">
+              <span className="big" aria-hidden="true">🧱</span>
+              <h3>Todavía no hay cursos publicados</h3>
+              <p>
+                Cuando crees un curso en el panel aparecerá acá, tal como lo
+                verá el alumno.
+              </p>
+              <a href={PANEL_URL} className="lms-btn yellow">Ir al panel</a>
+            </div>
+          ) : membership ? (
             <div className="lms-empty">
               <span className="big" aria-hidden="true">🎉</span>
               <h3>¡Tu acceso está activo!</h3>

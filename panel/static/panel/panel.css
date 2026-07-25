@@ -569,6 +569,14 @@ tr.diploma-row:hover { background: #fff8dd; }
 }
 .pnl-hint i { color: var(--purple-500); }
 
+/* Error de un campo concreto, bajo el input que lo provocó. */
+.pnl-field-error {
+  margin-top: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #c03434;
+}
+
 /* Fila de producto de portada: se distingue sutilmente y solo ella es arrastrable */
 tr.pnl-drag-row { background: #fefcf8; }
 tr.pnl-drag-row:hover { background: var(--purple-50); }

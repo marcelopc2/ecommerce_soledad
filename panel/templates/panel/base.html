@@ -50,6 +50,25 @@
     <a href="{% url 'panel:config' %}" class="{% if section == 'config' %}active{% endif %}">
       <i class="bi bi-sliders"></i> Configuración
     </a>
+    {% if request.user.is_superuser %}
+      <a href="{% url 'panel:staff_users' %}" class="{% if section == 'staff' %}active{% endif %}">
+        <i class="bi bi-person-badge"></i> Cuentas
+      </a>
+    {% endif %}
+
+    {% comment %}
+      Salidas al sitio público. Abren en otra pestaña a propósito: la idea es
+      revisar cómo quedó un cambio sin perder de vista el panel.
+      El Aula se ve en modo vista previa (todo desbloqueado, sin guardar avance),
+      así que no hace falta comprar un kit ni esperar el goteo semanal.
+    {% endcomment %}
+    <div class="pnl-nav-label">Ver el sitio</div>
+    <a href="{{ frontend_url }}" target="_blank" rel="noopener">
+      <i class="bi bi-box-arrow-up-right"></i> Página principal
+    </a>
+    <a href="{{ frontend_url }}/mis-cursos" target="_blank" rel="noopener">
+      <i class="bi bi-eye"></i> Aula Virtual
+    </a>
   </nav>
 
   <div class="pnl-side-footer">

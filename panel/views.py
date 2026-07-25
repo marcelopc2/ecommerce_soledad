@@ -21,7 +21,7 @@ from invoicing.services import issue_invoice_for_order
 from lms.models import Course, Lesson, Membership, Diploma
 from lms.services import get_course_access, send_reset_email
 from payments.models import Order
-from .forms import LoginForm, ProductForm, CourseForm, LessonForm, MembershipForm, DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm
+from .forms import LoginForm, ProductForm, CourseForm, LessonForm, MembershipForm, DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm, StaffUserForm
 
 
 def staff_required(view):
@@ -1073,3 +1073,152 @@ def membership_set_password(request, pk):
         f'por seguridad no volverá a mostrarse.',
     )
     return redirect('panel:membership_detail', pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# Cuentas de gestión
+#
+# Solo superusuarios. La clienta y sus ayudantes son staff: entran al panel y
+# manejan la tienda, pero no pueden crear ni borrar cuentas. Así una cuenta
+# comprometida no puede fabricarse más accesos ni dejar fuera al dueño.
+# ---------------------------------------------------------------------------
+
+def superuser_required(view):
+    """Como staff_required, pero además exige ser superusuario.
+
+    A un staff normal se le manda al panel con un mensaje en vez de un 403: no
+    es un intento de ataque, es alguien que llegó a una URL que no le toca.
+    """
+
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return redirect(f"{reverse('panel:login')}?next={request.path}")
+        if not request.user.is_superuser:
+            messages.error(request, 'Solo la cuenta principal puede administrar las cuentas de gestión.')
+            return redirect('panel:dashboard')
+        return view(request, *args, **kwargs)
+
+    return wrapper
+
+
+def _puede_modificarse(request, user):
+    """Reglas de a quién SÍ se puede tocar desde esta pantalla.
+
+    - La propia cuenta no: desactivarse o borrarse a sí mismo deja al dueño
+      fuera del panel sin forma de volver a entrar.
+    - Otros superusuarios tampoco: evita que dos dueños se saquen entre ellos y
+      que el sistema quede sin ninguna cuenta principal.
+    """
+    if user.pk == request.user.pk:
+        return False, 'No puedes modificar tu propia cuenta desde acá.'
+    if user.is_superuser:
+        return False, 'Las cuentas principales no se administran desde acá.'
+    return True, ''
+
+
+@superuser_required
+def staff_users(request):
+    from django.contrib.auth.models import User
+
+    form = StaffUserForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        email = form.cleaned_data['email']
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=form.cleaned_data['password'],
+            first_name=form.cleaned_data['nombre'],
+        )
+        # staff sí, superusuario no: puede gestionar la tienda pero no crear
+        # más cuentas ni entrar al admin de Django.
+        user.is_staff = True
+        user.save()
+        messages.success(
+            request,
+            f'Cuenta creada para {email}. Dictale la contraseña que acabas de escribir: '
+            f'no vuelve a mostrarse.',
+        )
+        return redirect('panel:staff_users')
+
+    cuentas = User.objects.filter(is_staff=True).order_by('-is_superuser', 'email')
+    return render(request, 'panel/staff_users.html', {
+        'section': 'staff',
+        'form': form,
+        'cuentas': cuentas,
+    })
+
+
+@superuser_required
+@require_POST
+def staff_user_toggle(request, pk):
+    from django.contrib.auth.models import User
+    user = get_object_or_404(User, pk=pk, is_staff=True)
+    ok, motivo = _puede_modificarse(request, user)
+    if not ok:
+        messages.error(request, motivo)
+        return redirect('panel:staff_users')
+
+    user.is_active = not user.is_active
+    user.save(update_fields=['is_active'])
+    messages.success(
+        request,
+        f'Cuenta de {user.email} {"activada" if user.is_active else "desactivada"}.',
+    )
+    return redirect('panel:staff_users')
+
+
+@superuser_required
+@require_POST
+def staff_user_password(request, pk):
+    from django.contrib.auth.models import User
+    user = get_object_or_404(User, pk=pk, is_staff=True)
+    ok, motivo = _puede_modificarse(request, user)
+    if not ok:
+        messages.error(request, motivo)
+        return redirect('panel:staff_users')
+
+    nueva = (request.POST.get('password') or '').strip()
+    try:
+        validate_password(nueva, user=user)
+    except DjangoValidationError as e:
+        messages.error(request, ' '.join(e.messages))
+        return redirect('panel:staff_users')
+
+    user.set_password(nueva)
+    user.save(update_fields=['password'])
+    messages.success(
+        request,
+        f'Contraseña de {user.email} actualizada. Dictasela: no vuelve a mostrarse.',
+    )
+    return redirect('panel:staff_users')
+
+
+@superuser_required
+@require_POST
+def staff_user_delete(request, pk):
+    from django.contrib.auth.models import User
+    user = get_object_or_404(User, pk=pk, is_staff=True)
+    ok, motivo = _puede_modificarse(request, user)
+    if not ok:
+        messages.error(request, motivo)
+        return redirect('panel:staff_users')
+
+    # Si la cuenta además es alumna (compró un kit para probar), borrarla se
+    # llevaría por delante su membresía y su avance. En ese caso se desactiva:
+    # deja de entrar al panel y al sitio, pero el historial queda intacto.
+    if hasattr(user, 'membership'):
+        user.is_active = False
+        user.is_staff = False
+        user.save(update_fields=['is_active', 'is_staff'])
+        messages.success(
+            request,
+            f'{user.email} también es alumno, así que se desactivó en vez de borrarse '
+            f'(su membresía y su avance se conservan).',
+        )
+        return redirect('panel:staff_users')
+
+    email = user.email
+    user.delete()
+    messages.success(request, f'Cuenta de {email} eliminada.')
+    return redirect('panel:staff_users')

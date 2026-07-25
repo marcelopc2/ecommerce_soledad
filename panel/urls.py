@@ -48,6 +48,12 @@ urlpatterns = [
 
     path('configuracion/', views.configuracion, name='config'),
 
+    # Cuentas de gestión (solo superusuario)
+    path('cuentas/', views.staff_users, name='staff_users'),
+    path('cuentas/<int:pk>/activar/', views.staff_user_toggle, name='staff_user_toggle'),
+    path('cuentas/<int:pk>/clave/', views.staff_user_password, name='staff_user_password'),
+    path('cuentas/<int:pk>/eliminar/', views.staff_user_delete, name='staff_user_delete'),
+
     path('preguntas-frecuentes/nueva/', views.faq_form, name='faq_new'),
     path('preguntas-frecuentes/<int:pk>/editar/', views.faq_form, name='faq_edit'),
     path('preguntas-frecuentes/<int:pk>/eliminar/', views.faq_delete, name='faq_delete'),
