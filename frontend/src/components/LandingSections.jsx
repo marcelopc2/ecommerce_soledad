@@ -9,7 +9,10 @@
 import { useState } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { api } from '../api'
-import logo from '../assets/landing/logo-ingenioblocks.svg'
+// Variante oficial en blanco (entregada aparte del SVG reconstruido de Figma),
+// pensada para fondos oscuros. Solo el footer, que fue el pedido explícito: el
+// header (en Landing.jsx) sigue con el SVG de siempre y no hay razón para tocarlo.
+import logoBlanco from '../assets/brand/logo-ingenioblocks-blanco.png'
 
 const IconMail = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffcb00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -123,7 +126,7 @@ export function LandingFooter() {
 
   return (
     <footer className="lp-footer">
-      <img src={logo} alt="Ingenio Blocks" className="lp-footer-logo" />
+      <img src={logoBlanco} alt="Ingenio Blocks" className="lp-footer-logo" />
       <div className="lp-footer-center">
         <nav>
           {NAV.map(([id, label]) => <a key={id} href={href(id)}>{label}</a>)}
