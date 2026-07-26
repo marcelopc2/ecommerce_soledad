@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
-import { Contacto, LandingFooter } from '../components/LandingSections'
+import {
+  Contacto, LandingFooter, IconInstagram, IconFacebook, IconYoutube,
+} from '../components/LandingSections'
 import './landing.css'
 
 import logo from '../assets/landing/logo-ingenioblocks.svg'
@@ -11,6 +13,7 @@ import heroNino from '../assets/landing/hero-nino.png'
 import pagosBadges from '../assets/landing/pagos-badges.svg'
 import quienesSomosNino from '../assets/landing/quienes-somos-nino.png'
 import club3d from '../assets/landing/club-3d.png'
+import ganadorFoto from '../assets/landing/ganador-foto.svg'
 
 /* ---------- Datos estructurados (SEO) ----------
    La cuadrícula de FAQ y los productos vienen de la API, así que su JSON-LD se
@@ -393,11 +396,17 @@ function Beneficios() {
             modelos motorizados —uno nuevo cada semana— con instrucciones paso a paso
             a través de nuestra Aula Virtual.
           </p>
+          {/* Entre "propio" y "ritmo" hay un ESPACIO DURO (U+00A0, invisible en el editor): amarra
+                las dos palabras para que el navegador nunca las separe y "ritmo."
+                no quede sola en la ultima linea. Se probo antes apretando el
+                interletrado (-5%), pero eso corre TODOS los cortes de linea a la vez:
+                dejaba de quedar sola a 1536px y pasaba a quedar sola a 1600px. El
+                ancho de pantalla es variable, asi que unir las palabras es lo estable. */}
           <p>
             Nuestra Plataforma está diseñada en un formato amigable que permite a{' '}
             <strong>niños y niñas desde los 6 años</strong>, sumergirse fácilmente en
             emocionantes talleres desarrollados con metodologías de aprendizaje en
-            espiral. Esto significa que podrán avanzar a su propio ritmo.
+            espiral. Esto significa que podrán avanzar a su propio{' '}ritmo.
           </p>
         </div>
       </div>
@@ -555,7 +564,7 @@ function Kits({ products }) {
 
   return (
     <section className="lp-kits" id="kits">
-      <h2 className="lp-h2 lp-h2-white">nuestros kits</h2>
+      <h2 className="lp-h2 lp-h2-white">nuestros productos</h2>
       <span className="lp-underline" />
       <p className="lp-kits-intro">
         Te invitamos a hacerte parte del Mundo Ingenio Blocks y comenzar a disfrutar de
@@ -640,6 +649,7 @@ function Testimonios() {
   const [testimonials, setTestimonials] = useState([])
   const [desborda, setDesborda] = useState(false)
   const [abierto, setAbierto] = useState(null)   // testimonio mostrado en el modal, o null
+  const [sobre, setSobre] = useState(null)       // { t, rect } de la tarjeta bajo el puntero
   const pistaRef = useRef(null)
   const dirRef = useRef(0)
   const rafRef = useRef(0)
@@ -690,6 +700,21 @@ function Testimonios() {
   // Detener siempre al desmontar: si no, el requestAnimationFrame sigue vivo.
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
+  // El panel del hover va con posición fija sobre la tarjeta: si algo se
+  // desplaza (la página o la propia pista) la tarjeta se mueve y el panel se
+  // quedaría flotando en el aire, así que se cierra. `true` = fase de captura,
+  // porque el evento scroll no burbujea y el de la pista no llegaría a window.
+  useEffect(() => {
+    if (!sobre) return
+    const cerrar = () => setSobre(null)
+    window.addEventListener('scroll', cerrar, true)
+    window.addEventListener('resize', cerrar)
+    return () => {
+      window.removeEventListener('scroll', cerrar, true)
+      window.removeEventListener('resize', cerrar)
+    }
+  }, [sobre])
+
   return (
     <section className="lp-testimonios">
       <span className="lp-chip lp-chip-lila">comunidad feliz</span>
@@ -702,25 +727,41 @@ function Testimonios() {
                               onEntrar={arrancar} onSalir={frenar} onClic={saltar} />
         )}
 
-        <div className="lp-testi-pista" ref={pistaRef}>
+        {/* Con 3 o menos, las tarjetas se reparten todo el ancho de la grilla
+            (como cualquier otra sección); recién con 4 pasan al ancho de "4 por
+            pantalla" y lo que sobra se desplaza al costado. */}
+        <div
+          className={'lp-testi-pista' + (testimonials.length <= 3 ? ' pocos' : '')}
+          ref={pistaRef}
+        >
           {testimonials.map((t) => (
             <article className="lp-testimonio" key={t.id}>
-              {/* El texto completo se lee en un modal (clic o Enter/Espacio),
-                  no al pasar el mouse: se probó con :hover disparando un
-                  "salto" a pantalla completa y resultó inestable — al saltar,
-                  el mouse deja de estar sobre la tarjeta, el navegador cancela
-                  el :hover, la tarjeta vuelve a su sitio, se reactiva el
-                  :hover… un parpadeo infinito. Un modal por clic no depende de
-                  dónde esté el cursor. */}
+              {/* Al pasar el mouse se despliega el texto completo (ver
+                  TestimonioHover). El clic abre el modal, que es la vía para
+                  quien no tiene puntero: teléfonos y teclado. */}
               <div
-                className="lp-testimonio-in"
+                /* Mientras el panel del hover está encima, la tarjeta se
+                   esconde (sigue ocupando su lugar): así no puede asomar por
+                   detrás durante la animación de escala. */
+                className={'lp-testimonio-in' + (sobre?.t.id === t.id ? ' tapada' : '')}
                 role="button"
                 tabIndex={0}
                 aria-haspopup="dialog"
                 aria-label={`Leer el testimonio completo de ${t.name}`}
-                onClick={() => setAbierto(t)}
+                /* Al abrir el modal se retira el panel del hover: queda debajo
+                   del modal, que le tapa el mouse, así que nunca recibiría su
+                   mouseleave y se quedaría abierto al cerrar el modal. */
+                onClick={() => { setSobre(null); setAbierto(t) }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAbierto(t) }
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault(); setSobre(null); setAbierto(t)
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  // Solo con puntero de verdad: en una pantalla táctil el toque
+                  // también dispara mouseenter y se abrirían panel y modal a la vez.
+                  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+                  setSobre({ t, rect: e.currentTarget.getBoundingClientRect() })
                 }}
               >
                 <div className="lp-stars">
@@ -728,17 +769,6 @@ function Testimonios() {
                 </div>
                 <span className="lp-quote" aria-hidden="true">“</span>
                 <p>"{t.quote}"</p>
-                {/* type="button" + stopPropagation: es un botón DENTRO de la
-                    tarjeta clickeable; sin frenar la burbuja, el clic abriría
-                    el modal dos veces (una por este botón, otra por la
-                    tarjeta) sin causar error, pero es redundante y confuso. */}
-                <button
-                  type="button"
-                  className="lp-testimonio-leermas"
-                  onClick={(e) => { e.stopPropagation(); setAbierto(t) }}
-                >
-                  Leer completo →
-                </button>
                 <footer>
                   <strong>{t.name}</strong>
                   <span>{t.location}</span>
@@ -754,8 +784,86 @@ function Testimonios() {
         )}
       </div>
 
+      {sobre && (
+        <TestimonioHover
+          testimonio={sobre.t}
+          rect={sobre.rect}
+          onSalir={() => setSobre(s => (s && s.t.id === sobre.t.id ? null : s))}
+        />
+      )}
       {abierto && <TestimonioModal testimonio={abierto} onClose={() => setAbierto(null)} />}
     </section>
+  )
+}
+
+/* Texto completo al pasar el mouse.
+
+   La clave para que no parpadee es que el panel aparece ENCIMA de la tarjeta,
+   cubriéndola por completo, y solo crece hacia abajo. El intento anterior
+   mandaba la tarjeta al centro de la pantalla con :hover y era inestable: al
+   irse la tarjeta, el cursor dejaba de estar sobre ella, el navegador cancelaba
+   el :hover, la tarjeta volvía… y vuelta a empezar. Acá el cursor queda siempre
+   dentro del panel, así que el estado no puede oscilar. Se cierra con el
+   mouseleave del propio panel, no con el de la tarjeta.
+
+   Va en un portal porque la pista de testimonios tiene overflow y recortaría
+   cualquier cosa más alta que ella. */
+const MARGEN_HOVER = 16
+
+/* Ancho del panel: algo más que la tarjeta. Con el ancho justo de la tarjeta un
+   testimonio largo se convertía en una columna de 600px de alto y 220 de ancho,
+   incómoda de leer; ensanchándolo baja a un bloque proporcionado. Se desplaza a
+   la izquierda la mitad de lo que crece, para quedar centrado sobre la tarjeta,
+   y se limita al viewport sin dejar de taparla nunca. */
+function medidasHover(rect) {
+  const ancho = Math.min(Math.max(rect.width * 1.5, rect.width), 400)
+  let left = rect.left - (ancho - rect.width) / 2
+  left = Math.max(MARGEN_HOVER, Math.min(left, window.innerWidth - ancho - MARGEN_HOVER))
+  left = Math.max(rect.right - ancho, Math.min(left, rect.left))
+  return { ancho, left }
+}
+
+function TestimonioHover({ testimonio: t, rect, onSalir }) {
+  const ref = useRef(null)
+  const { ancho, left } = medidasHover(rect)
+  const [top, setTop] = useState(rect.top)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const alto = el.offsetHeight
+    let y = rect.top
+    if (y + alto > window.innerHeight - MARGEN_HOVER) {
+      // Sube lo justo para que quepa en pantalla, pero nunca tanto que deje de
+      // tapar la tarjeta: si se despegara, el cursor quedaría fuera del panel.
+      y = Math.max(window.innerHeight - MARGEN_HOVER - alto, rect.bottom - alto)
+    }
+    setTop(y)
+  }, [rect])
+
+  return createPortal(
+    // aria-hidden: es una copia visual de la tarjeta para quien usa mouse. Los
+    // lectores de pantalla ya tienen el texto por el modal (Enter en la tarjeta).
+    // minHeight: con un testimonio corto el panel sería MÁS BAJO que la tarjeta
+    // y ésta asomaría por debajo, como si hubiera dos tarjetas.
+    <div
+      ref={ref}
+      className="lp-testi-hover"
+      aria-hidden="true"
+      style={{ left, top, width: ancho, minHeight: rect.height }}
+      onMouseLeave={onSalir}
+    >
+      <div className="lp-stars">
+        {Array.from({ length: t.rating }).map((_, j) => <IconStar key={j} />)}
+      </div>
+      <span className="lp-quote" aria-hidden="true">“</span>
+      <p>"{t.quote}"</p>
+      <footer>
+        <strong>{t.name}</strong>
+        <span>{t.location}</span>
+      </footer>
+    </div>,
+    document.body,
   )
 }
 
@@ -829,16 +937,13 @@ function Club() {
     <section className="lp-club-band" id="club">
       <div className="lp-club">
         <div className="lp-club-visual">
-          {/* IMAGEN PROVISORIA: es el recorte de baja resolución del Figma
-              (107x125 px). Cuando llegue la definitiva basta con reemplazar
-              el archivo club-3d.png y borrar el <span> de aviso de abajo. */}
           <img src={club3d} alt="Logo de Ingenio Blocks construido con bloques" />
-          <span className="lp-club-provisoria">imagen provisoria</span>
-          <a className="lp-btn-yellow lp-btn-cta" href="#kits">comprar ingenio plus</a>
+          <a className="lp-btn-yellow lp-btn-cta lp-club-cta" href="#kits">comprar ingenio plus</a>
         </div>
         <div className="lp-club-texto">
-          <span className="lp-chip lp-chip-lila">espacio virtual</span>
+          <span className="lp-chip lp-chip-club">espacio virtual</span>
           <h2 className="lp-h2">club ingenio blocks</h2>
+          <span className="lp-underline" />
           <p className="lp-club-intro">
             Queremos que Ingenio Blocks no sea sólo un set de bloques, sino que un espacio
             virtual donde los niños construyen, creen, se sientan siempre desafiados y
@@ -858,23 +963,116 @@ function Club() {
   )
 }
 
+/* Franja del concurso: va debajo del Club y tiene tres estados que se eligen
+   desde el panel (Configuración → Concurso). Todo el contenido —textos, imagen
+   y ganadores— sale de /catalog/concurso/, así que la clienta lo administra
+   sola y no hay nada escrito acá que haya que ir a cambiar en el código. */
+function Concurso({ datos }) {
+  if (!datos || datos.estado === 'oculta') return null
+  if (datos.estado === 'ganadores') return <Ganadores ganadores={datos.ganadores || []} />
+  return <Convocatoria datos={datos} />
+}
+
+const IconRayo = () => (
+  <svg className="lp-ganador-rayo" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M13.5 2 4 13.2h6.2L9.6 22 20 10.4h-6.6L13.5 2z" />
+  </svg>
+)
+
+function Convocatoria({ datos }) {
+  const { etiqueta, titulo, intro, bases = [], boton_texto, boton_enlace, sello, imagen_url } = datos
+  return (
+    <section className="lp-concurso-band">
+      <div className="lp-convocatoria">
+        <div className="lp-convocatoria-texto">
+          {etiqueta && <span className="lp-chip lp-chip-lila">{etiqueta}</span>}
+          <h2 className="lp-h2">{titulo}</h2>
+          <span className="lp-underline" />
+          {intro && <p className="lp-convocatoria-intro">{intro}</p>}
+          {bases.length > 0 && (
+            <ul className="lp-convocatoria-bases">
+              {bases.map((base, i) => <li key={i}>{conEnlaces(base, `base-${i}`)}</li>)}
+            </ul>
+          )}
+          <div className="lp-convocatoria-acciones">
+            {boton_enlace && boton_texto && (
+              <a className="lp-btn-concurso" href={boton_enlace}>{boton_texto}</a>
+            )}
+            <div className="lp-social lp-convocatoria-redes">
+              <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram"><IconInstagram /></a>
+              <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook"><IconFacebook /></a>
+              <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube"><IconYoutube /></a>
+            </div>
+          </div>
+        </div>
+        <div className="lp-convocatoria-visual">
+          {imagen_url
+            ? <img src={imagen_url} alt="Modelo participante del concurso" />
+            : <img src={ganadorFoto} alt="" className="lp-convocatoria-pendiente" />}
+          {sello && <span className="lp-convocatoria-sello">{sello}</span>}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Ganadores({ ganadores }) {
+  if (!ganadores.length) return null
+  return (
+    <section className="lp-ganadores-band">
+      <div className="lp-ganadores">
+        {ganadores.map(g => (
+          <article className="lp-ganador" key={g.id}>
+            <div className={`lp-ganador-poster ${g.tono}`}>
+              <span className="lp-ganador-marca">Club Ingenio<br />Blocks</span>
+              <IconRayo />
+              <div className="lp-ganador-foto">
+                <img src={g.foto_url || ganadorFoto} alt={g.foto_url ? `Proyecto de ${g.nombre}` : ''} />
+              </div>
+              <div className="lp-ganador-pie">
+                <span>concurso</span>
+                <span>{g.categoria}</span>
+              </div>
+            </div>
+            <div className="lp-ganador-datos">
+              <span className="lp-chip lp-chip-lila">concurso</span>
+              <h3 className="lp-ganador-titulo">{g.titulo}</h3>
+              <span className="lp-underline" />
+              {g.anio && <p className="lp-ganador-anio">{g.anio}</p>}
+              <p>{g.nombre}</p>
+              {g.edad && <p>{g.edad}</p>}
+              {g.texto && <p className="lp-ganador-texto">{g.texto}</p>}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 /* La respuesta llega como texto plano desde el panel, pero la clienta la escribe
    con estructura: párrafos y punteos. React no respeta los saltos de línea, así
    que sin esto todo salía corrido en un solo bloque.
 
    Se arma con elementos de React (nunca dangerouslySetInnerHTML): el texto lo
    edita la clienta desde el panel y meterlo como HTML sería una vía de XSS. */
-const RE_URL = /(https?:\/\/[^\s]+)/g
+const RE_ENLACE = /(https?:\/\/[^\s]+|[\w.+-]+@[\w-]+\.[\w.-]+)/g
 
 function conEnlaces(texto, claveBase) {
-  // split() con grupo de captura devuelve las URLs como elementos propios, así
-  // que basta mirar el comienzo. No se usa RE_URL.test(): con la bandera /g el
-  // regex guarda lastIndex entre llamadas y daría true/false alternado.
-  return texto.split(RE_URL).map((parte, i) =>
-    parte.startsWith('http')
-      ? <a key={`${claveBase}-${i}`} href={parte} target="_blank" rel="noopener noreferrer">{parte}</a>
-      : parte
-  )
+  // split() con grupo de captura devuelve los enlaces como elementos propios,
+  // así que basta mirar el comienzo. No se usa RE_ENLACE.test(): con la bandera
+  // /g el regex guarda lastIndex entre llamadas y daría true/false alternado.
+  return texto.split(RE_ENLACE).map((parte, i) => {
+    if (parte.startsWith('http')) {
+      return <a key={`${claveBase}-${i}`} href={parte} target="_blank" rel="noopener noreferrer">{parte}</a>
+    }
+    // Los correos también son clickeables: la clienta los escribe pelados en
+    // las bases del concurso y en las preguntas frecuentes.
+    if (parte.includes('@') && !parte.includes(' ')) {
+      return <a key={`${claveBase}-${i}`} href={`mailto:${parte}`}>{parte}</a>
+    }
+    return parte
+  })
 }
 
 function RespuestaFaq({ texto }) {
@@ -972,6 +1170,7 @@ const REVEAL_SELECTOR = [
   '.lp-quienes-foto', '.lp-quienes-texto',
   '.lp-testimonio',
   '.lp-club-visual', '.lp-club-texto',
+  '.lp-ganador', '.lp-convocatoria-texto', '.lp-convocatoria-visual',
   '.lp-faq-item',
   '.lp-contacto-info', '.lp-contacto-form',
 ].join(',')
@@ -1047,15 +1246,20 @@ function useScrollReveal(rootRef, deps = []) {
 export default function Landing() {
   const [activeSection, setActiveSection] = useState('')
   const [products, setProducts] = useState([])
+  const [concurso, setConcurso] = useState(null)
   const rootRef = useRef(null)
   const location = useLocation()
-  // re-escanea el reveal cuando llegan los productos (cards asíncronas)
-  useScrollReveal(rootRef, [products.length])
+  // re-escanea el reveal cuando llegan los productos o el concurso (las dos
+  // secciones aparecen después del primer render)
+  useScrollReveal(rootRef, [products.length, concurso?.estado])
 
   useEffect(() => {
     api.get('/catalog/products/')
       .then(res => setProducts(res.data))
       .catch(() => {}) // la landing funciona igual sin catálogo
+    api.get('/catalog/concurso/')
+      .then(res => setConcurso(res.data))
+      .catch(() => {}) // sin respuesta, la franja del concurso no se muestra
   }, [])
 
   // Cada kit como Product de Schema.org, con su precio. Ayuda a Google a
@@ -1135,6 +1339,7 @@ export default function Landing() {
       <QuienesSomos />
       <Testimonios />
       <Club />
+      <Concurso datos={concurso} />
       <Faq />
       <Contacto />
       <LandingFooter />

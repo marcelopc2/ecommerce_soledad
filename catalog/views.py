@@ -5,10 +5,14 @@ from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from .models import Category, Product, FAQ, Testimonial, LandingVideo, LandingStep
+from .models import (
+    Category, Product, FAQ, Testimonial, LandingVideo, LandingStep,
+    SeccionConcurso, GanadorConcurso,
+)
 from .serializers import (
     CategorySerializer, ProductSerializer, FAQSerializer, TestimonialSerializer,
     ContactSerializer, LandingVideoSerializer, LandingStepSerializer,
+    SeccionConcursoSerializer, GanadorConcursoSerializer,
 )
 
 log = logging.getLogger(__name__)
@@ -63,6 +67,28 @@ class LandingStepViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return LandingStep.objects.filter(is_active=True)
+
+
+class ConcursoView(APIView):
+    """Estado y contenido de la franja del concurso. Va en un solo endpoint
+    (y no en dos) porque la landing necesita saber el estado ANTES de decidir
+    qué pedir: así se resuelve con una sola llamada."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        seccion = SeccionConcurso.obtener()
+        datos = SeccionConcursoSerializer(seccion, context={'request': request}).data
+        # Los ganadores solo se envían si de verdad se van a mostrar: no tiene
+        # sentido publicar nombres de menores mientras la sección está oculta
+        # o en convocatoria.
+        if seccion.estado == SeccionConcurso.GANADORES:
+            ganadores = GanadorConcurso.objects.filter(is_active=True)
+            datos['ganadores'] = GanadorConcursoSerializer(
+                ganadores, many=True, context={'request': request},
+            ).data
+        else:
+            datos['ganadores'] = []
+        return Response(datos)
 
 
 class ContactView(APIView):

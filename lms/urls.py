@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .auth_views import (
-    LoginView, MeView, ProfileView, SetPasswordView, RequestResetView,
+    LoginView, LogoutView, MeView, ProfileView, SetPasswordView, RequestResetView,
     ChangePasswordView,
 )
 from .views import (
@@ -13,6 +13,7 @@ from .views import (
 # --- Auth (montado en /api/auth/) ---
 auth_urlpatterns = [
     path('login/', LoginView.as_view(), name='auth-login'),
+    path('logout/', LogoutView.as_view(), name='auth-logout'),
     path('refresh/', TokenRefreshView.as_view(), name='auth-refresh'),
     path('me/', MeView.as_view(), name='auth-me'),
     path('profile/', ProfileView.as_view(), name='auth-profile'),

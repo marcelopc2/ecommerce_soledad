@@ -32,20 +32,20 @@ const IconPin = () => (
   </svg>
 )
 
-const IconInstagram = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+export const IconInstagram = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><line x1="17.5" y1="6.5" x2="17.5" y2="6.5" strokeWidth="3" />
   </svg>
 )
 
-const IconFacebook = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
+export const IconFacebook = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
     <path d="M14 13.5h2.5l1-4H14v-2c0-1.03 0-2 2-2h1.5V2.14C17.17 2.1 15.97 2 14.7 2 12.06 2 10.2 3.66 10.2 6.7v2.8H7v4h3.2V22h3.8v-8.5z" />
   </svg>
 )
 
-const IconYoutube = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff">
+export const IconYoutube = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
     <path d="M23 7.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C16.6 3.6 12 3.6 12 3.6s-4.6 0-7.7.3c-.5.1-1.5.1-2.4 1-.7.7-.9 2.3-.9 2.3S.8 9.1.8 11v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.3 7.6.3s4.6 0 7.7-.4c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V11c0-1.9-.2-3.8-.2-3.8zM9.8 14.9V8.5l6.2 3.2-6.2 3.2z" />
   </svg>
 )
@@ -70,7 +70,10 @@ export function Contacto() {
     <section className="lp-contacto" id="contacto">
       <div className="lp-contacto-inner">
         <div className="lp-contacto-info">
-          <span className="lp-chip lp-chip-outline">estamos para tí</span>
+          {/* lila (relleno) y no outline: en el Figma esta etiqueta es una
+              pastilla clara con texto morado, igual que las del resto de la
+              landing. Estaba como contorno transparente con texto blanco. */}
+          <span className="lp-chip lp-chip-lila">estamos para ti</span>
           <h2 className="lp-h2 lp-h2-white">contacto</h2>
           <span className="lp-underline" style={{ margin: '0 0 36px' }} />
           <ul>
@@ -92,7 +95,15 @@ export function Contacto() {
             <input type="email" placeholder="Email" value={form.email} onChange={set('email')} required />
             <input placeholder="Numero telefónico" value={form.telefono} onChange={set('telefono')} />
           </div>
-          <input placeholder="Comentarios y sugerencias" value={form.comentarios} onChange={set('comentarios')} />
+          {/* textarea y no input: son comentarios abiertos y en una sola línea
+              el texto se iba desplazando y no se podía releer lo escrito. */}
+          <textarea
+            placeholder="Comentarios y sugerencias"
+            rows={3}
+            maxLength={2000}
+            value={form.comentarios}
+            onChange={set('comentarios')}
+          />
           <button type="submit" className="lp-btn-yellow lp-btn-cta" disabled={estado === 'enviando'}>
             {estado === 'enviando' ? 'enviando…' : 'contáctanos'}
           </button>

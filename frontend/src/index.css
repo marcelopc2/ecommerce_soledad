@@ -63,11 +63,15 @@ body {
   overflow-x: hidden;
 }
 
-/* Botón flotante "volver arriba" */
+/* Botones flotantes: van apilados en la esquina inferior derecha, "volver
+   arriba" encima y WhatsApp debajo.
+   El bottom de "volver arriba" son los 24px del borde + los 56px del botón de
+   WhatsApp + 14px de separación. El right es 26 y no 24 porque este botón mide
+   52px y el de WhatsApp 56: así los dos quedan centrados en el mismo eje. */
 .scroll-top {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: 26px;
+  bottom: 94px;
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -99,11 +103,12 @@ body {
   .scroll-top:hover { transform: none; }
 }
 
-/* Botón flotante "escríbenos por WhatsApp" (abajo a la izquierda, siempre
-   visible: a diferencia de "volver arriba" no depende del scroll). */
+/* Botón flotante "escríbenos por WhatsApp" (siempre visible: a diferencia de
+   "volver arriba" no depende del scroll, por eso va abajo del todo y el otro
+   aparece encima cuando corresponde). */
 .whatsapp-btn {
   position: fixed;
-  left: 24px;
+  right: 24px;
   bottom: 24px;
   width: 56px;
   height: 56px;

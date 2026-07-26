@@ -59,6 +59,9 @@ urlpatterns = [
     path('preguntas-frecuentes/<int:pk>/eliminar/', views.faq_delete, name='faq_delete'),
     path('preguntas-frecuentes/restaurar/', views.faq_restore_defaults, name='faq_restore_defaults'),
 
+    path('concurso/ganadores/nuevo/', views.ganador_form, name='ganador_new'),
+    path('concurso/ganadores/<int:pk>/editar/', views.ganador_form, name='ganador_edit'),
+    path('concurso/ganadores/<int:pk>/eliminar/', views.ganador_delete, name='ganador_delete'),
     path('testimonios/nuevo/', views.testimonial_form, name='testimonial_new'),
     path('testimonios/<int:pk>/editar/', views.testimonial_form, name='testimonial_edit'),
     path('testimonios/<int:pk>/eliminar/', views.testimonial_delete, name='testimonial_delete'),

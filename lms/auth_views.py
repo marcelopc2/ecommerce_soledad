@@ -1,6 +1,6 @@
 from axes.handlers.proxy import AxesProxyHandler
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login as django_login, logout as django_logout
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -11,6 +11,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import ProfileSerializer
 from .services import send_reset_email
@@ -62,7 +64,57 @@ class LoginView(TokenObtainPairView):
                  'locked_out': True},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
-        return super().post(request, *args, **kwargs)
+
+        # Mismo cuerpo que TokenObtainPairView.post, pero conservando el
+        # serializer para poder llegar al usuario que acaba de entrar.
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+
+        _abrir_sesion_de_gestion(request, serializer.user)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+def _abrir_sesion_de_gestion(request, user):
+    """El sitio (React) entra con token y el panel (/gestion/) con la cookie de
+    sesión de Django: son dos credenciales distintas, así que quien administra
+    tenía que escribir su clave dos veces para pasar de un lado al otro.
+
+    Acá se abre además la sesión de Django, PERO solo para cuentas de gestión:
+    a un alumno no le sirve de nada y sería superficie de ataque regalada.
+
+    Ojo: esta cookie no da acceso extra a la API. DEFAULT_AUTHENTICATION_CLASSES
+    tiene únicamente JWTAuthentication, así que la sesión abre /gestion/ y nada
+    más. Se cierra desde LogoutView."""
+    if not getattr(user, 'is_staff', False):
+        return
+    # request._request: el HttpRequest real. login() escribe request.user, y
+    # sobre el Request de DRF ese atributo no llegaría al de Django.
+    django_login(request._request, user)
+
+
+class LogoutView(APIView):
+    """Cierre de sesión de verdad: revoca el refresh token en el servidor y
+    destruye la sesión de Django si la había.
+
+    Antes el "cerrar sesión" solo borraba el token del navegador y no le avisaba
+    nada al servidor. Con la sesión de gestión abierta eso ya no alcanza: quien
+    cerrara sesión en el sitio seguiría dentro del panel en ese computador."""
+    permission_classes = [AllowAny]   # cerrar sesión nunca debe fallar por permisos
+
+    def post(self, request):
+        refresh = (request.data or {}).get('refresh')
+        if refresh:
+            try:
+                RefreshToken(refresh).blacklist()
+            except TokenError:
+                # Ya vencido, ya revocado o adulterado: da igual, el objetivo
+                # (que deje de servir) se cumple igual. No es motivo de error.
+                pass
+        django_logout(request._request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 def _login_email(request):

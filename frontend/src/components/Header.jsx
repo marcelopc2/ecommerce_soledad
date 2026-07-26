@@ -1,12 +1,15 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { PANEL_URL } from '../api'
 
 export default function Header() {
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
 
-  const handleLogout = () => { logout(); navigate('/') }
+  // Navegación del navegador y no del router; ver el comentario en LmsHeader.jsx.
+  const handleLogout = () => {
+    window.location.replace('/')
+    logout()
+  }
 
   return (
     <header className="App-header">

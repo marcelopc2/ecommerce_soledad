@@ -139,6 +139,14 @@ if DEBUG:
     ]
 CORS_ALLOWED_ORIGINS = list(dict.fromkeys(CORS_ALLOWED_ORIGINS))  # sin duplicados
 
+# La cookie de sesión tiene que viajar con las llamadas del frontend: es la que
+# abre el panel de gestión sin volver a pedir la clave (ver _abrir_sesion_de_gestion).
+# Solo es necesario en desarrollo, donde el front (5173) y la API (8000) son
+# orígenes distintos; en producción van en el mismo dominio y no hay CORS.
+# Es seguro porque la lista de orígenes es explícita (nunca comodín) y porque la
+# API autentica ÚNICAMENTE por token: esa cookie no sirve para llamar endpoints.
+CORS_ALLOW_CREDENTIALS = True
+
 # --- Endurecimiento de producción (activo SOLO con DEBUG=False) ---
 # En local con DEBUG=True nada de esto aplica: se sigue trabajando igual que siempre.
 if not DEBUG:

@@ -1,0 +1,47 @@
+{% for g in ganadores %}
+  <tr>
+    <td style="width:92px">
+      {% if g.foto %}
+        <img src="{{ g.foto.url }}" alt="{{ g.nombre }}"
+             style="width:72px;height:72px;object-fit:cover;border-radius:8px;display:block">
+      {% else %}
+        <span class="badge-soft gray">Sin foto</span>
+      {% endif %}
+    </td>
+    <td>
+      <div class="cell-title">{{ g.nombre }}{% if g.edad %} <span class="cell-sub">· {{ g.edad }}</span>{% endif %}</div>
+      <div class="cell-sub text-truncate" style="max-width:380px">{{ g.texto|default:"Sin reseña" }}</div>
+    </td>
+    <td>
+      <div class="cell-title">{{ g.categoria }}</div>
+      <div class="cell-sub">{{ g.titulo }}{% if g.anio %} {{ g.anio }}{% endif %}</div>
+    </td>
+    <td>
+      {% if g.tono == 'morado' %}
+        <span class="badge-soft" style="background:#f3e8ff;color:#6a3093">Morado</span>
+      {% else %}
+        <span class="badge-soft" style="background:#fff7d6;color:#8a6d00">Amarillo</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if g.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculto</span>{% endif %}
+    </td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <a href="{% url 'panel:ganador_edit' g.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:ganador_delete' g.pk %}"
+                hx-confirm="¿Eliminar al ganador «{{ g.nombre }}»?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="6" class="empty-cell">
+      Todavía no hay ganadores cargados. <a href="{% url 'panel:ganador_new' %}">Agregar el primero</a>.
+    </td>
+  </tr>
+{% endfor %}

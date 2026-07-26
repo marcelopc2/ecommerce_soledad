@@ -450,3 +450,145 @@ DEFAULT_LANDING_VIDEOS = [
         'cover_asset': 'video-centrifuga.png',
     },
 ]
+
+
+class SeccionConcurso(models.Model):
+    """Ajustes de la franja del concurso, la que va debajo del Club Ingenio
+    Blocks. Es una fila única (como AjustesAula) porque la sección solo puede
+    estar en un estado a la vez: apagada, invitando a participar, o mostrando
+    a los ganadores."""
+
+    OCULTA = 'oculta'
+    CONVOCATORIA = 'convocatoria'
+    GANADORES = 'ganadores'
+    ESTADOS = [
+        (OCULTA, 'Oculta — la sección no aparece en la portada'),
+        (CONVOCATORIA, 'Convocatoria — invita a participar en el concurso'),
+        (GANADORES, 'Ganadores — muestra quiénes ganaron'),
+    ]
+
+    estado = models.CharField(
+        max_length=20, choices=ESTADOS, default=OCULTA,
+        verbose_name='Qué se muestra',
+    )
+
+    # --- Textos del estado "convocatoria" ---
+    etiqueta = models.CharField(
+        max_length=80, default='Concurso Ingenio Blocks',
+        verbose_name='Etiqueta',
+        help_text='El rótulo lila chico que va sobre el título.',
+    )
+    titulo = models.CharField(
+        max_length=140, default='Despierta tu ingenio creativo',
+        verbose_name='Título',
+    )
+    intro = models.CharField(
+        max_length=200, default='Para participar deberás:',
+        verbose_name='Frase de entrada',
+        help_text='La línea en negrita que encabeza la lista de requisitos.',
+    )
+    bases = models.TextField(
+        verbose_name='Requisitos',
+        help_text='Uno por línea. Cada línea se muestra como una viñeta. '
+                  'Los correos y los links se vuelven clickeables solos.',
+        default=(
+            'Enviar 3 fotografías de tu modelo (en buena resolución) desde distintos ángulos.\n'
+            'Un video con el modelo funcionando.\n'
+            'Enviar las fotografías y video a nuestro correo: contacto@ingenioblocks.com '
+            'indicando en el asunto: Concurso Ingenio Blocks\n'
+            'El correo, además, deberá indicar el nombre o pseudónimo del niñ@ y el nombre '
+            'del modelo. Nombre y teléfono de uno de los padres o apoderado.'
+        ),
+    )
+    boton_texto = models.CharField(
+        max_length=60, default='¡Envía tu modelo ahora!',
+        verbose_name='Texto del botón',
+    )
+    boton_enlace = models.CharField(
+        max_length=300, blank=True,
+        default='mailto:contacto@ingenioblocks.com?subject=Concurso%20Ingenio%20Blocks',
+        verbose_name='Enlace del botón',
+        help_text='Puede ser una dirección web (https://…) o un correo '
+                  '(mailto:alguien@ingenioblocks.com). Si se deja vacío, el botón no aparece.',
+    )
+    sello = models.CharField(
+        max_length=40, blank=True, default='¡Participa y gana!',
+        verbose_name='Sello',
+        help_text='El texto del círculo morado de la esquina. Vacío = sin sello.',
+    )
+    imagen = models.FileField(
+        upload_to='concurso/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Imagen',
+        help_text='La foto del modelo que acompaña a la convocatoria (JPG, PNG o WEBP).',
+    )
+
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Sección del concurso'
+        verbose_name_plural = 'Sección del concurso'
+
+    def __str__(self):
+        return f'Concurso: {self.get_estado_display()}'
+
+    def save(self, *args, **kwargs):
+        # Fila única: siempre pk=1, aunque alguien intente crear otra.
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @property
+    def bases_lista(self):
+        """Los requisitos como lista, sin las líneas en blanco que quedan al
+        editar en el panel."""
+        return [linea.strip() for linea in self.bases.splitlines() if linea.strip()]
+
+
+class GanadorConcurso(models.Model):
+    """Ganador de una categoría del concurso. Se muestran cuando la sección
+    está en estado "ganadores"."""
+
+    # El tono pinta la lámina de la foto: amarilla para la categoría chica y
+    # morada para la grande, como en el diseño. Se elige de la paleta de la
+    # marca en vez de dejar un campo libre de color.
+    TONOS = [
+        ('amarillo', 'Amarillo'),
+        ('morado', 'Morado'),
+    ]
+
+    categoria = models.CharField(
+        max_length=60, verbose_name='Categoría',
+        help_text='Ej: 6 a 8 años. Aparece en el pie de la lámina.',
+    )
+    tono = models.CharField(max_length=10, choices=TONOS, default='amarillo', verbose_name='Color de la lámina')
+    titulo = models.CharField(
+        max_length=40, default='Ganador', verbose_name='Título',
+        help_text='"Ganador" o "Ganadora", según corresponda.',
+    )
+    anio = models.CharField(max_length=10, blank=True, verbose_name='Año')
+    nombre = models.CharField(max_length=120, verbose_name='Nombre')
+    edad = models.CharField(max_length=40, blank=True, verbose_name='Edad')
+    texto = models.TextField(blank=True, verbose_name='Reseña', help_text='Un par de líneas sobre el modelo ganador.')
+    foto = models.FileField(
+        upload_to='ganadores/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Foto',
+        help_text='Foto del ganador o de su modelo (JPG, PNG o WEBP). Se recorta cuadrada.',
+    )
+    order = models.PositiveIntegerField(default=0, help_text='Posición en la lista. Se asigna solo al crear.')
+    is_active = models.BooleanField(default=True, help_text='Se muestra en la landing')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Ganador del concurso'
+        verbose_name_plural = 'Ganadores del concurso'
+
+    def __str__(self):
+        return f'{self.nombre} ({self.categoria})'

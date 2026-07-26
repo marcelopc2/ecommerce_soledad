@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" role="img" aria-label="Foto pendiente">
+  <!-- PLACEHOLDER: espera la foto real del ganador. Se reemplaza pasando la
+       ruta de la imagen en el campo `foto` de GANADORES (Landing.jsx). -->
+  <rect width="300" height="300" fill="#ece7f2"/>
+  <g fill="none" stroke="#b9a8cc" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="76" y="94" width="148" height="112" rx="12"/>
+    <path d="M76 176l38-34 30 26 26-24 54 44"/>
+  </g>
+  <circle cx="118" cy="128" r="12" fill="#b9a8cc"/>
+  <text x="150" y="242" text-anchor="middle" font-family="system-ui, sans-serif"
+        font-size="18" font-weight="700" letter-spacing="1.5" fill="#9a86b3">FOTO PENDIENTE</text>
+</svg>

@@ -15,13 +15,16 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
-from catalog.models import Product, FAQ, Testimonial, LandingVideo, LandingStep
+from catalog.models import (
+    Product, FAQ, Testimonial, LandingVideo, LandingStep,
+    SeccionConcurso, GanadorConcurso,
+)
 from invoicing.models import Invoice
 from invoicing.services import issue_invoice_for_order
 from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 from lms.services import get_course_access, send_reset_email
 from payments.models import Order
-from .forms import LoginForm, ProductForm, CourseForm, LessonForm, MembershipForm, DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm, StaffUserForm, AjustesAulaForm
+from .forms import LoginForm, ProductForm, CourseForm, LessonForm, MembershipForm, DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm, StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm
 
 
 def staff_required(view):
@@ -842,14 +845,29 @@ def configuracion(request):
     else:
         ajustes_form = AjustesAulaForm(instance=ajustes)
 
+    # La franja del concurso también es fila única. request.FILES: sin esto la
+    # imagen se descartaría en silencio.
+    concurso = SeccionConcurso.obtener()
+    if request.method == 'POST' and request.POST.get('form') == 'concurso':
+        concurso_form = SeccionConcursoForm(request.POST, request.FILES, instance=concurso)
+        if concurso_form.is_valid():
+            concurso_form.save()
+            messages.success(request, 'Sección del concurso guardada.')
+            return redirect(f"{reverse('panel:config')}?tab=concurso")
+        tab = 'concurso'   # que la pestaña con el error quede a la vista
+    else:
+        concurso_form = SeccionConcursoForm(instance=concurso)
+
     ctx = {
         'faqs': FAQ.objects.all(),
         'testimonials': Testimonial.objects.all(),
         'videos': LandingVideo.objects.all(),
         'steps': LandingStep.objects.all(),
         'ajustes_form': ajustes_form,
+        'concurso_form': concurso_form,
+        'ganadores': GanadorConcurso.objects.all(),
         'total_cursos': Course.objects.filter(is_active=True).count(),
-        'tab': tab if tab in ('faqs', 'testimonios', 'videos', 'pasos', 'aula') else 'faqs',
+        'tab': tab if tab in ('faqs', 'testimonios', 'videos', 'pasos', 'aula', 'concurso') else 'faqs',
         'section': 'config',
     }
     return render(request, 'panel/configuracion.html', ctx)
@@ -894,6 +912,32 @@ def faq_restore_defaults(request):
         resp['HX-Redirect'] = target
         return resp
     return redirect(target)
+
+
+@staff_required
+def ganador_form(request, pk=None):
+    ganador = get_object_or_404(GanadorConcurso, pk=pk) if pk else None
+    # request.FILES: sin esto la foto se descarta en silencio.
+    form = GanadorConcursoForm(request.POST or None, request.FILES or None, instance=ganador)
+    if request.method == 'POST' and form.is_valid():
+        obj = form.save()
+        messages.success(request, f'Ganador "{obj.nombre}" guardado.')
+        return redirect(f"{reverse('panel:config')}?tab=concurso")
+    return render(request, 'panel/ganador_form.html', {
+        'form': form, 'ganador': ganador, 'section': 'config',
+    })
+
+
+@staff_required
+@require_POST
+def ganador_delete(request, pk):
+    ganador = get_object_or_404(GanadorConcurso, pk=pk)
+    nombre = ganador.nombre
+    ganador.delete()
+    if is_htmx(request):
+        return HttpResponse('')
+    messages.success(request, f'Ganador "{nombre}" eliminado.')
+    return redirect(f"{reverse('panel:config')}?tab=concurso")
 
 
 @staff_required

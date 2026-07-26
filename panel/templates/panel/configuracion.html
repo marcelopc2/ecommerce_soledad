@@ -45,6 +45,12 @@
       </button>
     </li>
     <li class="nav-item" role="presentation">
+      <button class="nav-link{% if tab == 'concurso' %} active{% endif %}" id="tab-concurso-btn" data-cfg-tab="concurso"
+              type="button" role="tab" aria-controls="tab-concurso" aria-selected="{% if tab == 'concurso' %}true{% else %}false{% endif %}">
+        <i class="bi bi-trophy-fill me-1"></i> Concurso
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
       <button class="nav-link{% if tab == 'aula' %} active{% endif %}" id="tab-aula-btn" data-cfg-tab="aula"
               type="button" role="tab" aria-controls="tab-aula" aria-selected="{% if tab == 'aula' %}true{% else %}false{% endif %}">
         <i class="bi bi-mortarboard-fill me-1"></i> Aula Virtual
@@ -135,6 +141,135 @@
           </thead>
           <tbody id="steps-tbody">
             {% include 'panel/partials/steps_rows.html' %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-pane fade{% if tab == 'concurso' %} show active{% endif %}" id="tab-concurso" role="tabpanel">
+      <div class="pnl-toolbar">
+        <span class="pnl-hint">
+          <i class="bi bi-info-circle"></i>
+          Es la franja de color que va debajo del "Club Ingenio Blocks" en la portada.
+          Puede estar apagada, invitando a participar, o mostrando a los ganadores.
+        </span>
+      </div>
+
+      {# enctype: sin esto la imagen se pierde en silencio al guardar. #}
+      <form method="post" enctype="multipart/form-data" class="card-pad" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="form" value="concurso">
+
+        {% for e in concurso_form.non_field_errors %}
+          <div class="alert pnl-alert mb-3" style="background:#fdf2f2;border:1px solid #f5c2c2">
+            <i class="bi bi-exclamation-triangle"></i> {{ e }}
+          </div>
+        {% endfor %}
+
+        <div class="row g-4 mb-4">
+          <div class="col-md-6">
+            <label class="form-label" for="{{ concurso_form.estado.id_for_label }}">
+              {{ concurso_form.estado.label }}
+            </label>
+            {{ concurso_form.estado }}
+            {% for e in concurso_form.estado.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+            <div class="pnl-campo-ayuda">
+              Con <strong>Oculta</strong> la franja no aparece.
+              <strong>Convocatoria</strong> muestra los textos de más abajo.
+              <strong>Ganadores</strong> muestra las fichas de la tabla del final.
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section-title"><i class="bi bi-megaphone"></i> Textos de la convocatoria</div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-5">
+            <label class="form-label">{{ concurso_form.etiqueta.label }}</label>
+            {{ concurso_form.etiqueta }}
+            {% for e in concurso_form.etiqueta.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-7">
+            <label class="form-label">{{ concurso_form.titulo.label }}</label>
+            {{ concurso_form.titulo }}
+            {% for e in concurso_form.titulo.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ concurso_form.intro.label }}</label>
+          {{ concurso_form.intro }}
+          {% for e in concurso_form.intro.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ concurso_form.bases.label }}</label>
+          {{ concurso_form.bases }}
+          <div class="pnl-campo-ayuda">{{ concurso_form.bases.help_text }}</div>
+          {% for e in concurso_form.bases.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">{{ concurso_form.boton_texto.label }}</label>
+            {{ concurso_form.boton_texto }}
+            {% for e in concurso_form.boton_texto.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">{{ concurso_form.boton_enlace.label }}</label>
+            {{ concurso_form.boton_enlace }}
+            <div class="pnl-campo-ayuda">{{ concurso_form.boton_enlace.help_text }}</div>
+            {% for e in concurso_form.boton_enlace.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ concurso_form.sello.label }}</label>
+            {{ concurso_form.sello }}
+            <div class="pnl-campo-ayuda">{{ concurso_form.sello.help_text }}</div>
+            {% for e in concurso_form.sello.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-4" style="max-width:520px">
+          <label class="form-label">{{ concurso_form.imagen.label }}</label>
+          {% if concurso_form.instance.imagen %}
+            <div class="mb-2">
+              <img src="{{ concurso_form.instance.imagen.url }}" alt="Imagen actual"
+                   style="max-width:220px;border-radius:10px;display:block">
+            </div>
+          {% endif %}
+          {{ concurso_form.imagen }}
+          <div class="pnl-campo-ayuda">{{ concurso_form.imagen.help_text }}</div>
+          {% for e in concurso_form.imagen.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-brand btn-sm">
+          <i class="bi bi-check-lg me-1"></i> Guardar sección
+        </button>
+      </form>
+
+      <div class="form-section-title mt-4 px-3"><i class="bi bi-trophy"></i> Ganadores</div>
+      <div class="pnl-toolbar">
+        <span class="pnl-hint">
+          <i class="bi bi-info-circle"></i>
+          Se muestran solo cuando la sección está en estado "Ganadores".
+        </span>
+        <a href="{% url 'panel:ganador_new' %}" class="btn btn-brand btn-sm">
+          <i class="bi bi-plus-lg me-1"></i> Nuevo ganador
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <thead>
+            <tr>
+              <th>Foto</th>
+              <th>Ganador</th>
+              <th>Categoría</th>
+              <th>Color</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="ganadores-tbody">
+            {% include 'panel/partials/ganadores_rows.html' %}
           </tbody>
         </table>
       </div>

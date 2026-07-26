@@ -11,7 +11,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 
-from lms.models import Course, Lesson, Membership, UnlockNotice
+from lms.models import AjustesAula, Course, Lesson, Membership, UnlockNotice
 from lms.services import _unlock_date, get_course_access, mark_lesson_completed
 
 
@@ -41,7 +41,17 @@ class CalendarioDelGoteoTests(TestCase):
 
 
 class DesbloqueoTests(TestCase):
+    """Estos tests miden EL CALENDARIO, así que fijan "1 modelo disponible al
+    comprar" en vez de confiar en el valor por defecto: con el ajuste de fábrica
+    (3 al inicio) los primeros modelos se abren de entrada y el calendario no
+    sería lo que los está trabando. El comportamiento configurable tiene sus
+    propios tests en ModelosInicialesTests."""
+
     def setUp(self):
+        ajustes = AjustesAula.obtener()
+        ajustes.cursos_iniciales = 1
+        ajustes.save()
+
         self.usuario = User.objects.create_user(
             username='alumno@test.cl', email='alumno@test.cl', password='clave-de-prueba')
         self.membresia = Membership.objects.create(
@@ -107,6 +117,70 @@ class DesbloqueoTests(TestCase):
         # Con 8 días de pausa, los 8 transcurridos no cuentan.
         acceso = get_course_access(self.membresia)
         self.assertFalse(acceso[1]['unlocked'])
+
+
+class ModelosInicialesTests(TestCase):
+    """"Modelos disponibles al comprar" (Configuración → Aula Virtual).
+
+    Con el valor por defecto (3) quien compra tiene con qué empezar: termina el
+    primero y el segundo se abre al instante, sin esperar la semana. Recién a
+    partir del cuarto manda el calendario."""
+
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username='alumna@test.cl', email='alumna@test.cl', password='clave-de-prueba')
+        self.membresia = Membership.objects.create(
+            user=self.usuario, expires_at=timezone.now() + timedelta(days=180),
+            student_name='Emilia',
+        )
+        self.cursos = []
+        for i in range(1, 5):
+            c = Course.objects.create(title=f'Modelo {i}', slug=f'modelo-{i}', order=i)
+            Lesson.objects.create(
+                course=c, title=f'Armado {i}', order=1,
+                lesson_type='VIDEO', video_embed_url='https://www.youtube.com/embed/abc12345678',
+            )
+            self.cursos.append(c)
+        self.membresia.courses.add(*self.cursos)
+
+    def _fijar(self, iniciales):
+        ajustes = AjustesAula.obtener()
+        ajustes.cursos_iniciales = iniciales
+        ajustes.save()
+
+    def test_con_tres_iniciales_el_segundo_se_abre_al_terminar_el_primero(self):
+        self._fijar(3)
+        # Sin terminar nada, solo el primero: los demás esperan su turno en la fila.
+        acceso = get_course_access(self.membresia)
+        self.assertTrue(acceso[0]['unlocked'])
+        self.assertFalse(acceso[1]['unlocked'])
+        self.assertEqual(acceso[1]['lock_reason'], 'previo')
+
+        # Al terminarlo el segundo se abre el mismo día: lo que lo trababa era
+        # la fila, no el calendario.
+        mark_lesson_completed(self.membresia, self.cursos[0].lessons.first())
+        acceso = get_course_access(self.membresia)
+        self.assertTrue(acceso[1]['unlocked'])
+
+    def test_el_cuarto_ya_depende_del_calendario(self):
+        """Con 3 iniciales, el 4º es el primero que además tiene que esperar."""
+        self._fijar(3)
+        for curso in self.cursos[:3]:
+            mark_lesson_completed(self.membresia, curso.lessons.first())
+
+        acceso = get_course_access(self.membresia)
+        self.assertTrue(acceso[2]['unlocked'])
+        self.assertFalse(acceso[3]['unlocked'])
+        self.assertEqual(acceso[3]['lock_reason'], 'fecha')
+
+    def test_con_uno_inicial_el_segundo_espera_la_semana(self):
+        """El ajuste manda: bajándolo a 1 vuelve el goteo semanal desde el 2º."""
+        self._fijar(1)
+        mark_lesson_completed(self.membresia, self.cursos[0].lessons.first())
+
+        acceso = get_course_access(self.membresia)
+        self.assertFalse(acceso[1]['unlocked'])
+        self.assertEqual(acceso[1]['lock_reason'], 'fecha')
 
 
 class AvisosDeDesbloqueoTests(TestCase):

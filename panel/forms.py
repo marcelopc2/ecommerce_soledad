@@ -1,6 +1,9 @@
 from django import forms
 from django.db.models import Max
-from catalog.models import Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id
+from catalog.models import (
+    Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
+    SeccionConcurso, GanadorConcurso,
+)
 from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 
 
@@ -463,3 +466,71 @@ class AjustesAulaForm(BootstrapFormMixin, forms.ModelForm):
             raise forms.ValidationError('Tiene que ser al menos 1: si no, quien compra '
                                         'entra a un aula sin nada disponible.')
         return n
+
+
+class SeccionConcursoForm(BootstrapFormMixin, forms.ModelForm):
+    """Estado y textos de la franja del concurso (fila única)."""
+
+    class Meta:
+        model = SeccionConcurso
+        fields = ['estado', 'etiqueta', 'titulo', 'intro', 'bases',
+                  'boton_texto', 'boton_enlace', 'sello', 'imagen']
+        widgets = {
+            'bases': forms.Textarea(attrs={'rows': 6}),
+            'intro': forms.TextInput(),
+            'boton_enlace': forms.TextInput(attrs={
+                'placeholder': 'mailto:contacto@ingenioblocks.com?subject=Concurso',
+            }),
+        }
+
+    def clean_imagen(self):
+        """Máx 4 MB: la carga cada visitante de la landing."""
+        imagen = self.cleaned_data.get('imagen')
+        if imagen and getattr(imagen, 'size', 0) > 4 * 1024 * 1024:
+            raise forms.ValidationError('La imagen no puede pesar más de 4 MB.')
+        return imagen
+
+    def clean(self):
+        """Avisa antes de publicar una sección a medio llenar. El estado
+        "ganadores" necesita al menos un ganador visible; si no, la franja
+        quedaría vacía en la portada."""
+        datos = super().clean()
+        if datos.get('estado') == SeccionConcurso.GANADORES:
+            if not GanadorConcurso.objects.filter(is_active=True).exists():
+                raise forms.ValidationError(
+                    'Para mostrar los ganadores primero tienes que agregar al menos uno '
+                    'visible, más abajo en esta misma pestaña.'
+                )
+        if datos.get('estado') == SeccionConcurso.CONVOCATORIA and not datos.get('titulo'):
+            self.add_error('titulo', 'La convocatoria necesita un título.')
+        return datos
+
+
+class GanadorConcursoForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = GanadorConcurso
+        fields = ['nombre', 'edad', 'categoria', 'titulo', 'anio', 'texto', 'foto', 'tono', 'is_active']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'placeholder': 'Josefa Pérez'}),
+            'edad': forms.TextInput(attrs={'placeholder': '7 años'}),
+            'categoria': forms.TextInput(attrs={'placeholder': '6 a 8 años'}),
+            'titulo': forms.TextInput(attrs={'placeholder': 'Ganadora'}),
+            'anio': forms.TextInput(attrs={'placeholder': '2026'}),
+            'texto': forms.Textarea(attrs={'rows': 4}),
+        }
+
+    def clean_foto(self):
+        foto = self.cleaned_data.get('foto')
+        if foto and getattr(foto, 'size', 0) > 4 * 1024 * 1024:
+            raise forms.ValidationError('La foto no puede pesar más de 4 MB.')
+        return foto
+
+    def save(self, commit=True):
+        """Un ganador nuevo se agrega al final de la lista."""
+        obj = super().save(commit=False)
+        if not obj.pk and not obj.order:
+            last = GanadorConcurso.objects.aggregate(m=Max('order'))['m'] or 0
+            obj.order = last + 1
+        if commit:
+            obj.save()
+        return obj

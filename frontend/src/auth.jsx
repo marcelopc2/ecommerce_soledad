@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { api } from './api'
+import { api, API_BASE } from './api'
 
 const AuthContext = createContext(null)
 
@@ -39,7 +39,33 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  /* Cerrar sesión avisa al servidor, no solo borra el token de acá: hay que
+     revocar el refresh token y, en las cuentas de gestión, cerrar además la
+     sesión del panel (ver LogoutView). Sin esto, alguien podía "cerrar sesión"
+     en el sitio y seguir entrando a /gestion/ en ese mismo computador.
+
+     La limpieza local NO espera al servidor ni depende de que responda bien:
+     si el aviso falla (sin internet, servidor caído), igual queda desconectado
+     en este navegador, que es lo que la persona espera al hacer clic.
+
+     Se usa fetch con keepalive y no axios porque quien llama a esto suele
+     recargar la página enseguida (ver handleLogout en los headers): keepalive
+     le garantiza al navegador que debe terminar de enviar la petición aunque la
+     página se descargue. Con una petición normal se cancelaba a medio camino y
+     el token quedaba sin revocar y la sesión del panel sin cerrar. */
   const logout = () => {
+    const refresh = localStorage.getItem(REFRESH)
+    const access = localStorage.getItem(ACCESS)
+    fetch(`${API_BASE}/auth/logout/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(access ? { Authorization: `Bearer ${access}` } : {}),
+      },
+      body: JSON.stringify({ refresh }),
+      credentials: 'include',   // manda la cookie de sesión del panel
+      keepalive: true,
+    }).catch(() => {})
     localStorage.removeItem(ACCESS)
     localStorage.removeItem(REFRESH)
     setUser(null)

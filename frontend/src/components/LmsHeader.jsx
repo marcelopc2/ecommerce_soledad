@@ -1,13 +1,33 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { PANEL_URL } from '../api'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 
 export default function LmsHeader() {
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
 
-  const handleLogout = () => { logout(); navigate('/') }
+  /* Salida a la portada con navegación del navegador, no del router.
+
+     Con navigate('/') quedaba en /login: al vaciarse el usuario, RequireAuth
+     alcanzaba a pintar <Navigate to="/login"> desde la ruta protegida y esa
+     redirección pisaba el destino. No se arregla cambiando el orden ni con
+     flushSync, porque React Router emite el cambio de ruta como transición de
+     baja prioridad y React lo posterga igual.
+
+     Un cambio de página real no compite con el router. Además deja el sitio
+     limpio: no sobrevive nada del usuario anterior en memoria. El aviso al
+     servidor viaja con keepalive (ver logout en auth.jsx), así que la recarga
+     no lo corta. */
+  const handleLogout = () => {
+    // replace() y no assign(): reemplaza la entrada actual del historial en vez
+    // de agregar una, así el botón "atrás" no devuelve a la página que se acaba
+    // de abandonar al cerrar sesión.
+    // Va antes de logout() para que el navegador empiece a descargar la página
+    // cuanto antes; logout() igual se ejecuta (replace no corta el script) y su
+    // aviso al servidor sale con keepalive.
+    window.location.replace('/')
+    logout()
+  }
 
   return (
     <header className="lms-header">

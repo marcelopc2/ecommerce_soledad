@@ -1,6 +1,6 @@
-// Botón flotante (abajo a la izquierda) que abre un chat de WhatsApp con
-// mensaje precargado. Es solo un link a wa.me — no usa la API de WhatsApp
-// Business, así que no requiere cuenta verificada ni backend.
+// Botón flotante (esquina inferior derecha, debajo del de "volver arriba") que
+// abre un chat de WhatsApp con mensaje precargado. Es solo un link a wa.me — no
+// usa la API de WhatsApp Business, así que no requiere cuenta verificada ni backend.
 const NUMERO = '56985026926' // +56 9 8502 6926, mismo teléfono de "Contacto"
 const MENSAJE = '¡Hola! Quería hacer una consulta sobre Ingenio Blocks.'
 
