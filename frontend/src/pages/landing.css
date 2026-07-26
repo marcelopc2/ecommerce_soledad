@@ -1037,7 +1037,10 @@
 /* ---------- Testimonios ---------- */
 
 .lp-testimonios {
-  padding: 40px 24px 110px;
+  /* poco margen abajo: la pista ya aporta 34px propios para la sombra y el
+     Club (la sección siguiente) trae los suyos arriba. Con los 110px de antes
+     quedaban 144px de blanco y las dos secciones se veían desconectadas. */
+  padding: 40px 24px 26px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1061,8 +1064,12 @@
      que no avanzaba nunca (el clic sí funcionaba, porque es un salto grande de
      una sola vez). El snap se activa solo en móvil, donde el gesto del dedo sí
      lo aprovecha y no hay hover. */
-  /* Sitio para la sombra de las tarjetas: con overflow el navegador la recorta. */
-  padding: 6px 4px 14px;
+  /* Sitio para la sombra de las tarjetas: con overflow el navegador la recorta.
+     La sombra baja 27px por debajo de la tarjeta (20 de desplazamiento + la
+     mitad del desenfoque de 25, menos 5 de contracción) y se abre 8px hacia
+     los lados; con menos padding que eso se ve un corte recto justo bajo las
+     tarjetas. Se deja algo de holgura extra para la sombra del hover. */
+  padding: 10px 14px 34px;
   scrollbar-width: none;           /* Firefox */
   -ms-overflow-style: none;        /* Edge antiguo */
 }
@@ -1093,7 +1100,7 @@
 .lp-testi-costado {
   position: absolute;
   top: 0;
-  bottom: 14px;
+  bottom: 34px;                    /* igual al padding inferior de la pista */
   width: 72px;
   z-index: 2;
   border: 0;
@@ -1168,7 +1175,10 @@
 }
 .lp-testimonio-leermas {
   align-self: flex-start;
-  margin-top: -14px;                 /* se monta sobre el degradado del ::after */
+  /* separación mínima con la línea del pie: sin esto, en las tarjetas cuyo
+     texto llena el alto disponible el borde superior del pie caía justo sobre
+     el botón y parecía tacharlo. */
+  margin: 0 0 16px;
   background: none;
   border: 0;
   padding: 0;
@@ -1176,8 +1186,6 @@
   font-weight: 700;
   color: var(--lp-accent, #8200db);
   cursor: pointer;
-  position: relative;
-  z-index: 1;
 }
 .lp-testimonio-leermas:hover,
 .lp-testimonio-leermas:focus-visible { text-decoration: underline; }
@@ -1208,25 +1216,19 @@
   font-size: 14px;
   line-height: 1.65;
   color: var(--lp-body-c);
-  margin: 0 0 20px;
-  /* Siempre recortado a 5 líneas: la tarjeta compacta es una vista previa, el
-     texto completo se lee en el modal (clic en "leer más" o en la tarjeta). */
+  margin: 0 0 14px;
+  /* Siempre recortado: la tarjeta compacta es una vista previa, el texto
+     completo se lee en el modal (clic en "leer más" o en la tarjeta). Son 4
+     líneas y no 5 para que quepa un pie de dos líneas (hay nombres largos,
+     como "José Pedro Rodríguez Aliaga") sin chocar con el botón. */
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-/* Aviso de que el texto sigue, degradado hacia el blanco de la tarjeta para no
-   cortar la última línea en seco. */
-.lp-testimonio-in::after {
-  content: '';
-  position: absolute;
-  left: 32px;
-  right: 32px;
-  bottom: 90px;
-  height: 28px;
-  background: linear-gradient(to bottom, transparent, #fff);
-  pointer-events: none;
+  /* Válvula de escape: si el pie creciera aún más (un nombre de tres líneas),
+     la cita cede espacio en vez de empujar al pie fuera de la tarjeta. */
+  flex: 0 1 auto;
+  min-height: 0;
 }
 .lp-testimonio footer {
   border-top: 1px solid #f1f5f9;
