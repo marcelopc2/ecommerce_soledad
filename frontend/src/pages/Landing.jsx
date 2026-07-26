@@ -10,7 +10,7 @@ import logo from '../assets/landing/logo-ingenioblocks.svg'
 import heroNino from '../assets/landing/hero-nino.png'
 import pagosBadges from '../assets/landing/pagos-badges.svg'
 import quienesSomosNino from '../assets/landing/quienes-somos-nino.png'
-import concurso3d from '../assets/landing/concurso-3d.png'
+import club3d from '../assets/landing/club-3d.png'
 
 /* ---------- Datos estructurados (SEO) ----------
    La cuadrícula de FAQ y los productos vienen de la API, así que su JSON-LD se
@@ -793,26 +793,65 @@ function TestimonioModal({ testimonio: t, onClose }) {
   )
 }
 
-// Texto real del concurso. Mientras esté vacío la sección NO se muestra: iba a
-// producción con "Lorem ipsum dolor sit amet...", que es lo peor que puede leer
-// alguien a punto de gastar decenas de miles de pesos. No se inventa un texto
-// acá porque implicaría afirmar cosas de un concurso (premios, fechas, bases)
-// que solo la clienta puede definir. Con pegar el texto aquí vuelve a aparecer.
-const TEXTO_CONCURSO = ''
+/* Sección "Club Ingenio Blocks" (reemplaza a la antigua de Concurso: los
+   concursos ahora se explican acá dentro). El texto es el del diseño de la
+   clienta, tal cual, salvo dos erratas evidentes del original: "pueden
+   pertenecen" → "pueden pertenecer" y el paréntesis sin cerrar de las ruedas. */
+const CLUB_BLOQUES = [
+  {
+    titulo: '¿Quiénes pueden pertenecer al Club Ingenio Blocks?',
+    puntos: [
+      'Todos aquellos que ya tengan nuestro Kit y una suscripción vigente.',
+      'Si ya venció tu suscripción y quieres ser parte del club, sólo tienes que suscribirte a Ingenio Plus o comprar un pack de 8 modelos (2 meses – 1 modelo cada semana).',
+    ],
+  },
+  {
+    titulo: '¿Qué haremos en el Club?',
+    puntos: [
+      'Tendremos concursos periódicos en 2 categorías: de 6 a 8 años y de 9 a 12 años.',
+      'Podrás hacer volar tu imaginación para crear modelos originales utilizando sólo las piezas del kit más motor y batería.',
+      'Los ganadores se darán a conocer a través de nuestra página web además de premios personales.',
+    ],
+  },
+  {
+    titulo: '¿Qué premios tendremos?',
+    puntos: [
+      'Tu nombre y modelo serán publicados en nuestra página en la categoría en que participaste.',
+      'Podrás convertir tu modelo en un nuevo curso de la plataforma.',
+      'Un set de piezas para incluir a tu kit y construir nuevos modelos (1 motor, 1 batería + 4 ruedas grandes).',
+      'Y muchas sorpresas más.',
+    ],
+  },
+]
 
-function Concurso({ texto }) {
+function Club() {
   return (
-    <section className="lp-concurso-band">
-      <div className="lp-concurso">
-        <div className="lp-concurso-visual">
-          <span className="lp-concurso-brand">Ingenio<br />Blocks</span>
-          <img src={concurso3d} alt="Trofeo Ingenio Blocks en 3D" />
+    <section className="lp-club-band" id="club">
+      <div className="lp-club">
+        <div className="lp-club-visual">
+          {/* IMAGEN PROVISORIA: es el recorte de baja resolución del Figma
+              (107x125 px). Cuando llegue la definitiva basta con reemplazar
+              el archivo club-3d.png y borrar el <span> de aviso de abajo. */}
+          <img src={club3d} alt="Logo de Ingenio Blocks construido con bloques" />
+          <span className="lp-club-provisoria">imagen provisoria</span>
+          <a className="lp-btn-yellow lp-btn-cta" href="#kits">comprar ingenio plus</a>
         </div>
-        <div className="lp-concurso-texto">
-          <span className="lp-chip lp-chip-lila">ganador del año</span>
-          <h2 className="lp-h2">concurso</h2>
-          <span className="lp-underline" style={{ margin: '0 0 24px' }} />
-          <p>{texto}</p>
+        <div className="lp-club-texto">
+          <span className="lp-chip lp-chip-lila">espacio virtual</span>
+          <h2 className="lp-h2">club ingenio blocks</h2>
+          <p className="lp-club-intro">
+            Queremos que Ingenio Blocks no sea sólo un set de bloques, sino que un espacio
+            virtual donde los niños construyen, creen, se sientan siempre desafiados y
+            desarrollen habilidades para la vida.
+          </p>
+          {CLUB_BLOQUES.map(bloque => (
+            <div className="lp-club-bloque" key={bloque.titulo}>
+              <h3>{bloque.titulo}</h3>
+              <ul>
+                {bloque.puntos.map(punto => <li key={punto}>{punto}</li>)}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -932,7 +971,7 @@ const REVEAL_SELECTOR = [
   '.lp-kits-intro', '.lp-pagos', '.lp-card', '.lp-oferta',
   '.lp-quienes-foto', '.lp-quienes-texto',
   '.lp-testimonio',
-  '.lp-concurso-visual', '.lp-concurso-texto',
+  '.lp-club-visual', '.lp-club-texto',
   '.lp-faq-item',
   '.lp-contacto-info', '.lp-contacto-form',
 ].join(',')
@@ -1095,7 +1134,7 @@ export default function Landing() {
       <Kits products={products} />
       <QuienesSomos />
       <Testimonios />
-      {TEXTO_CONCURSO && <Concurso texto={TEXTO_CONCURSO} />}
+      <Club />
       <Faq />
       <Contacto />
       <LandingFooter />

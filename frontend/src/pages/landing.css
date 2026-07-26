@@ -1317,48 +1317,76 @@
 }
 .lp-testi-modal-close:hover { background: #e6d3fb; }
 
-/* ---------- Concurso ---------- */
+/* ---------- Club Ingenio Blocks ---------- */
 
-.lp-concurso-band {
-  background: #e5e5e5;
-  padding: 74px 24px;
-}
-.lp-concurso {
-  background: #fff;
+.lp-club-band { padding: 20px 24px 90px; }
+.lp-club {
+  background: #f6ecfd;
   border-radius: 28px;
-  box-shadow: var(--lp-card-shadow);
   width: var(--lp-content);
+  /* igual que .lp-oferta: sin border-box el padding se suma al width y la
+     tarjeta queda más ancha que el resto de las secciones (y en celular se
+     sale del viewport). */
+  box-sizing: border-box;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(280px, 440px) minmax(0, 1fr);
-  gap: 70px;
+  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+  gap: 60px;
   align-items: center;
-  padding: 66px;
+  padding: 56px 66px;
 }
-.lp-concurso-visual {
-  position: relative;
-  background: var(--lp-yellow-dark);
-  border-radius: 24px;
-  aspect-ratio: 1;
+.lp-club-visual {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 14px;
 }
-.lp-concurso-brand {
-  position: absolute;
-  top: 26px;
-  left: 28px;
+/* La imagen es un recorte chico del Figma (107px de ancho); se limita el
+   escalado para que no se vea pixelada mientras llega la definitiva. */
+.lp-club-visual img {
+  width: 100%;
+  max-width: 214px;
+  height: auto;
+  /* el recorte trae el fondo amarillo pegado; redondearlo hace que se lea como
+     una pieza del diseño y no como un recorte mal hecho. */
+  border-radius: 18px;
+}
+.lp-club-provisoria {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #9a7bb5;
+  border: 1px dashed #c9a9e6;
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.lp-club-visual .lp-btn-yellow { margin-top: 16px; }
+
+.lp-club-texto .lp-h2 { text-align: left; margin-bottom: 18px; }
+.lp-club-intro {
+  font-size: 15.5px;
+  line-height: 1.8;
+  margin: 0 0 26px;
+}
+.lp-club-bloque + .lp-club-bloque { margin-top: 22px; }
+.lp-club-bloque h3 {
   font-family: var(--lp-heading);
   font-weight: 700;
-  font-size: 20px;
-  text-transform: uppercase;
-  color: var(--lp-purple-dark);
-  line-height: 1.3;
+  font-size: 16px;
+  color: var(--lp-ink);
+  margin: 0 0 8px;
 }
-.lp-concurso-visual img { width: 52%; }
-.lp-concurso-texto .lp-h2 { text-align: left; }
-.lp-concurso-texto .lp-underline { margin-left: 0; }
-.lp-concurso-texto p { font-size: 15.5px; line-height: 1.8; margin: 0; }
+.lp-club-bloque ul {
+  margin: 0;
+  padding-left: 22px;
+  list-style: disc;
+}
+.lp-club-bloque li {
+  font-size: 15.5px;
+  line-height: 1.8;
+  margin-bottom: 4px;
+}
 
 /* ---------- FAQ ---------- */
 
@@ -1619,7 +1647,10 @@
      solo taparían las tarjetas. */
   .lp-testi-costado { display: none; }
   .lp-testi-pista { scroll-snap-type: x mandatory; }
-  .lp-concurso { grid-template-columns: 1fr; padding: 34px; gap: 40px; }
+  .lp-club { grid-template-columns: 1fr; padding: 34px; gap: 34px; }
+  /* en una sola columna el botón de compra queda antes de explicar qué es el
+     Club; se baja para que primero se lea el texto. */
+  .lp-club-visual { order: 2; }
   .lp-contacto-inner { grid-template-columns: 1fr; gap: 46px; }
   .lp-form-row { grid-template-columns: 1fr; gap: 0; }
   .lp-oferta { grid-template-columns: 1fr; }
@@ -1661,7 +1692,7 @@
 
   .lp-cards, .lp-pasos, .lp-testi-carrusel { max-width: 100%; }
   .lp-card, .lp-paso, .lp-testimonio { padding: 22px; }
-  .lp-oferta, .lp-concurso { padding: 24px; }
+  .lp-oferta, .lp-club { padding: 24px; }
   .lp-beneficios-box { padding: 24px; }
   .lp-faq-q { font-size: 15px; padding: 18px; }
   .lp-faq-a { padding-left: 18px; padding-right: 18px; }
