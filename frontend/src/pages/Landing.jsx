@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import { ocultarPreloader } from '../preloader'
 import {
   Contacto, LandingFooter, IconInstagram, IconFacebook, IconYoutube,
 } from '../components/LandingSections'
@@ -1358,12 +1359,35 @@ export default function Landing() {
   useScrollReveal(rootRef, [products.length, concurso?.estado])
 
   useEffect(() => {
-    api.get('/catalog/products/')
+    const productos = api.get('/catalog/products/')
       .then(res => setProducts(res.data))
       .catch(() => {}) // la landing funciona igual sin catálogo
-    api.get('/catalog/concurso/')
+    const concursoReq = api.get('/catalog/concurso/')
       .then(res => setConcurso(res.data))
       .catch(() => {}) // sin respuesta, la franja del concurso no se muestra
+
+    // La foto del hero es lo más pesado de la página y es lo primero que se ve:
+    // si el overlay se destapa antes de que termine de bajar, queda un hueco en
+    // blanco justo donde debería estar el niño, que es EXACTAMENTE el efecto de
+    // "carga a la vista" que se quiere evitar.
+    const foto = new Promise(resolve => {
+      const img = new Image()
+      img.onload = img.onerror = resolve
+      img.src = heroNino
+    })
+
+    // document.fonts.ready evita el destello de texto sin estilo (se ve con la
+    // tipografía del sistema un instante y salta a Quicksand/Outfit).
+    const fuentes = document.fonts?.ready ?? Promise.resolve()
+
+    // Tope de seguridad: si la API está caída o algo tarda de más, se muestra
+    // la página igual en vez de dejar el overlay pegado para siempre.
+    const tope = new Promise(resolve => setTimeout(resolve, 6000))
+
+    let cancelado = false
+    Promise.race([Promise.all([productos, concursoReq, foto, fuentes]), tope])
+      .then(() => { if (!cancelado) ocultarPreloader() })
+    return () => { cancelado = true }
   }, [])
 
   // Cada kit como Product de Schema.org, con su precio. Ayuda a Google a

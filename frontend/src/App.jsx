@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import './App.css'
+import { ocultarPreloader } from './preloader'
 import Landing from './pages/Landing'
 import Checkout from './pages/Checkout'
 import CheckoutSuccess from './pages/CheckoutSuccess'
@@ -46,10 +47,25 @@ function BotonesFlotantes() {
   )
 }
 
+// El overlay de carga (ver index.html) se oculta apenas monta cualquier
+// página que NO sea la landing: esas no dependen de que llegue nada por API
+// antes de poder mostrarse, así que no tiene sentido taparlas. La landing es
+// la excepción: espera sus propios datos y su foto principal antes de
+// destaparse (ver pages/Landing.jsx), porque ahí sí se notaba el contenido
+// apareciendo a pedazos.
+function OcultarPreloaderSiNoEsLanding() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    if (pathname !== '/') ocultarPreloader()
+  }, [pathname])
+  return null
+}
+
 function App() {
   return (
     <>
       <ScrollToTop />
+      <OcultarPreloaderSiNoEsLanding />
       <Routes>
       <Route path="/" element={<Landing />} />
       {/* /tienda era el catálogo del prototipo anterior: gris, sin el sistema

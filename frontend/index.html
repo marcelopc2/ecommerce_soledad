@@ -73,8 +73,56 @@
       ]
     }
     </script>
+
+    <!-- Overlay de carga: vive AFUERA del árbol de React, así se pinta en el
+         primer frame que dibuja el navegador, antes de descargar siquiera el
+         bundle de JS. Tapa el hueco que antes se veía en blanco, y sigue
+         cubriendo la landing mientras se cargan sus datos, su foto principal
+         y las tipografías, para que el contenido no aparezca a pedazos.
+         Lo oculta src/preloader.js (ver App.jsx y pages/Landing.jsx). -->
+    <style>
+      #pre {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #2f0053 15%, #590599 68%);
+        transition: opacity 0.35s ease, visibility 0.35s ease;
+      }
+      #pre svg { width: 56px; height: auto; animation: pre-pulso 1.1s ease-in-out infinite; }
+      #pre.oculto { opacity: 0; visibility: hidden; pointer-events: none; }
+      @media (prefers-reduced-motion: reduce) { #pre svg { animation: none; } }
+      @keyframes pre-pulso {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(0.88); opacity: 0.65; }
+      }
+    </style>
   </head>
   <body>
+    <div id="pre" aria-hidden="true">
+      <svg viewBox="0 0 45 79" xmlns="http://www.w3.org/2000/svg">
+        <path d="M30.3455 44.5234H38.2706V53.112H25.5137V44.5234H27.1016V42.837H30.3455V44.5234Z" fill="#a970ff"/>
+        <path d="M30.3455 70.2898H38.2706V78.8783H25.5137V70.2898H27.1016V68.6033H30.3455V70.2898Z" fill="#8e44ad"/>
+        <path d="M43.0884 27.347H44.6883V35.9356H31.9314V27.347H39.8445V25.6606H43.0884V27.347Z" fill="#a970ff"/>
+        <path d="M42.9931 53.1118H44.5931V61.7004H31.8362V53.1118H39.7493V51.4253H42.9931V53.1118Z" fill="#8e44ad"/>
+        <path d="M12.7568 27.347H0V35.9356H12.7568V27.347Z" fill="#ffcb00"/>
+        <path d="M12.7568 35.9355H0V44.5241H12.7568V35.9355Z" fill="#ffea00"/>
+        <path d="M44.6882 35.9355H31.9314V44.5241H44.6882V35.9355Z" fill="#8e44ad"/>
+        <path d="M44.593 61.7004H31.8362V70.289H44.593V61.7004Z" fill="#a970ff"/>
+        <path d="M12.7568 44.5241H0V53.1127H12.7568V44.5241Z" fill="#ffcb00"/>
+        <path d="M12.7568 53.1126H0V61.7012H12.7568V53.1126Z" fill="#a970ff"/>
+        <path d="M12.7568 61.7012H0V70.2898H12.7568V61.7012Z" fill="#8e44ad"/>
+        <path d="M12.7568 70.2897H0V78.8783H12.7568V70.2897Z" fill="#a970ff"/>
+        <path d="M11.157 1.68645H12.7569V10.275H0V1.68645H1.58794V0H4.83183V1.68645H7.91307V0H11.157V1.68645Z" fill="#ffcb00"/>
+        <path d="M11.157 18.7585H12.7569V27.3471H0V18.7585H1.58794V17.072H4.83183V18.7585H7.91307V17.072H11.157V18.7585Z" fill="#ffea00"/>
+        <path d="M23.9138 18.7585H25.5137V27.3471H12.7568V18.7585H14.3448V17.072H17.5887V18.7585H20.6699V17.072H23.9138V18.7585Z" fill="#a970ff"/>
+        <path d="M23.9138 44.5241H25.5137V53.1127H12.7568V44.5241H14.3448V42.8377H17.5887V44.5241H20.6699V42.8377H23.9138V44.5241Z" fill="#a970ff"/>
+        <path d="M23.9138 70.2898H25.5137V78.8783H12.7568V70.2898H14.3448V68.6033H17.5887V70.2898H20.6699V68.6033H23.9138V70.2898Z" fill="#a970ff"/>
+        <path d="M36.6706 18.7585H38.2706V27.3471H25.5137V18.7585H27.1016V17.072H30.3455V18.7585H33.4267V17.072H36.6706V18.7585Z" fill="#8e44ad"/>
+      </svg>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
