@@ -10,7 +10,7 @@ import {
 import './landing.css'
 
 import logo from '../assets/landing/logo-ingenioblocks.svg'
-import heroNino from '../assets/landing/hero-nino.png'
+import heroNino from '../assets/landing/hero-nino.webp'
 import logoWebpay from '../assets/pagos/webpay.png'
 import logoMercadoPago from '../assets/pagos/mercadopago.png'
 import logoVisa from '../assets/pagos/visa.png'

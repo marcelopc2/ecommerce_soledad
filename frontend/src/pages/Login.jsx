@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
-import heroNino from '../assets/landing/hero-nino.png'
+import heroNino from '../assets/landing/hero-nino.webp'
 import './landing.css'
 import './login.css'
 
