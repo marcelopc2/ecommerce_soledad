@@ -14,9 +14,11 @@ set -euo pipefail
 RAIZ="${RAIZ:-/srv/ingenioblocks}"
 RAMA="${RAMA:-redesign-figma}"
 SERVICIO="${SERVICIO:-ingenioblocks}"
-# Dominio contra el que se comprueba al final. Mientras el DNS de ingenioblocks.com
-# no apunte al servidor, correr con:  DOMINIO=ecommercesoledad.duckdns.org ./deploy/desplegar.sh
+# Dirección contra la que se comprueba al final. Mientras no haya dominio, el
+# servidor responde por IP y sin certificado, así que ambos son variables:
+#   PROTOCOLO=http DOMINIO=64.176.22.207 ./deploy/desplegar.sh
 DOMINIO="${DOMINIO:-ingenioblocks.com}"
+PROTOCOLO="${PROTOCOLO:-https}"
 
 cd "$RAIZ"
 
@@ -54,16 +56,16 @@ sudo systemctl is-active --quiet "$SERVICIO" || {
 }
 
 # Comprobación real: que el sitio responda, no solo que el proceso exista.
-CODIGO=$(curl -s -o /dev/null -w '%{http_code}' "https://$DOMINIO/api/catalog/products/")
+CODIGO=$(curl -s -o /dev/null -w '%{http_code}' "$PROTOCOLO://$DOMINIO/api/catalog/products/")
 if [ "$CODIGO" != "200" ]; then
-    echo "ERROR: la API en $DOMINIO respondió HTTP $CODIGO (se esperaba 200)."
-    echo "  Si el DNS de $DOMINIO todavía no apunta al servidor, repite con:"
-    echo "  DOMINIO=ecommercesoledad.duckdns.org ./deploy/desplegar.sh"
+    echo "ERROR: la API en $PROTOCOLO://$DOMINIO respondió HTTP $CODIGO (se esperaba 200)."
+    echo "  Si el servidor todavía no tiene dominio ni certificado, repite con:"
+    echo "  PROTOCOLO=http DOMINIO=<ip-del-servidor> ./deploy/desplegar.sh"
     sudo journalctl -u "$SERVICIO" -n 40 --no-pager
     exit 1
 fi
 
 echo
 echo "Listo. La API responde 200 y el servicio está activo."
-echo "   Sitio:  https://$DOMINIO"
-echo "   Panel:  https://$DOMINIO/gestion/"
+echo "   Sitio:  $PROTOCOLO://$DOMINIO"
+echo "   Panel:  $PROTOCOLO://$DOMINIO/gestion/"
