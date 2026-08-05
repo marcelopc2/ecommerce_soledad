@@ -919,9 +919,18 @@ const MARGEN_HOVER = 16
    testimonio largo se convertía en una columna de 600px de alto y 220 de ancho,
    incómoda de leer; ensanchándolo baja a un bloque proporcionado. Se desplaza a
    la izquierda la mitad de lo que crece, para quedar centrado sobre la tarjeta,
-   y se limita al viewport sin dejar de taparla nunca. */
+   y se limita al viewport sin dejar de taparla nunca.
+
+   El tope de 400 asume la tarjeta angosta de "4 por pantalla" (~246px): crece
+   1.5x y queda bajo el tope sin problema. Con 3 o menos testimonios la tarjeta
+   se estira a todo el ancho de la grilla (.pocos, ver landing.css) y puede
+   medir bastante más que esos 400 -con 2 testimonios, unos 500px-. Sin el
+   Math.max de abajo el tope ganaba igual y el panel salía MÁS ANGOSTO que la
+   tarjeta que se supone que cubre: el hover se veía como si la tarjeta se
+   hubiera encogido, en vez de crecer. El panel nunca debe ser más chico que
+   la tarjeta; si ya es más ancha que el tope, se queda del mismo ancho. */
 function medidasHover(rect) {
-  const ancho = Math.min(Math.max(rect.width * 1.5, rect.width), 400)
+  const ancho = Math.max(rect.width, Math.min(rect.width * 1.5, 400))
   let left = rect.left - (ancho - rect.width) / 2
   left = Math.max(MARGEN_HOVER, Math.min(left, window.innerWidth - ancho - MARGEN_HOVER))
   left = Math.max(rect.right - ancho, Math.min(left, rect.left))
