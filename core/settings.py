@@ -149,19 +149,35 @@ CORS_ALLOW_CREDENTIALS = True
 
 # --- Endurecimiento de producción (activo SOLO con DEBUG=False) ---
 # En local con DEBUG=True nada de esto aplica: se sigue trabajando igual que siempre.
+# Un servidor recién levantado todavía no tiene dominio, y sin dominio no hay
+# certificado. Con estas medidas fijas en True, Django redirigía a un https://
+# que nadie atiende y marcaba las cookies como Secure, así que el panel y la API
+# quedaban inalcanzables: la landing cargaba pero nada más respondía.
+#
+# El valor por defecto es True a propósito: un despliegue con dominio no tiene
+# que acordarse de nada. Solo el caso excepcional -entrar por IP mientras se
+# espera el DNS- pone HTTPS_ENABLED=False, y es transitorio.
+HTTPS_ENABLED = os.environ.get('HTTPS_ENABLED', 'True') == 'True'
+
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True                       # todo por HTTPS
+    SECURE_SSL_REDIRECT = HTTPS_ENABLED              # todo por HTTPS
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # detrás de un proxy (nginx/hosting)
-    SESSION_COOKIE_SECURE = True                     # cookies solo por HTTPS
-    CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30          # HSTS 30 días (subir a 1 año cuando esté estable)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SESSION_COOKIE_SECURE = HTTPS_ENABLED            # cookies solo por HTTPS
+    CSRF_COOKIE_SECURE = HTTPS_ENABLED
+    # HSTS obliga al navegador a usar HTTPS y lo RECUERDA por su cuenta: si se
+    # enviara sin tener certificado, quien entre una vez no podría volver a
+    # entrar aunque se desactive después.
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30 if HTTPS_ENABLED else 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = HTTPS_ENABLED
     SECURE_HSTS_PRELOAD = False
     SESSION_COOKIE_HTTPONLY = True
     # El frontend en producción debe venir por HTTPS
     if FRONTEND_URL.startswith('http://'):
         import warnings
-        warnings.warn('FRONTEND_URL usa http:// en producción; debería ser https://')
+        warnings.warn(
+            'FRONTEND_URL usa http:// en producción; debería ser https://. '
+            'Mientras no haya dominio esto es esperable, pero no se puede cobrar así.'
+        )
 
 ROOT_URLCONF = 'core.urls'
 
