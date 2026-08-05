@@ -1,0 +1,32 @@
+{% comment %}
+  Toolbar + tabla juntos, mismo motivo que products_panel.html: el ojo de la
+  lista reemplaza ESTE bloque completo (no solo las filas), porque el aviso
+  fuera de banda es un <div> y no puede viajar dentro del <tbody> que
+  contienen las filas (ver el comentario en testimonials_rows.html).
+{% endcomment %}
+{% if oob %}
+  <div id="pnl-avisos" class="pnl-avisos" hx-swap-oob="true">
+    {% include 'panel/partials/avisos.html' %}
+  </div>
+{% endif %}
+
+<div class="pnl-toolbar">
+  <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son las tarjetas de la sección "Testimonios" de la landing. Los que estén ocultos no se muestran a los visitantes.</span>
+</div>
+<div class="table-responsive">
+  <table class="table pnl-table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Testimonio</th>
+        <th>Estrellas</th>
+        <th>Agregado</th>
+        <th>Estado</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="testimonials-tbody">
+      {% include 'panel/partials/testimonials_rows.html' %}
+    </tbody>
+  </table>
+</div>

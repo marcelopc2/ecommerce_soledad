@@ -1,3 +1,9 @@
+{% comment %}
+  Solo filas <tr>. Este trozo se inserta dentro de un <tbody> y el navegador
+  descarta cualquier etiqueta que no sea válida ahí, llevándose las filas por
+  delante. El aviso fuera de banda vive en testimonials_panel.html, que es
+  un <div> y no tiene esa restricción (ver el comentario ahí).
+{% endcomment %}
 {% for t in testimonials %}
   <tr>
     <td>
@@ -6,11 +12,25 @@
     </td>
     <td class="cell-sub text-truncate" style="max-width:420px">{{ t.quote }}</td>
     <td>{{ t.rating }} <i class="bi bi-star-fill text-warning"></i></td>
+    <td class="cell-sub">{{ t.created_at|date:'d M Y' }}</td>
     <td>
       {% if t.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculto</span>{% endif %}
     </td>
     <td class="text-end">
       <div class="d-inline-flex gap-2">
+        {% comment %}
+          Único lugar donde se decide si un testimonio se muestra: antes había
+          un check adentro del formulario Y este mismo estado se veía acá, dos
+          controles para lo mismo (ver ProductForm, mismo criterio).
+        {% endcomment %}
+        <button type="button" class="btn-icon pnl-ojo{% if t.is_active %} activo{% endif %}"
+                aria-label="Mostrar el testimonio de «{{ t.name }}» en la landing"
+                title="{% if t.is_active %}Se muestra en la landing. Haz clic para ocultarlo.{% else %}No se muestra en la landing. Haz clic para publicarlo.{% endif %}"
+                hx-post="{% url 'panel:testimonial_toggle_active' t.pk %}"
+                hx-target="#pnl-testimonios-panel"
+                hx-swap="innerHTML transition:false">
+          <i class="bi {% if t.is_active %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
+        </button>
         <a href="{% url 'panel:testimonial_edit' t.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
         <button class="btn-icon danger" title="Eliminar"
                 hx-post="{% url 'panel:testimonial_delete' t.pk %}"
@@ -23,7 +43,7 @@
   </tr>
 {% empty %}
   <tr class="no-hover">
-    <td colspan="5" class="empty-cell">
+    <td colspan="6" class="empty-cell">
       No hay testimonios. <a href="{% url 'panel:testimonial_new' %}">Crear el primero</a> o
       <a href="#" hx-post="{% url 'panel:testimonial_restore_defaults' %}" hx-confirm="¿Restaurar los testimonios a los valores por defecto?">restaurar los de por defecto</a>.
     </td>

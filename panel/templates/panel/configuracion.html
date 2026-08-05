@@ -58,24 +58,8 @@
     </div>
 
     <div class="tab-pane fade{% if tab == 'testimonios' %} show active{% endif %}" id="tab-testimonios" role="tabpanel">
-      <div class="pnl-toolbar">
-        <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son las tarjetas de la sección "Testimonios" de la landing. Los que estén ocultos no se muestran a los visitantes.</span>
-      </div>
-      <div class="table-responsive">
-        <table class="table pnl-table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Testimonio</th>
-              <th>Estrellas</th>
-              <th>Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="testimonials-tbody">
-            {% include 'panel/partials/testimonials_rows.html' %}
-          </tbody>
-        </table>
+      <div id="pnl-testimonios-panel">
+        {% include 'panel/partials/testimonials_panel.html' %}
       </div>
     </div>
 

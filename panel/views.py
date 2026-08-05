@@ -1143,6 +1143,24 @@ def testimonial_form(request, pk=None):
 
 @staff_required
 @require_POST
+def testimonial_toggle_active(request, pk):
+    """Prende o apaga un testimonio desde la propia lista — mismo patrón que el
+    ojo de portada en Productos: antes esto solo se podía tocar abriendo el
+    formulario de edición, un paso de más para algo que se hace a cada rato y
+    que además duplicaba el control con el check "Visible en la landing" de
+    ahí adentro."""
+    t = get_object_or_404(Testimonial, pk=pk)
+    t.is_active = not t.is_active
+    t.save(update_fields=['is_active'])
+    verbo = 'se muestra' if t.is_active else 'ya no se muestra'
+    messages.success(request, f'El testimonio de "{t.name}" {verbo} en la landing.')
+    return render(request, 'panel/partials/testimonials_panel.html', {
+        'testimonials': Testimonial.objects.all(), 'oob': True,
+    })
+
+
+@staff_required
+@require_POST
 def testimonial_delete(request, pk):
     testimonial = get_object_or_404(Testimonial, pk=pk)
     name = testimonial.name

@@ -314,13 +314,16 @@ class FAQForm(BootstrapFormMixin, forms.ModelForm):
 class TestimonialForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Testimonial
-        fields = ['name', 'location', 'quote', 'rating', 'is_active']
+        # Sin 'is_active' a propósito: se prende o apaga con el ojo de la lista
+        # de Testimonios (mismo patrón que la portada en Productos), no acá.
+        # Antes había un check adentro Y el estado se veía en la lista, dos
+        # controles para lo mismo.
+        fields = ['name', 'location', 'quote', 'rating']
         labels = {
             'name': 'Nombre',
             'location': 'Ciudad, país',
             'quote': 'Testimonio',
             'rating': 'Estrellas (1 a 5)',
-            'is_active': 'Visible en la landing',
         }
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Mario Gomez'}),
@@ -330,11 +333,14 @@ class TestimonialForm(BootstrapFormMixin, forms.ModelForm):
         }
 
     def save(self, commit=True):
-        """Un testimonio nuevo se agrega al final de la lista."""
+        """Un testimonio nuevo se agrega al final de la lista y nace oculto: se
+        publica prendiendo su ojo en la lista, igual que un producto nuevo."""
         obj = super().save(commit=False)
-        if not obj.pk and not obj.order:
-            last = Testimonial.objects.aggregate(m=Max('order'))['m'] or 0
-            obj.order = last + 1
+        if not obj.pk:
+            obj.is_active = False
+            if not obj.order:
+                last = Testimonial.objects.aggregate(m=Max('order'))['m'] or 0
+                obj.order = last + 1
         if commit:
             obj.save()
         return obj

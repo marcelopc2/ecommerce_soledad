@@ -78,6 +78,7 @@ urlpatterns = [
     path('concurso/ganadores/<int:pk>/eliminar/', views.ganador_delete, name='ganador_delete'),
     path('testimonios/nuevo/', views.testimonial_form, name='testimonial_new'),
     path('testimonios/<int:pk>/editar/', views.testimonial_form, name='testimonial_edit'),
+    path('testimonios/<int:pk>/estado/', views.testimonial_toggle_active, name='testimonial_toggle_active'),
     path('testimonios/<int:pk>/eliminar/', views.testimonial_delete, name='testimonial_delete'),
     path('testimonios/restaurar/', views.testimonial_restore_defaults, name='testimonial_restore_defaults'),
 
