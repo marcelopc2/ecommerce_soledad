@@ -38,22 +38,8 @@
 
   <div class="tab-content pt-3">
     <div class="tab-pane fade{% if tab == 'faqs' %} show active{% endif %}" id="tab-faqs" role="tabpanel">
-      <div class="pnl-toolbar">
-        <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son las preguntas de la sección "Preguntas Frecuentes" de la landing. Las que estén ocultas no se muestran a los visitantes.</span>
-      </div>
-      <div class="table-responsive">
-        <table class="table pnl-table">
-          <thead>
-            <tr>
-              <th>Pregunta</th>
-              <th>Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="faqs-tbody">
-            {% include 'panel/partials/faqs_rows.html' %}
-          </tbody>
-        </table>
+      <div id="pnl-faqs-panel">
+        {% include 'panel/partials/faqs_panel.html' %}
       </div>
     </div>
 

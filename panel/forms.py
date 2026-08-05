@@ -289,11 +289,12 @@ class DiplomaForm(BootstrapFormMixin, forms.ModelForm):
 class FAQForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = FAQ
-        fields = ['question', 'answer', 'is_active']
+        # Sin 'is_active': se prende o apaga con el ojo de la lista de
+        # Preguntas frecuentes, mismo criterio que Productos y Testimonios.
+        fields = ['question', 'answer']
         labels = {
             'question': 'Pregunta',
             'answer': 'Respuesta',
-            'is_active': 'Visible en la landing',
         }
         widgets = {
             'question': forms.TextInput(attrs={'placeholder': '¿Qué es Ingenio Blocks?'}),
@@ -301,11 +302,14 @@ class FAQForm(BootstrapFormMixin, forms.ModelForm):
         }
 
     def save(self, commit=True):
-        """Una pregunta nueva se agrega al final de la lista."""
+        """Una pregunta nueva se agrega al final de la lista y nace oculta: se
+        publica prendiendo su ojo en la lista."""
         obj = super().save(commit=False)
-        if not obj.pk and not obj.order:
-            last = FAQ.objects.aggregate(m=Max('order'))['m'] or 0
-            obj.order = last + 1
+        if not obj.pk:
+            obj.is_active = False
+            if not obj.order:
+                last = FAQ.objects.aggregate(m=Max('order'))['m'] or 0
+                obj.order = last + 1
         if commit:
             obj.save()
         return obj

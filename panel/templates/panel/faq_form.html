@@ -25,10 +25,18 @@
           {{ form.answer }}
           {% for e in form.answer.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
         </div>
-        <div class="form-check form-switch">
-          {{ form.is_active }}
-          <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
-        </div>
+        {% if faq %}
+          <div class="pnl-hint mb-0">
+            <i class="bi bi-info-circle"></i>
+            Para mostrarla u ocultarla, usa el ojo de la lista de
+            <a href="{% url 'panel:cfg_faqs' %}">Preguntas frecuentes</a>.
+          </div>
+        {% else %}
+          <div class="pnl-hint mb-0">
+            <i class="bi bi-info-circle"></i>
+            Se guarda oculta. Para publicarla, prende su ojo en la lista.
+          </div>
+        {% endif %}
       </div></div>
 
       <div class="d-flex gap-2 mt-3">

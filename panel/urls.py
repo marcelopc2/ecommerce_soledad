@@ -70,6 +70,7 @@ urlpatterns = [
 
     path('preguntas-frecuentes/nueva/', views.faq_form, name='faq_new'),
     path('preguntas-frecuentes/<int:pk>/editar/', views.faq_form, name='faq_edit'),
+    path('preguntas-frecuentes/<int:pk>/estado/', views.faq_toggle_active, name='faq_toggle_active'),
     path('preguntas-frecuentes/<int:pk>/eliminar/', views.faq_delete, name='faq_delete'),
     path('preguntas-frecuentes/restaurar/', views.faq_restore_defaults, name='faq_restore_defaults'),
 

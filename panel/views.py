@@ -1076,6 +1076,21 @@ def faq_form(request, pk=None):
 
 @staff_required
 @require_POST
+def faq_toggle_active(request, pk):
+    """Prende o apaga una pregunta frecuente desde la propia lista — mismo
+    patrón que el ojo en Productos y Testimonios."""
+    f = get_object_or_404(FAQ, pk=pk)
+    f.is_active = not f.is_active
+    f.save(update_fields=['is_active'])
+    verbo = 'se muestra' if f.is_active else 'ya no se muestra'
+    messages.success(request, f'La pregunta "{f.question}" {verbo} en la landing.')
+    return render(request, 'panel/partials/faqs_panel.html', {
+        'faqs': FAQ.objects.all(), 'oob': True,
+    })
+
+
+@staff_required
+@require_POST
 def faq_delete(request, pk):
     faq = get_object_or_404(FAQ, pk=pk)
     question = faq.question
