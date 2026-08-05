@@ -8,6 +8,26 @@
 <a href="{% url 'panel:products' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
 {% endblock %}
 
+{% comment %}
+  Formulario reorganizado por PREGUNTA, no por campo técnico:
+  qué es → qué incluye → dónde se muestra → cómo se ve → envío.
+
+  Tres criterios que cambiaron respecto de la versión anterior:
+
+  1. Los nombres de los campos son cortos y la explicación va en el globo (ⓘ).
+     Antes la explicación estaba metida dentro del propio nombre, entre
+     paréntesis, lo que partía las etiquetas en dos líneas y desalineaba las
+     columnas.
+
+  2. Los campos que no aplican no se muestran: el precio de oferta aparece solo
+     si el producto está en oferta, y el bloque de envío solo si de verdad se
+     despacha. Antes estaban siempre a la vista, incluso contradiciéndose
+     (medidas de caja en un producto marcado como digital).
+
+  3. No hay control de portada acá. Eso se decide en la lista de productos,
+     que es donde además se ordena. Ver product_toggle_landing en views.py.
+{% endcomment %}
+
 {% block content %}
 <form method="post" novalidate>
   {% csrf_token %}
@@ -15,26 +35,17 @@
 
     <div class="col-lg-8 d-flex flex-column gap-4">
       <div class="pnl-card"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-info-circle"></i> Información básica</div>
+        <div class="form-section-title"><i class="bi bi-info-circle"></i> Información</div>
         <div class="mb-3">
           <label class="form-label">{{ form.name.label }}</label>
           {{ form.name }}
-          {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-        </div>
-        <div class="mb-3">
-          <label class="form-label">{{ form.slug.label }}</label>
-          {{ form.slug }}
-          {% for e in form.slug.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          {% for e in form.name.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
         </div>
         <div class="row">
-          <div class="col-md-4 mb-3">
+          <div class="col-md-5 mb-3">
             <label class="form-label">{{ form.price.label }}</label>
             {{ form.price }}
-            {% for e in form.price.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-          </div>
-          <div class="col-md-4 mb-3">
-            <label class="form-label">{{ form.access_months.label }}</label>
-            {{ form.access_months }}
+            {% for e in form.price.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
           </div>
         </div>
         <div class="mb-0">
@@ -44,102 +55,217 @@
       </div></div>
 
       <div class="pnl-card"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-mortarboard"></i> Academia (LMS)</div>
-        <p class="cell-sub mb-3">Cursos que desbloquea esta compra, en el mismo orden semanal que verá el alumno (curso 1, 2, 3…). El orden se fija arrastrando en <a href="{% url 'panel:courses' %}">Cursos</a>.</p>
-        <div class="d-flex flex-column gap-2">
-          {% for cb in form.courses %}
-            <div class="form-check">{{ cb.tag }}<label class="form-check-label ms-2" for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label></div>
-          {% empty %}
-            <div class="cell-sub">Aún no hay cursos creados. <a href="{% url 'panel:course_new' %}">Crear un curso</a></div>
-          {% endfor %}
+        <div class="form-section-title"><i class="bi bi-mortarboard"></i> Qué incluye</div>
+        <div class="row mb-3">
+          <div class="col-md-5">
+            <label class="form-label">
+              {{ form.access_months.label }}
+              <span class="pnl-ayuda" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Cuánto tiempo puede entrar al Aula Virtual quien compre esto.
+                  Pasado ese plazo pierde el acceso a los modelos.
+                </span>
+              </span>
+            </label>
+            {{ form.access_months }}
+          </div>
         </div>
+        <label class="form-label">
+          {{ form.courses.label }}
+          <span class="pnl-ayuda" tabindex="0">
+            <i class="bi bi-info-circle"></i>
+            <span class="pnl-ayuda-globo">
+              Los modelos que se le abren al alumno con esta compra. Se entregan
+              en este mismo orden, uno por semana. El orden se cambia arrastrando
+              en Cursos.
+            </span>
+          </span>
+        </label>
+        {% if form.courses.field.queryset.exists %}
+          {% comment %}
+            La mayoría de los productos incluyen todos los modelos, así que ese
+            es el estado por defecto: un solo check en vez de marcar uno por uno.
+            Si se apaga, aparece la lista para dejar afuera modelos puntuales
+            (por ejemplo un pack que no incluye el más nuevo). Ver el script al
+            final de la página.
+          {% endcomment %}
+          <div class="form-check form-switch mt-2 mb-2">
+            <input class="form-check-input" type="checkbox" id="pnl-todos-modelos"
+                   {% if not product %}data-nuevo="1"{% endif %}>
+            <label class="form-check-label ms-1" for="pnl-todos-modelos">Todos los modelos</label>
+          </div>
+          <div class="d-flex flex-column gap-2" id="pnl-modelos-lista"
+               data-visible-si="#pnl-todos-modelos" data-invertido="1">
+            {% for cb in form.courses %}
+              <div class="form-check">{{ cb.tag }}<label class="form-check-label ms-2" for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label></div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="cell-sub">Aún no hay modelos creados. <a href="{% url 'panel:course_new' %}">Crear uno</a></div>
+        {% endif %}
       </div></div>
 
       <div class="pnl-card"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-window-stack"></i> Portada (sección de kits)</div>
-        <div class="form-check form-switch mb-3">
-          {{ form.show_on_landing }}
-          <label class="form-check-label ms-1" for="{{ form.show_on_landing.id_for_label }}">{{ form.show_on_landing.label }}</label>
-        </div>
-        <p class="cell-sub mb-3">El orden y cuáles 4 se muestran se fija arrastrando en <a href="{% url 'panel:products' %}">Productos</a>.</p>
+        <div class="form-section-title"><i class="bi bi-window-stack"></i> Detalles</div>
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">{{ form.landing_badge.label }}</label>
+            <label class="form-label">
+              {{ form.landing_badge.label }}
+              <span class="pnl-ayuda" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  El rótulo lila de la esquina de la tarjeta. Por ejemplo:
+                  «pago único» o «pago mensual».
+                </span>
+              </span>
+            </label>
             {{ form.landing_badge }}
           </div>
           <div class="col-md-6 mb-3">
-            <label class="form-label">{{ form.price_note.label }}</label>
+            <label class="form-label">
+              {{ form.price_note.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Texto chico que acompaña al precio en la tarjeta, como
+                  «/ pago único».
+                </span>
+              </span>
+            </label>
             {{ form.price_note }}
           </div>
         </div>
         <div class="mb-3">
-          <label class="form-label">{{ form.features.label }}</label>
+          <label class="form-label">
+            {{ form.features.label }}
+            <span class="pnl-ayuda" tabindex="0">
+              <i class="bi bi-info-circle"></i>
+              <span class="pnl-ayuda-globo">
+                Uno por línea. Empieza la línea con un símbolo para cambiar su
+                viñeta: <b>+</b> visto verde (incluido), <b>−</b> guión rojo (no
+                incluido) o <b>*</b> exclamación ámbar (ojo con esto). Sin
+                símbolo sale el visto verde. El símbolo no aparece en el texto.
+              </span>
+            </span>
+          </label>
           {{ form.features }}
-        </div>
-        <div class="form-check form-switch">
-          {{ form.highlight }}
-          <label class="form-check-label ms-1" for="{{ form.highlight.id_for_label }}">{{ form.highlight.label }}</label>
         </div>
       </div></div>
     </div>
 
     <div class="col-lg-4 d-flex flex-column gap-4">
       <div class="pnl-card"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-toggles"></i> Estado</div>
-        <div class="form-check form-switch mb-2">
-          {{ form.is_active }}
-          <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
-        </div>
-        <div class="form-check form-switch">
-          {{ form.is_digital }}
-          <label class="form-check-label ms-1" for="{{ form.is_digital.id_for_label }}">{{ form.is_digital.label }}</label>
-        </div>
-      </div></div>
+        <div class="form-section-title"><i class="bi bi-sliders"></i> Opciones</div>
 
-      <div class="pnl-card"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-tag"></i> Oferta y disponibilidad</div>
-        <div class="form-check form-switch mb-2">
-          {{ form.is_on_sale }}
-          <label class="form-check-label ms-1" for="{{ form.is_on_sale.id_for_label }}">{{ form.is_on_sale.label }}</label>
+        {% comment %}
+          Los interruptores van en una pila con separación uniforme. Antes cada
+          uno traía su propio margen (mb-3, mb-2, mb-0) y quedaban desparejos,
+          con el precio de oferta abriendo un hueco distinto al aparecer.
+        {% endcomment %}
+        <div class="pnl-opciones">
+          <div class="form-check form-switch">
+            {{ form.is_coming_soon }}
+            <label class="form-check-label" for="{{ form.is_coming_soon.id_for_label }}">
+              {{ form.is_coming_soon.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Se ve en el sitio pero no se puede comprar todavía. El botón
+                  queda apagado y dice «Próximamente».
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="form-check form-switch">
+            {{ form.requires_login }}
+            <label class="form-check-label" for="{{ form.requires_login.id_for_label }}">
+              {{ form.requires_login.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Hay que tener sesión iniciada para comprarlo, o sea haber
+                  comprado un kit antes. Úsalo en packs de modelos y planes.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="form-check form-switch">
+            {{ form.is_on_sale }}
+            <label class="form-check-label" for="{{ form.is_on_sale.id_for_label }}">
+              {{ form.is_on_sale.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Muestra una cinta roja en la tarjeta y el precio anterior tachado
+                  al lado del nuevo.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="form-check form-switch">
+            {{ form.highlight }}
+            <label class="form-check-label" for="{{ form.highlight.id_for_label }}">
+              {{ form.highlight.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Pinta la tarjeta de morado con borde amarillo, para que resalte
+                  sobre las demás. Solo se nota si el producto está en la portada.
+                </span>
+              </span>
+            </label>
+          </div>
         </div>
-        <div class="mb-3">
+
+        {# el precio de oferta aparece solo si el interruptor está encendido #}
+        <div class="mt-3 mb-0" data-visible-si="#{{ form.is_on_sale.id_for_label }}">
           <label class="form-label">{{ form.sale_price.label }}</label>
           {{ form.sale_price }}
-          {% for e in form.sale_price.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-        </div>
-        <div class="form-check form-switch mb-2">
-          {{ form.is_coming_soon }}
-          <label class="form-check-label ms-1" for="{{ form.is_coming_soon.id_for_label }}">{{ form.is_coming_soon.label }}</label>
-        </div>
-        <div class="form-check form-switch">
-          {{ form.requires_login }}
-          <label class="form-check-label ms-1" for="{{ form.requires_login.id_for_label }}">{{ form.requires_login.label }}</label>
-        </div>
-        <div class="pnl-hint mt-2">
-          <i class="bi bi-info-circle"></i>
-          Úsalo en packs de modelos y planes: solo podrán comprarlos quienes ya
-          tengan cuenta, es decir quienes antes compraron un kit con piezas.
+          {% for e in form.sale_price.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
         </div>
       </div></div>
 
       <div class="pnl-card"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-truck"></i> Envío (Shipit)</div>
-        <div class="row">
-          <div class="col-6 mb-3">
-            <label class="form-label">{{ form.weight_kg.label }}</label>
-            {{ form.weight_kg }}
+        <div class="form-section-title"><i class="bi bi-truck"></i> Envío</div>
+        <div class="form-check form-switch">
+          {{ form.is_digital }}
+          <label class="form-check-label ms-1" for="{{ form.is_digital.id_for_label }}">
+            {{ form.is_digital.label }}
+            <span class="pnl-ayuda der" tabindex="0">
+              <i class="bi bi-info-circle"></i>
+              <span class="pnl-ayuda-globo">
+                Enciéndelo en planes y packs de modelos, que no despachan nada
+                físico. Al hacerlo desaparecen las medidas de la caja.
+              </span>
+            </span>
+          </label>
+        </div>
+        {# las medidas solo tienen sentido si de verdad se despacha una caja #}
+        <div data-visible-si="#{{ form.is_digital.id_for_label }}" data-invertido="1">
+          <div class="pnl-campo-ayuda mt-3 mb-2">
+            Las usa el cálculo de despacho para cotizar el envío.
           </div>
-          <div class="col-6 mb-3">
-            <label class="form-label">{{ form.width_cm.label }}</label>
-            {{ form.width_cm }}
-          </div>
-          <div class="col-6 mb-0">
-            <label class="form-label">{{ form.height_cm.label }}</label>
-            {{ form.height_cm }}
-          </div>
-          <div class="col-6 mb-0">
-            <label class="form-label">{{ form.length_cm.label }}</label>
-            {{ form.length_cm }}
+          <div class="row">
+            <div class="col-6 mb-3">
+              <label class="form-label">{{ form.weight_kg.label }}</label>
+              {{ form.weight_kg }}
+            </div>
+            <div class="col-6 mb-3">
+              <label class="form-label">{{ form.width_cm.label }}</label>
+              {{ form.width_cm }}
+            </div>
+            <div class="col-6 mb-0">
+              <label class="form-label">{{ form.height_cm.label }}</label>
+              {{ form.height_cm }}
+            </div>
+            <div class="col-6 mb-0">
+              <label class="form-label">{{ form.length_cm.label }}</label>
+              {{ form.length_cm }}
+            </div>
           </div>
         </div>
       </div></div>
@@ -155,19 +281,53 @@
 {% endblock %}
 
 {% block scripts %}
-{% if not product %}
 <script>
-  // Autogenera el slug a partir del nombre (solo al crear).
-  const nameInput = document.getElementById('{{ form.name.id_for_label }}')
-  const slugInput = document.getElementById('{{ form.slug.id_for_label }}')
-  let slugTouched = false
-  slugInput.addEventListener('input', () => { slugTouched = true })
-  nameInput.addEventListener('input', () => {
-    if (slugTouched) return
-    slugInput.value = nameInput.value.toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-  })
+  /* Muestra u oculta bloques según un interruptor.
+     data-visible-si="#id_del_check"  → visible cuando el check está encendido
+     data-invertido="1"               → al revés: visible cuando está apagado
+
+     Se hace acá y no con CSS (:has) porque el bloque a ocultar no es hermano
+     del check: vive en otra tarjeta del formulario. */
+  (function () {
+    var bloques = document.querySelectorAll('[data-visible-si]')
+
+    function sincronizar(bloque) {
+      var check = document.querySelector(bloque.dataset.visibleSi)
+      if (!check) return
+      var mostrar = bloque.dataset.invertido ? !check.checked : check.checked
+      bloque.classList.toggle('oculto', !mostrar)
+    }
+
+    bloques.forEach(function (bloque) {
+      var check = document.querySelector(bloque.dataset.visibleSi)
+      if (!check) return
+      sincronizar(bloque)
+      check.addEventListener('change', function () { sincronizar(bloque) })
+    })
+  })()
+
+  /* "Todos los modelos": un producto nuevo trae todo marcado por defecto.
+     Uno existente hereda el estado real (todos, o solo algunos). Al volver
+     a encender el check general, se remarca todo — apagarlo solo revela la
+     lista, no toca lo que ya estaba marcado. */
+  ;(function () {
+    var todos = document.getElementById('pnl-todos-modelos')
+    var lista = document.getElementById('pnl-modelos-lista')
+    if (!todos || !lista) return
+    var checks = Array.prototype.slice.call(lista.querySelectorAll('.form-check-input'))
+    if (!checks.length) return
+
+    function marcarTodos(valor) {
+      checks.forEach(function (c) { c.checked = valor })
+    }
+
+    todos.checked = todos.dataset.nuevo === '1' || checks.every(function (c) { return c.checked })
+    if (todos.checked) marcarTodos(true)
+    todos.dispatchEvent(new Event('change'))
+
+    todos.addEventListener('change', function () {
+      if (todos.checked) marcarTodos(true)
+    })
+  })()
 </script>
-{% endif %}
 {% endblock %}

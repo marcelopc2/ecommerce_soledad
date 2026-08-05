@@ -13,6 +13,7 @@ urlpatterns = [
     path('productos/<int:pk>/editar/', views.product_form, name='product_edit'),
     path('productos/<int:pk>/eliminar/', views.product_delete, name='product_delete'),
     path('productos/portada/reordenar/', views.products_reorder, name='products_reorder'),
+    path('productos/<int:pk>/portada/', views.product_toggle_landing, name='product_toggle_landing'),
 
     path('pedidos/', views.orders, name='orders'),
     path('pedidos/<int:pk>/detalle/', views.order_detail, name='order_detail'),
@@ -46,7 +47,20 @@ urlpatterns = [
 
     path('facturas/<int:pk>/pdf/', views.invoice_pdf, name='invoice_pdf'),
 
-    path('configuracion/', views.configuracion, name='config'),
+    # Contenido del sitio público: una entrada de menú por sección, en vez de
+    # seis pestañas dentro de un cajón llamado "Configuración". Todas apuntan a
+    # la misma vista; el `tab` decide qué se edita (ver SECCIONES_CONTENIDO).
+    path('portada/como-funciona/', views.configuracion, {'tab': 'pasos'}, name='cfg_pasos'),
+    path('portada/videos/', views.configuracion, {'tab': 'videos'}, name='cfg_videos'),
+    path('portada/testimonios/', views.configuracion, {'tab': 'testimonios'}, name='cfg_testimonios'),
+    path('portada/preguntas-frecuentes/', views.configuracion, {'tab': 'faqs'}, name='cfg_faqs'),
+    path('portada/concurso/', views.configuracion, {'tab': 'concurso'}, name='cfg_concurso'),
+    # El ritmo de entrega es del Aula, no de la portada: vive bajo Academia.
+    path('academia/ritmo-de-entrega/', views.configuracion, {'tab': 'aula'}, name='cfg_aula'),
+
+    # La antigua "Configuración" ya no existe como pantalla. Se deja la ruta
+    # redirigiendo para que no muera un enlace guardado en favoritos.
+    path('configuracion/', views.configuracion_legacy, name='config'),
 
     # Cuentas de gestión (solo superusuario)
     path('cuentas/', views.staff_users, name='staff_users'),

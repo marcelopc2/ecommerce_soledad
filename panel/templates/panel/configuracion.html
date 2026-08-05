@@ -1,62 +1,40 @@
 {% extends 'panel/base.html' %}
 
-{% block title %}Configuración{% endblock %}
-{% block crumb %}Panel · Configuración{% endblock %}
-{% block heading %}Configuración{% endblock %}
+{% comment %}
+  Una plantilla para las seis secciones de contenido del sitio. Antes eran seis
+  PESTAÑAS dentro de una pantalla llamada "Configuración"; ahora cada una es una
+  entrada del menú y se llega directo. El `tab` sigue existiendo solo para
+  decidir qué bloque se muestra, y el título y los botones de arriba vienen
+  resueltos desde la vista (ver SECCIONES_CONTENIDO en views.py).
+{% endcomment %}
+
+{% block title %}{{ titulo }}{% endblock %}
+{% block crumb %}Panel · {{ grupo }}{% endblock %}
+{% block heading %}{{ titulo }}{% endblock %}
 
 {% block actions %}
+{% comment %}
+  Solo las secciones que son una LISTA tienen "nuevo" y "restaurar". Concurso y
+  Ritmo de entrega son formularios de ajustes: no hay nada que agregar ni
+  valores por defecto que reponer, y antes esos dos botones se escondían con
+  JavaScript después de pintarse.
+{% endcomment %}
+{% if nuevo_url %}
 <div class="d-flex gap-2">
-  <button type="button" class="btn btn-ghost" id="cfg-restore-btn"
-          hx-post="{% url 'panel:faq_restore_defaults' %}"
-          hx-confirm="¿Restaurar las preguntas frecuentes a los valores por defecto? Se perderán todas las preguntas agregadas y ediciones que hayas hecho. Esta acción no se puede deshacer.">
-    <i class="bi bi-arrow-counterclockwise me-1"></i> <span id="cfg-restore-label">Restaurar por defecto</span>
+  <button type="button" class="btn btn-ghost"
+          hx-post="{% url restaurar_url %}"
+          hx-confirm="{{ restaurar_confirm }}">
+    <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar por defecto
   </button>
-  <a href="{% url 'panel:faq_new' %}" class="btn btn-brand" id="cfg-new-btn">
-    <i class="bi bi-plus-lg me-1"></i> <span id="cfg-new-label">Nueva pregunta</span>
+  <a href="{% url nuevo_url %}" class="btn btn-brand">
+    <i class="bi bi-plus-lg me-1"></i> {{ nuevo_label }}
   </a>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="pnl-card">
-  <ul class="nav nav-tabs pnl-tabs" id="cfgTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link{% if tab == 'faqs' %} active{% endif %}" id="tab-faqs-btn" data-cfg-tab="faqs"
-              type="button" role="tab" aria-controls="tab-faqs" aria-selected="{% if tab == 'faqs' %}true{% else %}false{% endif %}">
-        <i class="bi bi-question-circle-fill me-1"></i> Preguntas Frecuentes
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link{% if tab == 'testimonios' %} active{% endif %}" id="tab-testimonios-btn" data-cfg-tab="testimonios"
-              type="button" role="tab" aria-controls="tab-testimonios" aria-selected="{% if tab == 'testimonios' %}true{% else %}false{% endif %}">
-        <i class="bi bi-chat-quote-fill me-1"></i> Testimonios
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link{% if tab == 'videos' %} active{% endif %}" id="tab-videos-btn" data-cfg-tab="videos"
-              type="button" role="tab" aria-controls="tab-videos" aria-selected="{% if tab == 'videos' %}true{% else %}false{% endif %}">
-        <i class="bi bi-play-btn-fill me-1"></i> Videos de la portada
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link{% if tab == 'pasos' %} active{% endif %}" id="tab-pasos-btn" data-cfg-tab="pasos"
-              type="button" role="tab" aria-controls="tab-pasos" aria-selected="{% if tab == 'pasos' %}true{% else %}false{% endif %}">
-        <i class="bi bi-signpost-2-fill me-1"></i> Cómo funciona
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link{% if tab == 'concurso' %} active{% endif %}" id="tab-concurso-btn" data-cfg-tab="concurso"
-              type="button" role="tab" aria-controls="tab-concurso" aria-selected="{% if tab == 'concurso' %}true{% else %}false{% endif %}">
-        <i class="bi bi-trophy-fill me-1"></i> Concurso
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link{% if tab == 'aula' %} active{% endif %}" id="tab-aula-btn" data-cfg-tab="aula"
-              type="button" role="tab" aria-controls="tab-aula" aria-selected="{% if tab == 'aula' %}true{% else %}false{% endif %}">
-        <i class="bi bi-mortarboard-fill me-1"></i> Aula Virtual
-      </button>
-    </li>
-  </ul>
 
   <div class="tab-content pt-3">
     <div class="tab-pane fade{% if tab == 'faqs' %} show active{% endif %}" id="tab-faqs" role="tabpanel">
@@ -344,88 +322,3 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-{% comment %}
-  Las acciones "Nueva pregunta"/"Restaurar por defecto" del topbar cambian
-  según la pestaña activa (preguntas vs testimonios), y las pestañas activas
-  y sus botones se sincronizan sin recargar la página, guardando la pestaña
-  en la URL (?tab=) para que sobreviva a un refresh o a un redirect de vuelta
-  desde el formulario de crear/editar.
-{% endcomment %}
-<script>
-  (function () {
-    var CFG = {
-      faqs: {
-        newUrl: "{% url 'panel:faq_new' %}",
-        newLabel: 'Nueva pregunta',
-        restoreUrl: "{% url 'panel:faq_restore_defaults' %}",
-        restoreLabel: 'Restaurar por defecto',
-        restoreConfirm: '¿Restaurar las preguntas frecuentes a los valores por defecto? Se perderán todas las preguntas agregadas y ediciones que hayas hecho. Esta acción no se puede deshacer.',
-      },
-      testimonios: {
-        newUrl: "{% url 'panel:testimonial_new' %}",
-        newLabel: 'Nuevo testimonio',
-        restoreUrl: "{% url 'panel:testimonial_restore_defaults' %}",
-        restoreLabel: 'Restaurar por defecto',
-        restoreConfirm: '¿Restaurar los testimonios a los valores por defecto? Se perderán todos los testimonios agregados y ediciones que hayas hecho. Esta acción no se puede deshacer.',
-      },
-      videos: {
-        newUrl: "{% url 'panel:video_new' %}",
-        newLabel: 'Nuevo video',
-        restoreUrl: "{% url 'panel:video_restore_defaults' %}",
-        restoreLabel: 'Restaurar por defecto',
-        restoreConfirm: '¿Restaurar los videos a los valores por defecto? Se perderán los videos agregados y las ediciones que hayas hecho, y las PORTADAS habrá que volver a subirlas. Esta acción no se puede deshacer.',
-      },
-      pasos: {
-        newUrl: "{% url 'panel:step_new' %}",
-        newLabel: 'Nuevo paso',
-        restoreUrl: "{% url 'panel:step_restore_defaults' %}",
-        restoreLabel: 'Restaurar por defecto',
-        restoreConfirm: '¿Restaurar los pasos a los valores por defecto? Se perderán los pasos agregados y las ediciones que hayas hecho, y las FOTOS habrá que volver a subirlas. Esta acción no se puede deshacer.',
-      },
-    }
-
-    function activate(tabName) {
-      document.querySelectorAll('#cfgTabs .nav-link').forEach(function (btn) {
-        var isActive = btn.dataset.cfgTab === tabName
-        btn.classList.toggle('active', isActive)
-        btn.setAttribute('aria-selected', isActive ? 'true' : 'false')
-      })
-      document.querySelectorAll('.tab-content .tab-pane').forEach(function (pane) {
-        pane.classList.toggle('show', pane.id === 'tab-' + tabName)
-        pane.classList.toggle('active', pane.id === 'tab-' + tabName)
-      })
-      var cfg = CFG[tabName]
-      var newBtn = document.getElementById('cfg-new-btn')
-      var restoreBtn = document.getElementById('cfg-restore-btn')
-
-      // "Aula Virtual" es una pestaña de ajustes: no tiene lista que crear ni
-      // valores por defecto que restaurar, así que no aparece en CFG. Sin este
-      // corte, cfg quedaba undefined y reventaba en cfg.newUrl.
-      if (!cfg) {
-        newBtn.style.display = 'none'
-        restoreBtn.style.display = 'none'
-      } else {
-        newBtn.style.display = ''
-        restoreBtn.style.display = ''
-        newBtn.setAttribute('href', cfg.newUrl)
-        document.getElementById('cfg-new-label').textContent = cfg.newLabel
-        restoreBtn.setAttribute('hx-post', cfg.restoreUrl)
-        restoreBtn.setAttribute('hx-confirm', cfg.restoreConfirm)
-        document.getElementById('cfg-restore-label').textContent = cfg.restoreLabel
-        if (window.htmx) htmx.process(restoreBtn)
-      }
-
-      var url = new URL(window.location)
-      url.searchParams.set('tab', tabName)
-      window.history.replaceState({}, '', url)
-    }
-
-    document.querySelectorAll('#cfgTabs .nav-link').forEach(function (btn) {
-      btn.addEventListener('click', function () { activate(btn.dataset.cfgTab) })
-    })
-
-    activate('{{ tab }}')
-  })()
-</script>
-{% endblock %}

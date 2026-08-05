@@ -80,6 +80,32 @@ h1, h2, h3, h4, h5, .font-heading {
 
 .pnl-brand-icon { width: 26px; height: auto; flex-shrink: 0; }
 
+/* Marca de la barra lateral: logotipo oficial en blanco y, debajo, el rótulo
+   del panel. Se acota a .pnl-sidebar porque el login reusa .pnl-brand y ahí la
+   marca va en horizontal y sobre fondo claro. */
+.pnl-sidebar .pnl-brand {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 4px 10px 22px;
+}
+.pnl-brand-logo {
+  width: 104px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+/* Se acompaña el tamaño del logo: con el rótulo más ancho que el logotipo, la
+   marca se leía como dos piezas sueltas en vez de un bloque. */
+.pnl-brand-sub {
+  font-family: 'Outfit', sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9d87bd;
+  line-height: 1;
+}
+
 .pnl-brand-name {
   font-family: 'Quicksand', sans-serif;
   font-weight: 700;
@@ -106,37 +132,78 @@ h1, h2, h3, h4, h5, .font-heading {
   z-index: 1;
 }
 
+/* El menú creció (Portada aporta cinco entradas) y en pantallas bajas las
+   últimas quedaban fuera de alcance: la barra es `fixed` a la altura de la
+   ventana y esta lista no scrolleaba.
+
+   `min-height: 0` es imprescindible, no decorativo: un hijo flex no baja de la
+   altura de su contenido por defecto, así que sin esto la lista sigue creciendo
+   y el overflow no llega a activarse nunca. Va en un media query aparte porque
+   bajo 900px la barra pasa a ser horizontal y ahí manda `overflow-x`. */
+@media (min-width: 901px) {
+  .pnl-nav {
+    min-height: 0;
+    overflow-y: auto;
+    /* Explícito a propósito: al poner overflow-y en `auto`, el otro eje deja de
+       ser `visible` y pasa a `auto` solo (regla de CSS), así que aparecía
+       también una barra horizontal permanente que no correspondía a nada. */
+    overflow-x: hidden;
+    padding-bottom: 6px;
+    /* cancela el padding lateral de .pnl-sidebar para que la fila activa
+       llegue a los bordes (ver .pnl-nav a más abajo) */
+    margin-inline: -16px;
+  }
+  /* Sin barra de scroll visible. En Windows la barra clásica NO se superpone:
+     se come 6px del ancho, así que la fila seleccionada terminaba justo contra
+     ella y ese casi-contacto se veía como un error. Con la barra oculta el
+     amarillo llega al borde real de la barra lateral. Se sigue pudiendo
+     desplazar con la rueda, el trackpad y el teclado.
+
+     Ojo al verificar: en Chrome headless las barras SON superpuestas y no
+     ocupan ancho, así que ahí el problema no se reproduce ni se nota el
+     arreglo. Hay que mirarlo en un Chrome de escritorio real. */
+  .pnl-nav { scrollbar-width: none; }
+  .pnl-nav::-webkit-scrollbar { width: 0; height: 0; }
+}
+
 .pnl-nav-label {
   font-size: 10.5px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #7d68a0;
-  padding: 14px 12px 6px;
+  padding: 14px 26px 6px;
 }
 
+/* La fila seleccionada cruza la barra de lado a lado en vez de ser una pastilla
+   flotante. Como pastilla quedaba a milímetros de la barra de scroll del menú y
+   ese casi-contacto se lee como un error de maquetado; ocupando todo el ancho,
+   el borde derecho es una decisión y no un accidente.
+
+   El margen negativo cancela el padding lateral de .pnl-sidebar (16px) y ese
+   ancho se le devuelve a los enlaces como padding, para que el texto no se
+   corra de donde estaba. */
 .pnl-nav a {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 14px;
-  border-radius: 12px;
+  padding: 11px 26px;
   color: #cdbfe0;
   text-decoration: none;
   font-weight: 500;
   font-size: 14.5px;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .pnl-nav a i { font-size: 17px; opacity: 0.85; }
+/* sin translateX en hover: desplazar una fila que ya toca ambos bordes deja
+   ver el fondo por la izquierda */
 .pnl-nav a:hover {
   background: rgba(255, 255, 255, 0.07);
   color: #fff;
-  transform: translateX(2px);
 }
 .pnl-nav a.active {
   background: var(--yellow);
   color: var(--purple-950);
   font-weight: 700;
-  box-shadow: 0 6px 18px rgba(255, 203, 0, 0.28);
 }
 .pnl-nav a.active i { opacity: 1; }
 
@@ -280,6 +347,13 @@ h1, h2, h3, h4, h5, .font-heading {
   overflow: hidden;
 }
 .pnl-card .card-pad { padding: 24px 26px; }
+
+/* El globo de ayuda (.pnl-ayuda-globo) es absoluto y quedaba cortado por el
+   overflow:hidden de arriba. Ese recorte está para que las TABLAS respeten las
+   esquinas redondeadas de la tarjeta; una tarjeta de formulario (contenido
+   dentro de .card-pad) no tiene nada que recortar, así que ahí se deja
+   desbordar y el globo se ve entero. */
+.pnl-card:has(> .card-pad) { overflow: visible; }
 
 .pnl-table { margin: 0; }
 .pnl-table thead th {
@@ -509,7 +583,29 @@ h1, h2, h3, h4, h5, .font-heading {
 /* La columna "Orden" vive dentro de la tabla de productos: solo los productos
    marcados para la portada muestran el handle + número de posición. */
 
+/* table-layout:fixed evita el scroll horizontal fantasma que dan las tablas
+   Bootstrap con ancho automático: sin columnas fijas, el navegador reserva de
+   más "por si acaso" y aparece una barra de scroll aunque el contenido quepa.
+   Con anchos explícitos, Producto se lleva el resto y el resto no se mueve. */
+#products-reorder-url { table-layout: fixed; }
 .order-col { width: 70px; }
+.price-col { width: 110px; }
+.status-col { width: 100px; }
+/* 3 botones de 34px + 2 huecos de 8px + los 20px de padding a cada lado = 158.
+   Con menos, la celda desborda y reaparece la barra de scroll horizontal. */
+.actions-col { width: 160px; }
+
+/* Con las columnas fijas la tabla mide EXACTAMENTE el ancho de su contenedor
+   (verificado de 700 a 1700px), así que el envoltorio .table-responsive no
+   tiene por qué ser contenedor de scroll: siéndolo, cualquier redondeo dibuja
+   una barra que no corresponde a ningún contenido. En pantallas chicas sí se
+   deja scrollar, con un mínimo para que las columnas no se aplasten. */
+@media (min-width: 992px) {
+  #pnl-productos-panel .table-responsive { overflow: visible; }
+}
+@media (max-width: 991.98px) {
+  #pnl-productos-panel .pnl-table { min-width: 700px; }
+}
 /* Ojo: NO poner display:flex directo en el <td> — le rompe el layout de tabla
    (deja de respetar el padding/vertical-align de .pnl-table td y la fila queda
    con la mitad de alto que las demás). El flex va en un <div> interno. */
@@ -772,6 +868,35 @@ tr.pnl-drag-row:hover { background: var(--purple-50); }
 
 .pnl-alert { border-radius: 14px; border: none; font-size: 14.5px; }
 
+/* Avisos flotantes sobre el contenido, NO dentro del flujo del documento.
+   Antes eran un bloque más de la página: cada mensaje empujaba la tabla hacia
+   abajo al aparecer y la subía de golpe al cerrarse. */
+.pnl-avisos {
+  position: fixed;
+  /* por debajo de la barra superior: arriba del todo tapaba el botón de acción
+     principal de cada pantalla ("Nuevo producto", "Nuevo curso", …) */
+  top: 96px;
+  right: 30px;
+  /* por encima de la barra lateral (1000), por debajo de los modales (1055) */
+  z-index: 1040;
+  width: min(400px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* el contenedor ocupa toda la franja pero no debe robar clics al contenido */
+  pointer-events: none;
+}
+.pnl-avisos .pnl-alert {
+  pointer-events: auto;
+  margin: 0;
+  box-shadow: 0 12px 32px rgba(47, 0, 83, 0.2);
+  animation: pnl-aviso-entra 0.22s ease-out;
+}
+@keyframes pnl-aviso-entra {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
 .empty-state {
   text-align: center;
   padding: 56px 24px;
@@ -849,7 +974,10 @@ body.login-body {
     padding: 12px 16px;
     gap: 8px;
   }
-  .pnl-brand { padding: 0 8px 0 0; }
+  /* En horizontal la marca vuelve a una sola línea y el rótulo sobra */
+  .pnl-sidebar .pnl-brand { flex-direction: row; align-items: center; padding: 0 8px 0 0; }
+  .pnl-brand-logo { width: 104px; }
+  .pnl-brand-sub { display: none; }
   .pnl-nav { flex-direction: row; overflow-x: auto; }
   .pnl-nav-label, .pnl-side-footer { display: none; }
   .pnl-main { margin-left: 0; padding: 20px 16px 40px; }
@@ -924,3 +1052,97 @@ body.login-body {
 }
 .mdetail-manual[open] > summary::before { content: '▾ '; }
 .mdetail-manual > summary:hover { text-decoration: underline; }
+
+/* ============================================================
+   Ayuda contextual (ⓘ) — reemplaza a las explicaciones sueltas
+   ============================================================
+   Antes la explicación iba metida DENTRO del nombre del campo, entre
+   paréntesis ("En oferta (muestra una cinta roja en la portada)"). Eso
+   alargaba las etiquetas hasta partirlas en dos líneas y desalineaba las
+   columnas del formulario, además de obligar a leer un párrafo para
+   entender un interruptor.
+
+   Ahora el nombre es corto y la explicación vive en el globo. Es CSS puro
+   (sin inicializar nada) y responde a :hover y a :focus-visible, así que
+   también funciona con el teclado: el ícono es focusable con Tab. */
+.pnl-ayuda {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 5px;
+  color: var(--muted);
+  cursor: help;
+  font-size: 13px;
+  line-height: 1;
+}
+.pnl-ayuda:hover,
+.pnl-ayuda:focus-visible { color: var(--purple-500); outline: none; }
+
+.pnl-ayuda-globo {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  width: max-content;
+  max-width: 260px;
+  background: var(--purple-950);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(47, 0, 83, 0.28);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s;
+  z-index: 50;
+}
+/* pico del globo */
+.pnl-ayuda-globo::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--purple-950);
+}
+.pnl-ayuda:hover .pnl-ayuda-globo,
+.pnl-ayuda:focus-visible .pnl-ayuda-globo {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+/* Cerca del borde derecho el globo se saldría de la pantalla: esta variante
+   lo ancla por la derecha en vez de centrarlo. */
+.pnl-ayuda.der .pnl-ayuda-globo { left: auto; right: -6px; transform: translateY(3px); }
+.pnl-ayuda.der .pnl-ayuda-globo::after { left: auto; right: 12px; transform: none; }
+.pnl-ayuda.der:hover .pnl-ayuda-globo,
+.pnl-ayuda.der:focus-visible .pnl-ayuda-globo { transform: translateY(0); }
+
+/* Bloque que aparece/desaparece según un interruptor (ver product_form.html).
+   Sin esto los campos de envío se mostraban aunque el producto fuera digital,
+   y el precio de oferta aunque no estuviera en oferta. */
+/* !important: le gana a utilidades de Bootstrap como .d-flex, que también
+   fijan `display` con !important y si no lo llevan silencian este ocultamiento. */
+[data-visible-si].oculto { display: none !important; }
+
+/* Pila de interruptores del formulario de producto: separación pareja y todos
+   los nombres arrancando en la misma vertical. Antes cada uno traía su propio
+   margen y un .ms-1 en la etiqueta, así que ni el espaciado ni el borde
+   izquierdo del texto coincidían entre filas. */
+.pnl-opciones { display: flex; flex-direction: column; gap: 14px; }
+.pnl-opciones .form-check { margin: 0; min-height: 0; }
+.pnl-opciones .form-check-label { padding-left: 6px; }
+
+/* Ojo de portada en Acciones, junto a editar/eliminar: mismo gesto que un
+   "activo/oculto" de catálogo, aplicado a la portada en vez de la tienda. */
+.pnl-ojo { color: var(--muted); }
+.pnl-ojo.activo { color: var(--purple-600); border-color: var(--purple-200); background: var(--purple-50); }
+.pnl-ojo.activo:hover { color: var(--purple-700); }
+.pnl-ojo:disabled { opacity: 0.35; cursor: not-allowed; }
+.pnl-ojo:disabled:hover { background: none; border-color: var(--line); color: var(--muted); }

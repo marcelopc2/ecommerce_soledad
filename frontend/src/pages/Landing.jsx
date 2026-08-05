@@ -10,7 +10,11 @@ import './landing.css'
 
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 import heroNino from '../assets/landing/hero-nino.png'
-import pagosBadges from '../assets/landing/pagos-badges.svg'
+import logoWebpay from '../assets/pagos/webpay.png'
+import logoMercadoPago from '../assets/pagos/mercadopago.png'
+import logoVisa from '../assets/pagos/visa.png'
+import logoMastercard from '../assets/pagos/mastercard.png'
+import logoRedcompra from '../assets/pagos/redcompra.png'
 import quienesSomosNino from '../assets/landing/quienes-somos-nino.png'
 import club3d from '../assets/landing/club-3d.png'
 import ganadorFoto from '../assets/landing/ganador-foto.svg'
@@ -60,12 +64,49 @@ const IconPlaySolid = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="#2f0053"><polygon points="8 5 19 12 8 19 8 5" /></svg>
 )
 
-const IconCheck = ({ color = '#00a63e' }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-    <circle cx="12" cy="12" r="11" fill={color} opacity="0.15" />
-    <path d="M7 12.5l3.2 3.2L17 9" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-  </svg>
-)
+/* Convención que la clienta escribe a mano en el panel: una línea que empieza
+   con +/-/* cambia el ícono y el color de su viñeta. El símbolo se saca del
+   texto mostrado, no forma parte del beneficio.
+
+   No basta con cambiar el color: quien no distingue verde de rojo vería tres
+   vistos buenos idénticos y leería "incluido" en los tres casos. Por eso cada
+   tono trae además una forma distinta.
+
+     +  incluido        visto verde
+     -  no incluido     guión rojo
+     *  ojo con esto    exclamación ámbar */
+const TIPO_POR_SIMBOLO = { '+': 'si', '-': 'no', '*': 'aviso' }
+const TONO_BENEFICIO = { si: '#00a63e', no: '#e7000b', aviso: '#e8a600' }
+
+const IconBeneficio = ({ tipo = 'si', color }) => {
+  const tono = color || TONO_BENEFICIO[tipo]
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="11" fill={tono} opacity="0.15" />
+      {tipo === 'si' && (
+        <path d="M7 12.5l3.2 3.2L17 9" stroke={tono} strokeWidth="2.4"
+              strokeLinecap="round" strokeLinejoin="round" />
+      )}
+      {tipo === 'no' && (
+        <path d="M7.6 12h8.8" stroke={tono} strokeWidth="2.4" strokeLinecap="round" />
+      )}
+      {tipo === 'aviso' && (
+        <>
+          <path d="M12 6.8v6.4" stroke={tono} strokeWidth="2.4" strokeLinecap="round" />
+          <circle cx="12" cy="16.9" r="1.3" fill={tono} />
+        </>
+      )}
+    </svg>
+  )
+}
+
+function parseFeatureLine(raw) {
+  const m = raw.match(/^([+\-*])\s*(.*)$/)
+  // `marcada` distingue "sin símbolo" de "+": ambas son un visto verde, pero
+  // solo la que no trae símbolo cede su color al amarillo de la tarjeta morada.
+  if (!m) return { text: raw, tipo: 'si', marcada: false }
+  return { text: m[2], tipo: TIPO_POR_SIMBOLO[m[1]], marcada: true }
+}
 
 const IconStar = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffba00">
@@ -499,9 +540,14 @@ function KitCard({ product, onBuy }) {
       <h3>{product.name}</h3>
       <p className="lp-card-desc">{product.description}</p>
       <ul className={'lp-checks' + (purple ? ' lp-checks-yellow' : '')}>
-        {product.features_list.map((f, i) => (
-          <li key={i}><IconCheck color={purple ? '#ffcb00' : undefined} /> {f}</li>
-        ))}
+        {product.features_list.map((raw, i) => {
+          const { text, tipo, marcada } = parseFeatureLine(raw)
+          return (
+            <li key={i}>
+              <IconBeneficio tipo={tipo} color={!marcada && purple ? '#ffcb00' : undefined} /> {text}
+            </li>
+          )
+        })}
       </ul>
       <div className="lp-card-footer">
         <PriceBlock product={product} />
@@ -527,7 +573,10 @@ function KitWide({ product, onBuy }) {
         <p className="lp-card-desc">{product.description}</p>
       </div>
       <ul className="lp-checks lp-oferta-checks">
-        {product.features_list.map((f, i) => <li key={i}><IconCheck /> {f}</li>)}
+        {product.features_list.map((raw, i) => {
+          const { text, tipo } = parseFeatureLine(raw)
+          return <li key={i}><IconBeneficio tipo={tipo} /> {text}</li>
+        })}
       </ul>
       <div className="lp-oferta-buy">
         <PriceBlock product={product} extraClass="lp-oferta-price" />
@@ -536,6 +585,61 @@ function KitWide({ product, onBuy }) {
         </button>
       </div>
     </article>
+  )
+}
+
+/* Franja "Pagos 100% seguros".
+
+   Antes era un SVG exportado del Figma (pagos-badges.svg, 171 kB). Pasarlo a
+   HTML+CSS pesa una fracción de eso, deja el texto seleccionable y legible por
+   lectores de pantalla, y permite agregar o sacar un medio de pago sin volver a
+   exportar nada desde el diseño. */
+/* `alto` es una excepción, no la norma: casi todos usan el alto que fija el CSS.
+   El de Mercado Pago trae margen blanco dentro del propio archivo y su texto va
+   en DOS líneas, así que a la altura común cada línea queda en unos 7px y se ve
+   mucho más chico que el resto. */
+const MEDIOS_DE_PAGO = [
+  { nombre: 'Webpay Plus', logo: logoWebpay },
+  { nombre: 'Mercado Pago', logo: logoMercadoPago, alto: 32 },
+  { nombre: 'Visa', logo: logoVisa },
+  { nombre: 'Mastercard', logo: logoMastercard },
+  { nombre: 'Redcompra', logo: logoRedcompra },
+]
+
+const IconEscudo = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M12 2.5 4.5 5.6v5.5c0 4.6 3.2 8.9 7.5 10.4 4.3-1.5 7.5-5.8 7.5-10.4V5.6L12 2.5z"
+          fill="var(--lp-yellow)" />
+    <path d="m8.6 12.1 2.3 2.3 4.5-4.6" stroke="#2f0053" strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+function PagosSeguros() {
+  return (
+    <div className="lp-pagos">
+      <p className="lp-pagos-titulo">
+        <IconEscudo />
+        pagos 100% seguros
+      </p>
+      <ul className="lp-pagos-logos">
+        {MEDIOS_DE_PAGO.map(medio => (
+          <li key={medio.nombre}>
+            {/* El alt lleva el nombre porque cada logo es la única señal de que
+                ese medio de pago está disponible: sin él la franja no dice nada
+                a quien usa lector de pantalla. */}
+            {/* Se pasa como variable CSS y no como height directo para que la
+                regla de celular pueda seguir escalándolo (ver landing.css). */}
+            <img
+              src={medio.logo}
+              alt={medio.nombre}
+              loading="lazy"
+              style={medio.alto ? { '--alto-logo': `${medio.alto}px` } : undefined}
+            />
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -571,7 +675,7 @@ function Kits({ products }) {
         esta divertida forma de aprender a través de nuestros talleres virtuales, con más
         de 100 modelos motorizados. ¡Explora y crea un modelo diferente cada semana!
       </p>
-      <img className="lp-pagos" src={pagosBadges} alt="Pagos 100% seguros: Webpay, MercadoPago, Visa, Mastercard, Redcompra" />
+      <PagosSeguros />
 
       {grid.length > 0 && (
         <div className="lp-cards">

@@ -1,5 +1,6 @@
 from django import forms
 from django.db.models import Max
+from django.utils.text import slugify
 from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
     SeccionConcurso, GanadorConcurso,
@@ -47,38 +48,44 @@ class LoginForm(forms.Form):
 class ProductForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Product
+        # Sin 'slug', 'show_on_landing' ni 'is_active' a propósito:
+        #  · el slug se arma solo desde el nombre (ver save()); nadie que
+        #    administre la tienda necesita escribir una dirección web.
+        #  · publicar y destacar son UNA sola decisión en esta tienda: los
+        #    productos se venden desde la portada, así que "activo" y "sale en
+        #    la portada" van siempre juntos. Se deciden con el ojo de la lista;
+        #    acá abajo, en save(), is_active se mantiene igual a show_on_landing.
+        #    Antes eran dos controles en dos pantallas para lo mismo.
         fields = [
-            'name', 'slug', 'description', 'price',
-            'is_digital', 'is_active', 'courses', 'access_months',
+            'name', 'description', 'price',
+            'is_digital', 'courses', 'access_months',
             'weight_kg', 'width_cm', 'height_cm', 'length_cm',
             # oferta / próximamente / compra restringida
             'is_on_sale', 'sale_price', 'is_coming_soon', 'requires_login',
-            # portada
-            'show_on_landing', 'landing_badge',
-            'price_note', 'features', 'highlight',
+            # cómo se ve la tarjeta en la portada
+            'landing_badge', 'price_note', 'features', 'highlight',
         ]
+        # Etiquetas CORTAS: la explicación va en el globo de ayuda (ⓘ) del
+        # template, no dentro del nombre del campo.
         labels = {
             'name': 'Nombre',
-            'slug': 'Dirección web (se genera sola desde el título)',
             'description': 'Descripción',
             'price': 'Precio (CLP)',
-            'is_digital': 'Producto digital (no requiere envío)',
-            'is_active': 'Visible en la tienda',
-            'courses': 'Cursos que otorga esta compra',
-            'access_months': 'Meses de acceso al Aula Virtual',
+            'is_digital': 'Producto digital',
+            'courses': 'Modelos que incluye',
+            'access_months': 'Meses de acceso',
             'weight_kg': 'Peso (kg)',
             'width_cm': 'Ancho (cm)',
             'height_cm': 'Alto (cm)',
             'length_cm': 'Largo (cm)',
-            'is_on_sale': 'En oferta (muestra una cinta roja en la portada)',
+            'is_on_sale': 'En oferta',
             'sale_price': 'Precio de oferta (CLP)',
-            'is_coming_soon': 'Próximamente (no se puede comprar aún)',
-            'requires_login': 'Solo para alumnos (exige iniciar sesión para comprarlo)',
-            'show_on_landing': 'Mostrar en la portada (sección de kits)',
-            'landing_badge': 'Etiqueta de la tarjeta',
-            'price_note': 'Nota junto al precio',
-            'features': 'Beneficios (uno por línea)',
-            'highlight': 'Destacar tarjeta (estilo morado)',
+            'is_coming_soon': 'Próximamente',
+            'requires_login': 'Necesita membresía',
+            'landing_badge': 'Etiqueta',
+            'price_note': 'Nota del precio',
+            'features': 'Beneficios',
+            'highlight': 'Destacar',
         }
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
@@ -111,22 +118,33 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
         return data
 
     def save(self, commit=True):
-        """No hay límite duro para marcar 'portada': el que sobra del top 4 queda
-        en cola (no se muestra) hasta que se arrastre a un puesto ≤ 4 desde la lista
-        de productos. Al marcar por primera vez, se agrega al final de la cola;
-        al desmarcar, se limpia su posición."""
+        """El slug se arma acá y no en el formulario: es un dato técnico que solo
+        sirve para la dirección web y no aporta nada a quien administra la tienda.
+
+        Solo se genera al CREAR. Al editar se deja como está aunque cambie el
+        nombre: el slug es parte de la URL pública, y regenerarlo rompería los
+        enlaces que ya estén compartidos o indexados."""
         obj = super().save(commit=False)
-        if obj.show_on_landing:
-            if not obj.landing_order:
-                last = Product.objects.filter(show_on_landing=True).exclude(pk=obj.pk).aggregate(
-                    m=Max('landing_order'))['m'] or 0
-                obj.landing_order = last + 1
-        else:
-            obj.landing_order = 0
+        if not obj.pk and not obj.slug:
+            obj.slug = self._slug_unico(obj.name)
+        # Publicado == en la portada. Un producto recién creado nace apagado y se
+        # publica prendiendo su ojo en la lista; editar uno no cambia su estado.
+        obj.is_active = obj.show_on_landing
         if commit:
             obj.save()
             self.save_m2m()
         return obj
+
+    @staticmethod
+    def _slug_unico(nombre):
+        base = slugify(nombre) or 'producto'
+        slug, n = base, 2
+        # El slug es unique=True: si ya existe se le agrega un número al final
+        # en vez de reventar con un error de base de datos.
+        while Product.objects.filter(slug=slug).exists():
+            slug = f'{base}-{n}'
+            n += 1
+        return slug
 
 
 class MembershipForm(BootstrapFormMixin, forms.ModelForm):

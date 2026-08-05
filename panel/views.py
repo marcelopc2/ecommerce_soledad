@@ -88,7 +88,7 @@ def login_view(request):
         # muerto y daría la falsa impresión de que el bloqueo se maneja aquí.
         user = authenticate(
             request,
-            username=form.cleaned_data['email'],
+            username=_username_de(form.cleaned_data['email']),
             password=form.cleaned_data['password'],
         )
         if user and user.is_staff:
@@ -97,6 +97,25 @@ def login_view(request):
         error = 'Credenciales incorrectas o la cuenta no tiene permisos de administración.'
 
     return render(request, 'panel/login.html', {'form': form, 'error': error})
+
+
+def _username_de(correo):
+    """Traduce el correo escrito en el formulario al `username` real de esa cuenta.
+
+    El formulario pide el correo, pero `authenticate()` busca por el campo de
+    identificación de Django, que es `username`. Las cuentas de alumno se crean
+    con username=email y coincidían de casualidad; una creada con
+    `createsuperuser` no (la del proyecto tiene username "admin"), así que su
+    clave correcta era rechazada como si estuviera mala y no había forma de
+    entrar con ella.
+
+    Si el correo no existe se devuelve tal cual: authenticate() falla igual, pero
+    recorriendo el mismo camino que una clave equivocada, sin delatar cuáles
+    correos están registrados.
+    """
+    from django.contrib.auth.models import User
+    cuenta = User.objects.filter(email__iexact=correo.strip()).order_by('pk').first()
+    return cuenta.username if cuenta else correo
 
 
 def _safe_next(request):
@@ -146,22 +165,39 @@ def dashboard(request):
 
 # ---------- Productos ----------
 
-def _products_queryset(q):
+def _products_queryset(q, orden_previo=None):
     """Productos de portada primero (ordenados por landing_order), luego el resto
     por más reciente. Así quedan agrupados y el drag & drop de la tabla no se
-    mezcla con productos que no están en la portada."""
+    mezcla con productos que no están en la portada.
+
+    `orden_previo`: lista de pks tal como el navegador los tiene en pantalla (la
+    manda el propio cliente, ver pnlOrdenDeFilas en products.html). Con ella las
+    filas se devuelven en ese mismo orden en vez de reagruparse al instante:
+    apagar un producto lo mandaba abajo y además renumeraba a los que quedaban,
+    así que saltaban varias filas a la vez sin que nadie hubiera arrastrado
+    nada. El reagrupado real se ve en la siguiente carga completa de la página."""
     items = Product.objects.select_related('category').order_by(
         '-show_on_landing', 'landing_order', '-created_at',
     )
     if q:
         items = items.filter(Q(name__icontains=q) | Q(slug__icontains=q) | Q(category__name__icontains=q))
-    return items
+    if not orden_previo:
+        return items
+
+    posicion = {pk: i for i, pk in enumerate(orden_previo)}
+    # Un producto que no estaba en la lista previa (recién creado en otra
+    # pestaña) va al final en vez de romper el orden.
+    return sorted(items, key=lambda p: posicion.get(p.pk, len(posicion)))
 
 
 @staff_required
 def products(request):
     q = request.GET.get('q', '').strip()
-    ctx = {'products': _products_queryset(q), 'section': 'products', 'q': q}
+    ctx = {
+        'products': _products_queryset(q), 'section': 'products', 'q': q,
+        # cuántos lugares de la portada están ocupados (ver product_toggle_landing)
+        'en_portada': _en_portada(), 'portada_max': PORTADA_MAX,
+    }
     if is_search_request(request):
         return render(request, 'panel/partials/products_rows.html', ctx)
     return render(request, 'panel/products.html', ctx)
@@ -212,6 +248,95 @@ def product_delete(request, pk):
     return redirect('panel:products')
 
 
+#: La portada muestra exactamente 4 tarjetas (3 normales + 1 ancha).
+PORTADA_MAX = 4
+
+
+@staff_required
+@require_POST
+def product_toggle_landing(request, pk):
+    """Enciende o apaga un producto en la portada, desde la propia lista.
+
+    Antes esto era un check dentro del formulario del producto, mientras el
+    ORDEN se decidía arrastrando en la lista. Dos controles en dos pantallas
+    para un mismo resultado, y con una trampa: se podía marcar el check, guardar
+    y que el producto no apareciera igual, porque quedaba en una cola invisible
+    más allá de los 4 lugares de la portada.
+
+    Ahora se decide en un solo lugar y con un tope explícito: si ya hay 4, el
+    ojo de los demás viene deshabilitado y el aviso dice qué hacer.
+
+    El ojo mueve `is_active` junto con `show_on_landing`: en esta tienda los
+    productos se venden desde la portada, así que "publicado" y "destacado" son
+    la misma decisión. Tenerlas separadas permitía estados que no le sirven a
+    nadie, como un producto a la venta que no aparece en ninguna parte."""
+    product = get_object_or_404(Product, pk=pk)
+    # El orden que se está viendo y la búsqueda activa viajan en la petición: sin
+    # ellos la respuesta reagrupaba la tabla y borraba el filtro, o sea todo se
+    # movía de lugar sin que nadie lo hubiera arrastrado (ver pnlOrdenDeFilas).
+    q = request.POST.get('q', '').strip()
+    orden_previo = [
+        int(x) for x in request.POST.get('orden', '').split(',') if x.strip().isdigit()
+    ]
+
+    if product.show_on_landing:
+        product.show_on_landing = False
+        product.is_active = False
+        product.landing_order = 0
+        product.save(update_fields=['show_on_landing', 'is_active', 'landing_order'])
+        messages.success(request, f'"{product.name}" ya no se vende ni se muestra.')
+    elif _en_portada() >= PORTADA_MAX:
+        messages.error(
+            request,
+            f'La portada muestra {PORTADA_MAX} productos y ya están los '
+            f'{PORTADA_MAX}. Saca uno primero para poder poner este.'
+        )
+    else:
+        product.show_on_landing = True
+        product.is_active = True
+        product.save(update_fields=['show_on_landing', 'is_active'])
+        messages.success(request, f'"{product.name}" ya está a la venta en la portada.')
+
+    _renumerar_portada(orden_previo)
+
+    return render(request, 'panel/partials/products_panel.html', {
+        'products': _products_queryset(q, orden_previo=orden_previo), 'q': q,
+        'en_portada': _en_portada(), 'portada_max': PORTADA_MAX, 'oob': True,
+    })
+
+
+def _en_portada():
+    return Product.objects.filter(show_on_landing=True).count()
+
+
+def _renumerar_portada(orden_en_pantalla):
+    """Numera del 1 al N los productos de la portada siguiendo el orden en que
+    aparecen en la tabla.
+
+    El número es SIEMPRE la posición que se ve, no un contador aparte. Antes se
+    le asignaba al que se encendía "el último lugar libre", así que apagar el 2
+    y volver a encenderlo lo dejaba de 3 mientras el de más abajo pasaba a 2:
+    los números decían una cosa y las filas otra.
+
+    `orden_en_pantalla` son los pks tal como los tiene el navegador. Un producto
+    que no venga en esa lista (pantalla filtrada por una búsqueda) queda al final
+    conservando su orden anterior."""
+    posicion = {pk: i for i, pk in enumerate(orden_en_pantalla)}
+    # sorted() es estable: los que no están en pantalla mantienen entre sí el
+    # orden que traen de la consulta.
+    en_portada = sorted(
+        Product.objects.filter(show_on_landing=True).order_by('landing_order', 'id'),
+        key=lambda p: posicion.get(p.pk, len(posicion)),
+    )
+    cambios = []
+    for i, p in enumerate(en_portada, start=1):
+        if p.landing_order != i:
+            p.landing_order = i
+            cambios.append(p)
+    if cambios:
+        Product.objects.bulk_update(cambios, ['landing_order'])
+
+
 @staff_required
 @require_POST
 def products_reorder(request):
@@ -219,18 +344,14 @@ def products_reorder(request):
     Recibe 'order' como lista repetida de ids en el orden final; solo reordena
     los productos que ya están marcados para la portada (show_on_landing=True).
     Devuelve la tabla completa para reflejar el nuevo orden (sin recargar)."""
+    # Misma regla que al prender el ojo: el número es la posición en la tabla.
     order_ids = [int(pid) for pid in request.POST.getlist('order') if pid.isdigit()]
-    by_id = {p.id: p for p in Product.objects.filter(id__in=order_ids, show_on_landing=True)}
-    to_update = []
-    for i, pid in enumerate(order_ids, start=1):
-        p = by_id.get(pid)
-        if p and p.landing_order != i:
-            p.landing_order = i
-            to_update.append(p)
-    if to_update:
-        Product.objects.bulk_update(to_update, ['landing_order'])
+    _renumerar_portada(order_ids)
 
-    return render(request, 'panel/partials/products_rows.html', {'products': _products_queryset(''), 'q': ''})
+    return render(request, 'panel/partials/products_panel.html', {
+        'products': _products_queryset(''), 'q': '',
+        'en_portada': _en_portada(), 'portada_max': PORTADA_MAX, 'oob': True,
+    })
 
 
 # ---------- Cursos ----------
@@ -827,11 +948,68 @@ def invoice_pdf(request, pk):
     return response
 
 
-# ---------- Configuración (preguntas frecuentes + testimonios) ----------
+# ---------- Contenido del sitio público (portada) + ritmo del Aula ----------
+
+#: Cada sección editable del sitio público es ahora una entrada propia del menú.
+#: Antes eran seis pestañas metidas dentro de "Configuración", un cajón que además
+#: mezclaba el contenido de la portada con un ajuste del Aula Virtual que no tiene
+#: nada que ver con la portada. Sigue siendo UNA vista y UNA plantilla: lo que
+#: cambia es cómo se llega y cómo se llama cada cosa.
+#:   tab -> (título, grupo del menú, url de "nuevo", etiqueta, url de "restaurar",
+#:           texto de confirmación del restaurar)
+SECCIONES_CONTENIDO = {
+    'pasos': (
+        'Cómo funciona', 'Portada', 'panel:step_new', 'Nuevo paso',
+        'panel:step_restore_defaults',
+        '¿Restaurar los pasos a los valores por defecto? Se perderán los pasos '
+        'agregados y las ediciones que hayas hecho, y las FOTOS habrá que volver '
+        'a subirlas. Esta acción no se puede deshacer.',
+    ),
+    'videos': (
+        'Videos', 'Portada', 'panel:video_new', 'Nuevo video',
+        'panel:video_restore_defaults',
+        '¿Restaurar los videos a los valores por defecto? Se perderán los videos '
+        'agregados y las ediciones que hayas hecho, y las PORTADAS habrá que '
+        'volver a subirlas. Esta acción no se puede deshacer.',
+    ),
+    'testimonios': (
+        'Testimonios', 'Portada', 'panel:testimonial_new', 'Nuevo testimonio',
+        'panel:testimonial_restore_defaults',
+        '¿Restaurar los testimonios a los valores por defecto? Se perderán todos '
+        'los testimonios agregados y ediciones que hayas hecho. Esta acción no se '
+        'puede deshacer.',
+    ),
+    'faqs': (
+        'Preguntas frecuentes', 'Portada', 'panel:faq_new', 'Nueva pregunta',
+        'panel:faq_restore_defaults',
+        '¿Restaurar las preguntas frecuentes a los valores por defecto? Se perderán '
+        'todas las preguntas agregadas y ediciones que hayas hecho. Esta acción no '
+        'se puede deshacer.',
+    ),
+    # Estas dos no son listas: son un formulario de ajustes, no tienen "nuevo"
+    # ni valores por defecto que restaurar.
+    'concurso': ('Concurso', 'Portada', None, None, None, None),
+    'aula': ('Ritmo de entrega', 'Academia', None, None, None, None),
+}
+
 
 @staff_required
-def configuracion(request):
+def configuracion_legacy(request):
+    """La vieja pantalla única de Configuración, ahora repartida en el menú.
+
+    Un favorito o un enlace pegado en un correo seguía apuntando acá, así que
+    en vez de un 404 se manda a la sección que pedía el viejo `?tab=`."""
     tab = request.GET.get('tab', 'faqs')
+    destino = {
+        'pasos': 'panel:cfg_pasos', 'videos': 'panel:cfg_videos',
+        'testimonios': 'panel:cfg_testimonios', 'faqs': 'panel:cfg_faqs',
+        'concurso': 'panel:cfg_concurso', 'aula': 'panel:cfg_aula',
+    }.get(tab, 'panel:cfg_faqs')
+    return redirect(destino)
+
+
+@staff_required
+def configuracion(request, tab='faqs'):
 
     # Los ajustes del Aula son una fila única, así que se editan en la misma
     # página en vez de tener su propio formulario aparte.
@@ -840,8 +1018,8 @@ def configuracion(request):
         ajustes_form = AjustesAulaForm(request.POST, instance=ajustes)
         if ajustes_form.is_valid():
             ajustes_form.save()
-            messages.success(request, 'Ajustes del Aula Virtual guardados.')
-            return redirect(f"{reverse('panel:config')}?tab=aula")
+            messages.success(request, 'Ritmo de entrega guardado.')
+            return redirect('panel:cfg_aula')
     else:
         ajustes_form = AjustesAulaForm(instance=ajustes)
 
@@ -853,10 +1031,13 @@ def configuracion(request):
         if concurso_form.is_valid():
             concurso_form.save()
             messages.success(request, 'Sección del concurso guardada.')
-            return redirect(f"{reverse('panel:config')}?tab=concurso")
-        tab = 'concurso'   # que la pestaña con el error quede a la vista
+            return redirect('panel:cfg_concurso')
+        tab = 'concurso'   # que la página con el error quede a la vista
     else:
         concurso_form = SeccionConcursoForm(instance=concurso)
+
+    titulo, grupo, nuevo_url, nuevo_label, restaurar_url, restaurar_confirm = \
+        SECCIONES_CONTENIDO.get(tab, SECCIONES_CONTENIDO['faqs'])
 
     ctx = {
         'faqs': FAQ.objects.all(),
@@ -867,8 +1048,15 @@ def configuracion(request):
         'concurso_form': concurso_form,
         'ganadores': GanadorConcurso.objects.all(),
         'total_cursos': Course.objects.filter(is_active=True).count(),
-        'tab': tab if tab in ('faqs', 'testimonios', 'videos', 'pasos', 'aula', 'concurso') else 'faqs',
-        'section': 'config',
+        'tab': tab if tab in SECCIONES_CONTENIDO else 'faqs',
+        # el menú marca la entrada concreta, no un "config" genérico
+        'section': f'cfg-{tab}',
+        'titulo': titulo,
+        'grupo': grupo,
+        'nuevo_url': nuevo_url,
+        'nuevo_label': nuevo_label,
+        'restaurar_url': restaurar_url,
+        'restaurar_confirm': restaurar_confirm,
     }
     return render(request, 'panel/configuracion.html', ctx)
 
@@ -880,9 +1068,9 @@ def faq_form(request, pk=None):
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
         messages.success(request, f'Pregunta "{obj.question}" guardada.')
-        return redirect(f"{reverse('panel:config')}?tab=faqs")
+        return redirect(reverse('panel:cfg_faqs'))
     return render(request, 'panel/faq_form.html', {
-        'form': form, 'faq': faq, 'section': 'config',
+        'form': form, 'faq': faq, 'section': 'cfg-faqs',
     })
 
 
@@ -895,7 +1083,7 @@ def faq_delete(request, pk):
     if is_htmx(request):
         return HttpResponse('')
     messages.success(request, f'Pregunta "{question}" eliminada.')
-    return redirect(f"{reverse('panel:config')}?tab=faqs")
+    return redirect(reverse('panel:cfg_faqs'))
 
 
 @staff_required
@@ -906,7 +1094,7 @@ def faq_restore_defaults(request):
     hx-confirm (modal de confirmación propio del panel, no el confirm() nativo)."""
     FAQ.objects.restore_defaults()
     messages.success(request, 'Preguntas frecuentes restauradas a los valores por defecto.')
-    target = f"{reverse('panel:config')}?tab=faqs"
+    target = reverse('panel:cfg_faqs')
     if is_htmx(request):
         resp = HttpResponse()
         resp['HX-Redirect'] = target
@@ -922,9 +1110,9 @@ def ganador_form(request, pk=None):
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
         messages.success(request, f'Ganador "{obj.nombre}" guardado.')
-        return redirect(f"{reverse('panel:config')}?tab=concurso")
+        return redirect(reverse('panel:cfg_concurso'))
     return render(request, 'panel/ganador_form.html', {
-        'form': form, 'ganador': ganador, 'section': 'config',
+        'form': form, 'ganador': ganador, 'section': 'cfg-concurso',
     })
 
 
@@ -937,7 +1125,7 @@ def ganador_delete(request, pk):
     if is_htmx(request):
         return HttpResponse('')
     messages.success(request, f'Ganador "{nombre}" eliminado.')
-    return redirect(f"{reverse('panel:config')}?tab=concurso")
+    return redirect(reverse('panel:cfg_concurso'))
 
 
 @staff_required
@@ -947,9 +1135,9 @@ def testimonial_form(request, pk=None):
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
         messages.success(request, f'Testimonio de "{obj.name}" guardado.')
-        return redirect(f"{reverse('panel:config')}?tab=testimonios")
+        return redirect(reverse('panel:cfg_testimonios'))
     return render(request, 'panel/testimonial_form.html', {
-        'form': form, 'testimonial': testimonial, 'section': 'config',
+        'form': form, 'testimonial': testimonial, 'section': 'cfg-testimonios',
     })
 
 
@@ -962,7 +1150,7 @@ def testimonial_delete(request, pk):
     if is_htmx(request):
         return HttpResponse('')
     messages.success(request, f'Testimonio de "{name}" eliminado.')
-    return redirect(f"{reverse('panel:config')}?tab=testimonios")
+    return redirect(reverse('panel:cfg_testimonios'))
 
 
 @staff_required
@@ -973,7 +1161,7 @@ def testimonial_restore_defaults(request):
     hx-confirm (modal de confirmación propio del panel, no el confirm() nativo)."""
     Testimonial.objects.restore_defaults()
     messages.success(request, 'Testimonios restaurados a los valores por defecto.')
-    target = f"{reverse('panel:config')}?tab=testimonios"
+    target = reverse('panel:cfg_testimonios')
     if is_htmx(request):
         resp = HttpResponse()
         resp['HX-Redirect'] = target
@@ -989,9 +1177,9 @@ def video_form(request, pk=None):
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
         messages.success(request, f'Video "{obj.title}" guardado.')
-        return redirect(f"{reverse('panel:config')}?tab=videos")
+        return redirect(reverse('panel:cfg_videos'))
     return render(request, 'panel/video_form.html', {
-        'form': form, 'video': video, 'section': 'config',
+        'form': form, 'video': video, 'section': 'cfg-videos',
     })
 
 
@@ -1007,7 +1195,7 @@ def video_delete(request, pk):
     if is_htmx(request):
         return HttpResponse('')
     messages.success(request, f'Video "{title}" eliminado.')
-    return redirect(f"{reverse('panel:config')}?tab=videos")
+    return redirect(reverse('panel:cfg_videos'))
 
 
 @staff_required
@@ -1021,7 +1209,7 @@ def video_restore_defaults(request):
         request,
         'Videos restaurados a los valores por defecto. Recuerda volver a subir las portadas.',
     )
-    target = f"{reverse('panel:config')}?tab=videos"
+    target = reverse('panel:cfg_videos')
     if is_htmx(request):
         resp = HttpResponse()
         resp['HX-Redirect'] = target
@@ -1037,9 +1225,9 @@ def step_form(request, pk=None):
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
         messages.success(request, f'Paso "{obj.title}" guardado.')
-        return redirect(f"{reverse('panel:config')}?tab=pasos")
+        return redirect(reverse('panel:cfg_pasos'))
     return render(request, 'panel/step_form.html', {
-        'form': form, 'step': step, 'section': 'config',
+        'form': form, 'step': step, 'section': 'cfg-pasos',
     })
 
 
@@ -1054,7 +1242,7 @@ def step_delete(request, pk):
     if is_htmx(request):
         return HttpResponse('')
     messages.success(request, f'Paso "{title}" eliminado.')
-    return redirect(f"{reverse('panel:config')}?tab=pasos")
+    return redirect(reverse('panel:cfg_pasos'))
 
 
 @staff_required
@@ -1067,7 +1255,7 @@ def step_restore_defaults(request):
         request,
         'Pasos restaurados a los valores por defecto. Recuerda volver a subir las fotos.',
     )
-    target = f"{reverse('panel:config')}?tab=pasos"
+    target = reverse('panel:cfg_pasos')
     if is_htmx(request):
         resp = HttpResponse()
         resp['HX-Redirect'] = target

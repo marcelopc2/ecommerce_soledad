@@ -791,9 +791,75 @@
   max-width: min(1100px, var(--lp-content));
   margin: 6px 0 34px;
 }
+/* Franja "Pagos 100% seguros" (antes era un SVG exportado del Figma).
+   Fondo apenas más claro que el morado de la sección: se logra con blanco muy
+   transparente, así se adapta solo si algún día cambia el fondo. */
+/* Las medidas salen de la proporción del Figma: ahí la franja ocupa cerca del
+   40% del ancho de la grilla de tarjetas. No lleva ancho fijo —la caja se ajusta
+   a su contenido, porque .lp-kits centra a sus hijos—, así que lo que gobierna
+   el tamaño final son el alto de las pastillas, la separación y el relleno. */
 .lp-pagos {
-  height: 92px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  padding: 17px 30px 19px;
   margin-bottom: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+}
+.lp-pagos-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #fff;
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.lp-pagos-titulo svg { width: 16px; height: 16px; }
+.lp-pagos-logos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Pastilla blanca detrás de cada logo: son marcas a todo color pensadas para
+   fondo claro, y sobre el morado se perderían. */
+/* Mismo ALTO para todas, ancho según el logo: es como está en el Figma
+   (webpay y redcompra ~106px, visa y mastercard ~63px). La pastilla se ajusta
+   al logo y no al revés.
+
+   Con ancho fijo para todas —como estuvo un momento— los logos alargados
+   quedaban limitados por el ancho y sobraba blanco arriba y abajo; por eso se
+   veían chicos dentro de un rectángulo grande. */
+.lp-pagos-logos li {
+  background: #fff;
+  border-radius: 8px;
+  height: 34px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+/* Alto fijo y ancho automático: todos los logos miden lo mismo de alto (24 de
+   los 34px de la pastilla, o sea el 70%) y cada uno queda del ancho que le
+   corresponda por su proporción, sin deformarse.
+   --alto-logo permite la excepción de los que traen margen blanco propio; lo
+   define MEDIOS_DE_PAGO en Landing.jsx. */
+.lp-pagos-logos img {
+  height: var(--alto-logo, 24px);
+  width: auto;
+  display: block;
 }
 .lp-cards {
   display: grid;
@@ -2036,7 +2102,14 @@
   .lp-footer { flex-direction: column; text-align: center; }
   .lp-faq-a { padding-left: 24px; padding-right: 24px; }
   .lp-faq-item.open .lp-faq-a { padding-bottom: 24px; }
-  .lp-pagos { max-width: 100%; height: auto; }
+  /* la franja de pagos ya no es una imagen: se aprieta y los logos se reparten
+     en varias filas solos (flex-wrap). */
+  .lp-pagos { padding: 15px 16px 17px; }
+  .lp-pagos-titulo { font-size: 12px; }
+  .lp-pagos-logos { gap: 8px; }
+  .lp-pagos-logos li { height: 30px; padding: 4px 7px; }
+  /* escala el alto de cada logo, respetando la excepción de --alto-logo */
+  .lp-pagos-logos img { height: calc(var(--alto-logo, 24px) * 0.875); }
 }
 
 /* ---------- Celular ----------

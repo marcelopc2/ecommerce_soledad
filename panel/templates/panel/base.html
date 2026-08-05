@@ -22,16 +22,27 @@
 <body class="panel-body" hx-boost="true" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
 <aside class="pnl-sidebar">
+  {% comment %}
+    El logotipo oficial en blanco ya trae la palabra "ingenio blocks", así que
+    no se vuelve a escribir al lado: antes era el ícono suelto + un
+    "IngenioBlocks" tipeado a mano que no es el logotipo real.
+  {% endcomment %}
   <div class="pnl-brand">
-    <img src="{% static 'panel/img/logo-icon.svg' %}" alt="IngenioBlocks" class="pnl-brand-icon">
-    <div class="pnl-brand-name">IngenioBlocks<small>Panel de gestión</small></div>
+    <img src="{% static 'panel/img/logo-blanco.png' %}" alt="IngenioBlocks" class="pnl-brand-logo">
+    <span class="pnl-brand-sub">Panel de gestión</span>
   </div>
 
   <nav class="pnl-nav">
-    <div class="pnl-nav-label">General</div>
+    {% comment %}
+      Menú agrupado por el TRABAJO que se viene a hacer, no por el modelo de
+      datos. "Configuración" era un cajón que mezclaba el contenido del sitio
+      público con un ajuste del Aula; ahora cada sección de la portada tiene su
+      propia entrada y el ritmo de entrega vive donde corresponde, en Academia.
+    {% endcomment %}
     <a href="{% url 'panel:dashboard' %}" class="{% if section == 'dashboard' %}active{% endif %}">
       <i class="bi bi-grid-1x2-fill"></i> Resumen
     </a>
+
     <div class="pnl-nav-label">Tienda</div>
     <a href="{% url 'panel:products' %}" class="{% if section == 'products' %}active{% endif %}">
       <i class="bi bi-box-seam-fill"></i> Productos
@@ -39,20 +50,39 @@
     <a href="{% url 'panel:orders' %}" class="{% if section == 'orders' %}active{% endif %}">
       <i class="bi bi-bag-check-fill"></i> Pedidos
     </a>
+
     <div class="pnl-nav-label">Academia</div>
     <a href="{% url 'panel:courses' %}" class="{% if section == 'courses' %}active{% endif %}">
-      <i class="bi bi-mortarboard-fill"></i> Cursos
+      <i class="bi bi-mortarboard-fill"></i> Cursos y diplomas
     </a>
     <a href="{% url 'panel:memberships' %}" class="{% if section == 'memberships' %}active{% endif %}">
-      <i class="bi bi-people-fill"></i> Membresías
+      <i class="bi bi-people-fill"></i> Alumnos
     </a>
-    <div class="pnl-nav-label">Configuración</div>
-    <a href="{% url 'panel:config' %}" class="{% if section == 'config' %}active{% endif %}">
-      <i class="bi bi-sliders"></i> Configuración
+    <a href="{% url 'panel:cfg_aula' %}" class="{% if section == 'cfg-aula' %}active{% endif %}">
+      <i class="bi bi-hourglass-split"></i> Ritmo de entrega
     </a>
+
+    <div class="pnl-nav-label">Portada</div>
+    <a href="{% url 'panel:cfg_pasos' %}" class="{% if section == 'cfg-pasos' %}active{% endif %}">
+      <i class="bi bi-signpost-2-fill"></i> Cómo funciona
+    </a>
+    <a href="{% url 'panel:cfg_videos' %}" class="{% if section == 'cfg-videos' %}active{% endif %}">
+      <i class="bi bi-play-btn-fill"></i> Videos
+    </a>
+    <a href="{% url 'panel:cfg_testimonios' %}" class="{% if section == 'cfg-testimonios' %}active{% endif %}">
+      <i class="bi bi-chat-quote-fill"></i> Testimonios
+    </a>
+    <a href="{% url 'panel:cfg_faqs' %}" class="{% if section == 'cfg-faqs' %}active{% endif %}">
+      <i class="bi bi-question-circle-fill"></i> Preguntas frecuentes
+    </a>
+    <a href="{% url 'panel:cfg_concurso' %}" class="{% if section == 'cfg-concurso' %}active{% endif %}">
+      <i class="bi bi-trophy-fill"></i> Concurso
+    </a>
+
     {% if request.user.is_superuser %}
+      <div class="pnl-nav-label">Cuenta</div>
       <a href="{% url 'panel:staff_users' %}" class="{% if section == 'staff' %}active{% endif %}">
-        <i class="bi bi-person-badge"></i> Cuentas
+        <i class="bi bi-person-badge"></i> Cuentas de gestión
       </a>
     {% endif %}
 
@@ -89,17 +119,25 @@
     <div>{% block actions %}{% endblock %}</div>
   </div>
 
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert pnl-alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-
   {% block content %}{% endblock %}
 </main>
+
+{% comment %}
+  id fijo: permite que una respuesta htmx reemplace los avisos "fuera de
+  banda" (hx-swap-oob) aunque solo esté cambiando un trozo de la página.
+  Sin esto, acciones como encender la portada de un producto guardaban bien
+  pero su mensaje no aparecía nunca.
+
+  Va FUERA de <main> y flotando (ver .pnl-avisos): cuando estaba dentro del
+  flujo, cada mensaje empujaba la tabla hacia abajo y la página entera daba un
+  salto al aparecer y otro al desaparecer.
+
+  OJO: {# #} sirve para UNA sola línea. Escrito en varias, Django no lo trata
+  como comentario y lo imprime tal cual en la página.
+{% endcomment %}
+<div id="pnl-avisos" class="pnl-avisos">
+  {% include 'panel/partials/avisos.html' %}
+</div>
 
 {% block scripts %}{% endblock %}
 
@@ -175,6 +213,31 @@
 
       modal.show()
     })
+  })()
+
+  /* Los avisos se cierran solos. Al flotar sobre el contenido no estorban, pero
+     tampoco tienen por qué quedarse para siempre: se van con el mismo
+     desvanecido que el botón de cerrar (se delega en el propio Alert de
+     Bootstrap). Los errores duran más porque hay algo que leer y decidir. */
+  ;(function () {
+    function programarCierre() {
+      document.querySelectorAll('#pnl-avisos .pnl-alert').forEach(function (el) {
+        if (el.dataset.autoCierre) return
+        el.dataset.autoCierre = '1'
+        var esError = el.classList.contains('alert-danger')
+        window.setTimeout(function () {
+          if (!el.isConnected) return
+          bootstrap.Alert.getOrCreateInstance(el).close()
+        }, esError ? 8000 : 4000)
+      })
+    }
+
+    programarCierre()
+    // Los avisos que llegan por htmx (fuera de banda) son elementos nuevos.
+    if (!document.body.dataset.autoCierreBound) {
+      document.body.dataset.autoCierreBound = '1'
+      document.body.addEventListener('htmx:afterSettle', programarCierre)
+    }
   })()
 </script>
 </body>

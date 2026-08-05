@@ -1,14 +1,30 @@
 {% load humanize %}
+{% comment %}
+  Solo filas <tr>. Nada de spans ni divs acá: este trozo se inserta dentro de un
+  <tbody> y el navegador descarta cualquier etiqueta que no sea válida ahí —
+  llevándose las filas por delante. Lo que vive fuera de la tabla (el contador
+  de portada, los avisos) se actualiza reemplazando el panel completo, ver
+  products_panel.html.
+{% endcomment %}
 {% for p in products %}
-  <tr{% if p.show_on_landing and not q %} class="pnl-drag-row" data-id="{{ p.id }}"{% endif %}>
+  {% comment %}
+    data-pk va en TODAS las filas (no solo las de portada): es lo que se manda
+    al servidor para que devuelva la tabla en el mismo orden que se está viendo.
+    data-id lo usa aparte SortableJS, solo en las filas arrastrables.
+  {% endcomment %}
+  <tr data-pk="{{ p.id }}"{% if p.show_on_landing and not q %} class="pnl-drag-row" data-id="{{ p.id }}"{% endif %}>
     <td class="order-cell">
       <div class="order-cell-inner">
         {% if p.show_on_landing %}
           {% if not q %}
             <span class="drag-handle" title="Arrastrar para reordenar"><i class="bi bi-grip-vertical"></i></span>
           {% endif %}
-          <span class="drag-pos{% if q %} static{% endif %}{% if p.landing_order > 4 %} waiting{% endif %}"
-                title="{% if p.landing_order <= 3 %}Tarjeta {{ p.landing_order }} de la portada{% elif p.landing_order == 4 %}Tarjeta ancha de la portada{% else %}En cola — arrástralo a un puesto dentro del top 4 para mostrarlo{% endif %}">
+          {% comment %}
+            Ya no existe el estado "en cola": el interruptor no deja pasar de 4,
+            así que toda posición mostrada es una posición real en la portada.
+          {% endcomment %}
+          <span class="drag-pos{% if q %} static{% endif %}"
+                title="{% if p.landing_order == 4 %}Tarjeta ancha de la portada{% else %}Tarjeta {{ p.landing_order }} de la portada{% endif %}">
             {{ p.landing_order }}
           </span>
         {% else %}
@@ -21,24 +37,10 @@
         {{ p.name }}
         {% if p.is_on_sale %}<span class="badge-soft red">Oferta</span>{% endif %}
         {% if p.is_coming_soon %}<span class="badge-soft yellow">Próximamente</span>{% endif %}
-        {% if p.show_on_landing %}
-          {% if p.landing_order <= 4 %}
-            <span class="badge-soft purple">Portada</span>
-          {% else %}
-            <span class="badge-soft gray">En cola</span>
-          {% endif %}
-        {% endif %}
       </div>
       <div class="cell-sub">/{{ p.slug }}</div>
     </td>
     <td class="text-end fw-semibold">${{ p.price|floatformat:0|intcomma }}</td>
-    <td>
-      {% if p.is_digital %}
-        <span class="badge-soft teal"><i class="bi bi-cloud-arrow-down"></i> Digital</span>
-      {% else %}
-        <span class="badge-soft purple"><i class="bi bi-box"></i> Físico</span>
-      {% endif %}
-    </td>
     <td>
       {% if p.is_active %}
         <span class="badge-soft green">Activo</span>
@@ -47,7 +49,33 @@
       {% endif %}
     </td>
     <td class="text-end">
+      {% comment %}
+        Único lugar donde se decide si un producto sale en la portada. Antes esto
+        era un check dentro del formulario del producto mientras el orden se
+        arrastraba acá, y se podía marcar el check sin que el producto llegara a
+        aparecer nunca. El ícono de ojo es el mismo gesto que "activo/oculto" en
+        cualquier tienda, solo que acá aplica a la portada, no al catálogo — junto
+        a editar/eliminar, que es donde vive el resto de las acciones de la fila.
+      {% endcomment %}
       <div class="d-inline-flex gap-2">
+        <button type="button" class="btn-icon pnl-ojo{% if p.show_on_landing %} activo{% endif %}"
+                {% if not p.show_on_landing and en_portada >= 4 %}disabled{% endif %}
+                aria-label="Mostrar «{{ p.name }}» en la portada"
+                title="{% if p.show_on_landing %}Se muestra en la portada. Haz clic para sacarlo.{% elif en_portada >= 4 %}La portada ya tiene sus 4 productos. Saca uno para poder poner este.{% else %}No se muestra en la portada. Haz clic para agregarlo.{% endif %}"
+                hx-post="{% url 'panel:product_toggle_landing' p.pk %}"
+                hx-include="[name='q']"
+                hx-vals='js:{orden: window.pnlOrdenDeFilas()}'
+                hx-target="#pnl-productos-panel"
+                {% comment %}
+                  transition:false — el panel trae globalViewTransitions activado
+                  para que la navegación entre páginas se funda suave. Acá esa
+                  transición fotografía la página COMPLETA para cambiar una fila:
+                  no aporta nada y el snapshot que monta encima hace parpadear
+                  una barra de scroll vertical.
+                {% endcomment %}
+                hx-swap="innerHTML transition:false">
+          <i class="bi {% if p.show_on_landing %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
+        </button>
         <a href="{% url 'panel:product_edit' p.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
         <button class="btn-icon danger" title="Eliminar"
                 hx-post="{% url 'panel:product_delete' p.pk %}"
@@ -61,7 +89,7 @@
   </tr>
 {% empty %}
   <tr class="no-hover">
-    <td colspan="6" class="empty-cell">
+    <td colspan="5" class="empty-cell">
       {% if q %}
         <i class="bi bi-search"></i> Sin resultados para «{{ q }}».
       {% else %}

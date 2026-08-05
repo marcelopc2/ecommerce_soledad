@@ -1,0 +1,53 @@
+{% comment %}
+  Barra + tabla juntas. Las acciones que cambian la portada (encender el
+  interruptor, arrastrar) reemplazan ESTE bloque completo y no solo las filas,
+  porque el contador "Portada: x de 4" vive en la barra: si se cambiara solo el
+  <tbody>, el contador quedaría congelado.
+
+  Los avisos sí viajan fuera de banda: están en la cabecera de la página, sobre
+  el contenido. Acá es válido porque el destino del intercambio es un <div>.
+{% endcomment %}
+{% comment %}
+  El intercambio fuera de banda reemplaza el elemento COMPLETO, así que la clase
+  tiene que ir también acá: sin ella el contenedor pierde el posicionamiento
+  flotante y los avisos vuelven a empujar el layout.
+{% endcomment %}
+{% if oob %}
+  <div id="pnl-avisos" class="pnl-avisos" hx-swap-oob="true">
+    {% include 'panel/partials/avisos.html' %}
+  </div>
+{% endif %}
+
+<div class="pnl-toolbar">
+  <div class="pnl-search">
+    <i class="bi bi-search"></i>
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…"
+           autocomplete="off"
+           hx-get="{% url 'panel:products' %}"
+           hx-trigger="input changed delay:300ms, search"
+           hx-target="#products-tbody"
+           hx-swap="innerHTML"
+           hx-indicator="#products-spin">
+    <span id="products-spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
+  </div>
+  <span class="pnl-hint">
+    {% include 'panel/partials/portada_contador.html' %}
+  </span>
+</div>
+
+<div class="table-responsive">
+  <table class="table pnl-table" id="products-reorder-url" data-reorder-url="{% url 'panel:products_reorder' %}">
+    <thead>
+      <tr>
+        <th class="order-col">Orden</th>
+        <th>Producto</th>
+        <th class="text-end price-col">Precio</th>
+        <th class="status-col">Estado</th>
+        <th class="text-end actions-col">Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="products-tbody">
+      {% include 'panel/partials/products_rows.html' %}
+    </tbody>
+  </table>
+</div>
