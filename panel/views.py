@@ -1218,6 +1218,21 @@ def video_form(request, pk=None):
 
 @staff_required
 @require_POST
+def video_toggle_active(request, pk):
+    """Prende o apaga un video desde la propia lista — mismo patrón que el ojo
+    en Productos, Testimonios y Preguntas frecuentes."""
+    v = get_object_or_404(LandingVideo, pk=pk)
+    v.is_active = not v.is_active
+    v.save(update_fields=['is_active'])
+    verbo = 'se muestra' if v.is_active else 'ya no se muestra'
+    messages.success(request, f'El video "{v.title}" {verbo} en la landing.')
+    return render(request, 'panel/partials/videos_panel.html', {
+        'videos': LandingVideo.objects.all(), 'oob': True,
+    })
+
+
+@staff_required
+@require_POST
 def video_delete(request, pk):
     video = get_object_or_404(LandingVideo, pk=pk)
     title = video.title
@@ -1261,6 +1276,21 @@ def step_form(request, pk=None):
         return redirect(reverse('panel:cfg_pasos'))
     return render(request, 'panel/step_form.html', {
         'form': form, 'step': step, 'section': 'cfg-pasos',
+    })
+
+
+@staff_required
+@require_POST
+def step_toggle_active(request, pk):
+    """Prende o apaga un paso desde la propia lista — mismo patrón que el ojo
+    en Productos, Testimonios y Preguntas frecuentes."""
+    s = get_object_or_404(LandingStep, pk=pk)
+    s.is_active = not s.is_active
+    s.save(update_fields=['is_active'])
+    verbo = 'se muestra' if s.is_active else 'ya no se muestra'
+    messages.success(request, f'El paso "{s.title}" {verbo} en la landing.')
+    return render(request, 'panel/partials/steps_panel.html', {
+        'steps': LandingStep.objects.all(), 'oob': True,
     })
 
 

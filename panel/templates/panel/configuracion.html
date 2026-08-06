@@ -50,47 +50,14 @@
     </div>
 
     <div class="tab-pane fade{% if tab == 'videos' %} show active{% endif %}" id="tab-videos" role="tabpanel">
-      <div class="pnl-toolbar">
-        <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son los videos de la sección "Sobre el Mundo Ingenio Blocks" de la landing. Al hacer clic en una tarjeta se abre el video de YouTube.</span>
-      </div>
-      <div class="table-responsive">
-        <table class="table pnl-table">
-          <thead>
-            <tr>
-              <th>Portada</th>
-              <th>Video</th>
-              <th>YouTube</th>
-              <th>Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="videos-tbody">
-            {% include 'panel/partials/videos_rows.html' %}
-          </tbody>
-        </table>
+      <div id="pnl-videos-panel">
+        {% include 'panel/partials/videos_panel.html' %}
       </div>
     </div>
 
     <div class="tab-pane fade{% if tab == 'pasos' %} show active{% endif %}" id="tab-pasos" role="tabpanel">
-      <div class="pnl-toolbar">
-        <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son los pasos de la sección "Cómo funciona" de la landing. El número (01, 02, 03…) se asigna solo según el orden.</span>
-      </div>
-      <div class="table-responsive">
-        <table class="table pnl-table">
-          <thead>
-            <tr>
-              <th>N°</th>
-              <th>Foto</th>
-              <th>Paso</th>
-              <th>Estilo</th>
-              <th>Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="steps-tbody">
-            {% include 'panel/partials/steps_rows.html' %}
-          </tbody>
-        </table>
+      <div id="pnl-pasos-panel">
+        {% include 'panel/partials/steps_panel.html' %}
       </div>
     </div>
 

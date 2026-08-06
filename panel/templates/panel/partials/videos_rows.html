@@ -1,3 +1,8 @@
+{% comment %}
+  Solo filas <tr>. Este trozo se inserta dentro de un <tbody> y el navegador
+  descarta cualquier etiqueta que no sea válida ahí. El aviso fuera de banda
+  vive en videos_panel.html, que es un <div> y no tiene esa restricción.
+{% endcomment %}
 {% for v in videos %}
   <tr>
     <td style="width:132px">
@@ -30,11 +35,20 @@
         <span class="badge-soft gray">Link inválido</span>
       {% endif %}
     </td>
+    <td class="cell-sub">{{ v.created_at|date:'d M Y' }}</td>
     <td>
       {% if v.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculto</span>{% endif %}
     </td>
     <td class="text-end">
       <div class="d-inline-flex gap-2">
+        <button type="button" class="btn-icon pnl-ojo{% if v.is_active %} activo{% endif %}"
+                aria-label="Mostrar el video «{{ v.title }}» en la landing"
+                title="{% if v.is_active %}Se muestra en la landing. Haz clic para ocultarlo.{% else %}No se muestra en la landing. Haz clic para publicarlo.{% endif %}"
+                hx-post="{% url 'panel:video_toggle_active' v.pk %}"
+                hx-target="#pnl-videos-panel"
+                hx-swap="innerHTML transition:false">
+          <i class="bi {% if v.is_active %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
+        </button>
         <a href="{% url 'panel:video_edit' v.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
         <button class="btn-icon danger" title="Eliminar"
                 hx-post="{% url 'panel:video_delete' v.pk %}"
@@ -47,7 +61,7 @@
   </tr>
 {% empty %}
   <tr class="no-hover">
-    <td colspan="5" class="empty-cell">
+    <td colspan="6" class="empty-cell">
       No hay videos. <a href="{% url 'panel:video_new' %}">Agregar el primero</a> o
       <a href="#" hx-post="{% url 'panel:video_restore_defaults' %}" hx-confirm="¿Restaurar los videos a los valores por defecto? Las portadas hay que volver a subirlas.">restaurar los de por defecto</a>.
     </td>

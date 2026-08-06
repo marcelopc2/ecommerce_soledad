@@ -85,11 +85,13 @@ urlpatterns = [
 
     path('videos/nuevo/', views.video_form, name='video_new'),
     path('videos/<int:pk>/editar/', views.video_form, name='video_edit'),
+    path('videos/<int:pk>/estado/', views.video_toggle_active, name='video_toggle_active'),
     path('videos/<int:pk>/eliminar/', views.video_delete, name='video_delete'),
     path('videos/restaurar/', views.video_restore_defaults, name='video_restore_defaults'),
 
     path('pasos/nuevo/', views.step_form, name='step_new'),
     path('pasos/<int:pk>/editar/', views.step_form, name='step_edit'),
+    path('pasos/<int:pk>/estado/', views.step_toggle_active, name='step_toggle_active'),
     path('pasos/<int:pk>/eliminar/', views.step_delete, name='step_delete'),
     path('pasos/restaurar/', views.step_restore_defaults, name='step_restore_defaults'),
 ]

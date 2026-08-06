@@ -1,3 +1,8 @@
+{% comment %}
+  Solo filas <tr>. Este trozo se inserta dentro de un <tbody> y el navegador
+  descarta cualquier etiqueta que no sea válida ahí. El aviso fuera de banda
+  vive en steps_panel.html, que es un <div> y no tiene esa restricción.
+{% endcomment %}
 {% for s in steps %}
   <tr>
     <td style="width:56px">
@@ -13,7 +18,7 @@
     </td>
     <td>
       <div class="cell-title">{{ s.title }}</div>
-      <div class="cell-sub text-truncate" style="max-width:400px">{{ s.description }}</div>
+      <div class="cell-sub text-truncate" style="max-width:340px">{{ s.description }}</div>
     </td>
     <td>
       <span class="d-inline-flex align-items-center gap-2">
@@ -21,11 +26,20 @@
         <span class="cell-sub">{{ s.get_icon_display }}</span>
       </span>
     </td>
+    <td class="cell-sub">{{ s.created_at|date:'d M Y' }}</td>
     <td>
       {% if s.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculto</span>{% endif %}
     </td>
     <td class="text-end">
       <div class="d-inline-flex gap-2">
+        <button type="button" class="btn-icon pnl-ojo{% if s.is_active %} activo{% endif %}"
+                aria-label="Mostrar el paso «{{ s.title }}» en la landing"
+                title="{% if s.is_active %}Se muestra en la landing. Haz clic para ocultarlo.{% else %}No se muestra en la landing. Haz clic para publicarlo.{% endif %}"
+                hx-post="{% url 'panel:step_toggle_active' s.pk %}"
+                hx-target="#pnl-pasos-panel"
+                hx-swap="innerHTML transition:false">
+          <i class="bi {% if s.is_active %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
+        </button>
         <a href="{% url 'panel:step_edit' s.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
         <button class="btn-icon danger" title="Eliminar"
                 hx-post="{% url 'panel:step_delete' s.pk %}"
@@ -38,7 +52,7 @@
   </tr>
 {% empty %}
   <tr class="no-hover">
-    <td colspan="6" class="empty-cell">
+    <td colspan="7" class="empty-cell">
       No hay pasos. <a href="{% url 'panel:step_new' %}">Agregar el primero</a> o
       <a href="#" hx-post="{% url 'panel:step_restore_defaults' %}" hx-confirm="¿Restaurar los pasos a los valores por defecto? Las fotos hay que volver a subirlas.">restaurar los de por defecto</a>.
     </td>

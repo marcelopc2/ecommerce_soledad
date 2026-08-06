@@ -353,13 +353,14 @@ class TestimonialForm(BootstrapFormMixin, forms.ModelForm):
 class LandingVideoForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = LandingVideo
-        fields = ['title', 'description', 'youtube_url', 'cover', 'is_active']
+        # Sin 'is_active': se prende o apaga con el ojo de la lista de Videos,
+        # mismo patrón que Productos, Testimonios y Preguntas frecuentes.
+        fields = ['title', 'description', 'youtube_url', 'cover']
         labels = {
             'title': 'Título del video',
             'description': 'Descripción',
             'youtube_url': 'Link de YouTube',
             'cover': 'Portada',
-            'is_active': 'Visible en la landing',
         }
         widgets = {
             'title': forms.TextInput(attrs={'placeholder': 'Taladro y Herramientas'}),
@@ -387,11 +388,14 @@ class LandingVideoForm(BootstrapFormMixin, forms.ModelForm):
         return cover
 
     def save(self, commit=True):
-        """Un video nuevo se agrega al final de la lista."""
+        """Un video nuevo se agrega al final de la lista y nace oculto: se
+        publica prendiendo su ojo en la lista."""
         obj = super().save(commit=False)
-        if not obj.pk and not obj.order:
-            last = LandingVideo.objects.aggregate(m=Max('order'))['m'] or 0
-            obj.order = last + 1
+        if not obj.pk:
+            obj.is_active = False
+            if not obj.order:
+                last = LandingVideo.objects.aggregate(m=Max('order'))['m'] or 0
+                obj.order = last + 1
         if commit:
             obj.save()
         return obj
@@ -400,14 +404,15 @@ class LandingVideoForm(BootstrapFormMixin, forms.ModelForm):
 class LandingStepForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = LandingStep
-        fields = ['title', 'description', 'photo', 'color', 'icon', 'is_active']
+        # Sin 'is_active': se prende o apaga con el ojo de la lista de Cómo
+        # funciona, mismo patrón que Productos, Testimonios y Preguntas frecuentes.
+        fields = ['title', 'description', 'photo', 'color', 'icon']
         labels = {
             'title': 'Título del paso',
             'description': 'Descripción',
             'photo': 'Foto',
             'color': 'Color del marco y del ícono',
             'icon': 'Ícono',
-            'is_active': 'Visible en la landing',
         }
         widgets = {
             'title': forms.TextInput(attrs={'placeholder': 'Adquiere tu Kit Ingenio Blocks'}),
@@ -422,11 +427,14 @@ class LandingStepForm(BootstrapFormMixin, forms.ModelForm):
         return photo
 
     def save(self, commit=True):
-        """Un paso nuevo se agrega al final (el número 01/02/03 sale del orden)."""
+        """Un paso nuevo se agrega al final (el número 01/02/03 sale del orden)
+        y nace oculto: se publica prendiendo su ojo en la lista."""
         obj = super().save(commit=False)
-        if not obj.pk and not obj.order:
-            last = LandingStep.objects.aggregate(m=Max('order'))['m'] or 0
-            obj.order = last + 1
+        if not obj.pk:
+            obj.is_active = False
+            if not obj.order:
+                last = LandingStep.objects.aggregate(m=Max('order'))['m'] or 0
+                obj.order = last + 1
         if commit:
             obj.save()
         return obj

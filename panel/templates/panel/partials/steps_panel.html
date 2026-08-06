@@ -1,0 +1,33 @@
+{% comment %}
+  Toolbar + tabla juntos, mismo motivo que en los otros paneles con ojo: el
+  toggle reemplaza ESTE bloque completo (no solo las filas), porque el aviso
+  fuera de banda es un <div> y no puede viajar dentro del <tbody> que
+  contienen las filas (ver el comentario en steps_rows.html).
+{% endcomment %}
+{% if oob %}
+  <div id="pnl-avisos" class="pnl-avisos" hx-swap-oob="true">
+    {% include 'panel/partials/avisos.html' %}
+  </div>
+{% endif %}
+
+<div class="pnl-toolbar">
+  <span class="pnl-hint"><i class="bi bi-info-circle"></i> Son los pasos de la sección "Cómo funciona" de la landing. El número (01, 02, 03…) se asigna solo según el orden.</span>
+</div>
+<div class="table-responsive">
+  <table class="table pnl-table">
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>Foto</th>
+        <th>Paso</th>
+        <th>Estilo</th>
+        <th>Agregado</th>
+        <th>Estado</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="steps-tbody">
+      {% include 'panel/partials/steps_rows.html' %}
+    </tbody>
+  </table>
+</div>
