@@ -1715,8 +1715,12 @@
   width: var(--lp-content);
   box-sizing: border-box;          /* si no, el padding se suma al width */
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  /* centrado en vez de grid de 2 columnas fijas: así, con 1 ganador o un
+     número impar, la última tarjeta queda centrada en vez de pegada a la
+     izquierda con un hueco vacío al lado. */
+  justify-content: center;
   gap: 46px;
   padding: 34px 40px;
 }
@@ -1725,6 +1729,10 @@
   grid-template-columns: minmax(0, 190px) minmax(0, 1fr);
   gap: 26px;
   align-items: start;
+  /* ancho fijo a la mitad de la fila y sin crecer (flex-grow:0), para que
+     entren 2 por fila y una tarjeta sola no se estire a todo el ancho. */
+  flex: 0 1 calc(50% - 23px);
+  box-sizing: border-box;
 }
 
 /* La "lámina" del ganador: fondo de color, marca arriba, foto al centro y el
@@ -2079,12 +2087,12 @@
   .lp-testi-costado { display: none; }
   .lp-testi-pista { scroll-snap-type: x mandatory; }
   /* Un ganador por fila, y dentro de cada uno la lámina arriba del texto. */
-  .lp-ganadores { grid-template-columns: 1fr; gap: 36px; padding: 26px; }
+  .lp-ganadores { gap: 36px; padding: 26px; }
   /* La foto del concurso baja del texto; el sello vuelve dentro de la tarjeta
      para no salirse de la pantalla. */
   .lp-convocatoria { grid-template-columns: 1fr; gap: 30px; padding: 30px 26px; }
   .lp-convocatoria-sello { top: -34px; right: 4px; width: 96px; height: 96px; font-size: 11.5px; }
-  .lp-ganador { grid-template-columns: 1fr; gap: 20px; }
+  .lp-ganador { grid-template-columns: 1fr; gap: 20px; flex-basis: 100%; max-width: 420px; }
   .lp-ganador-poster { max-width: 300px; }
   .lp-club { grid-template-columns: 1fr; padding: 34px; gap: 34px; }
   /* la regla de escritorio hace que el texto ocupe 2 columnas; acá solo hay 1 */
