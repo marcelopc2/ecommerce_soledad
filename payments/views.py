@@ -11,6 +11,7 @@ from .orders import build_order_from_request
 from .services import create_webpay_transaction, commit_webpay_transaction
 from invoicing.services import issue_invoice_for_order
 from lms.services import grant_access_for_order
+from core.emails import enviar_email, formato_clp
 
 # Va al archivo pagos.log, separado del log general: es el rastro que permite
 # reconstruir qué pasó cuando alguien reclama "pagué y no me llegó nada".
@@ -18,22 +19,57 @@ log = logging.getLogger('ingenioblocks.pagos')
 
 
 def _entregar_compra(order):
-    """Emite la boleta y otorga el acceso al LMS de una orden ya pagada.
+    """Emite la boleta, otorga el acceso al LMS y avisa por correo de una orden ya pagada.
 
-    Cada paso va en su propio try: que falle la boleta NO puede impedir que el
-    alumno reciba su acceso, y viceversa. La orden ya está en PAID y guardada
-    antes de llegar acá, así que un fallo de estos deja la venta registrada y
-    recuperable a mano desde el panel.
+    Cada paso va en su propio try: que falle uno no puede impedir los demás.
+    La orden ya está en PAID y guardada antes de llegar acá, así que un fallo
+    de estos deja la venta registrada y recuperable a mano desde el panel.
     """
     try:
         issue_invoice_for_order(order)
     except Exception:
         log.exception('Falló la emisión de boleta de la orden %s', order.order_id)
 
+    membership = None
     try:
-        grant_access_for_order(order)
+        membership = grant_access_for_order(order)
     except Exception:
         log.exception('Falló el otorgamiento de acceso de la orden %s', order.order_id)
+
+    try:
+        _send_order_confirmation(order, tiene_acceso=membership is not None)
+    except Exception:
+        log.exception('Falló el correo de confirmación de la orden %s', order.order_id)
+
+
+def _send_order_confirmation(order, tiene_acceso):
+    """Correo con el detalle del pedido. El de 'bienvenida'/'acceso_extendido'
+    (definir clave o ir a mis cursos) ya lo manda grant_access_for_order aparte;
+    este es el resumen de qué se compró y cuánto se pagó."""
+    shipment = getattr(order, 'shipment', None)
+    productos = [
+        {'nombre': item.name, 'precio': formato_clp(item.subtotal)}
+        for item in order.items.all()
+    ] or [
+        {'nombre': p.name, 'precio': formato_clp(p.price)}
+        for p in order.products.all()
+    ]
+    tiene_envio = bool(shipment and shipment.shipping_cost)
+    enviar_email(
+        'compra_confirmada',
+        asunto='Confirmación de tu compra · Ingenio Blocks',
+        destinatarios=[order.customer_email],
+        contexto={
+            'numero_pedido': str(order.order_id)[:8],
+            'productos': productos,
+            'envio_costo': formato_clp(shipment.shipping_cost) if tiene_envio else '',
+            'envio_courier': shipment.courier if tiene_envio else '',
+            'total': formato_clp(order.total_amount),
+            'tiene_envio': tiene_envio,
+            'tiene_acceso': tiene_acceso,
+            'link': f'{settings.FRONTEND_URL}/mis-cursos',
+        },
+    )
 
 class CreateWebpayTransactionView(APIView):
     throttle_scope = 'payment'

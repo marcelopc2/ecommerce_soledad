@@ -2,6 +2,7 @@ import logging
 import os
 import requests
 from django.conf import settings
+from core.emails import enviar_email
 
 log = logging.getLogger('ingenioblocks.pagos')
 
@@ -400,3 +401,27 @@ def create_shipit_shipment(shipment):
         'tracking_number': data.get('tracking_number') or data.get('tracking', ''),
         'label_url': data.get('label_url') or data.get('labels', '') or data.get('label', ''),
     }
+
+
+# ---------------------------------------------------------------------------
+# Aviso de despacho por correo
+# ---------------------------------------------------------------------------
+def send_dispatch_email(shipment):
+    """Avisa al cliente que su pedido fue despachado, con el número de
+    seguimiento. Se llama al marcar el envío como despachado desde el panel
+    (a mano: hoy no hay integración que dispare esto sola)."""
+    order = shipment.order
+    nombre = (shipment.recipient_name or '').split()[0] or 'Hola'
+    enviar_email(
+        'envio_despachado',
+        asunto='¡Tu kit va en camino! · Ingenio Blocks',
+        destinatarios=[shipment.recipient_email or order.customer_email],
+        contexto={
+            'nombre': nombre,
+            'courier': shipment.courier,
+            'tracking': shipment.tracking_number,
+            'destino': f'{shipment.commune}, {shipment.region}',
+            'tracking_url': '',
+            'estimado': f'Llegada estimada: {shipment.estimated_days}.' if shipment.estimated_days else '',
+        },
+    )

@@ -1,4 +1,5 @@
 import base64
+import logging
 from functools import wraps
 
 from django.conf import settings
@@ -24,7 +25,10 @@ from invoicing.services import issue_invoice_for_order
 from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 from lms.services import get_course_access, send_reset_email
 from payments.models import Order
+from shipments.services import send_dispatch_email
 from .forms import LoginForm, ProductForm, CourseForm, LessonForm, MembershipForm, DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm, StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm
+
+log = logging.getLogger('ingenioblocks.pagos')
 
 
 def staff_required(view):
@@ -934,6 +938,39 @@ def order_invoice_issue(request, pk):
         resp['HX-Refresh'] = 'true'
         return resp
     return redirect('panel:orders')
+
+
+@staff_required
+@require_POST
+def order_shipment_dispatch(request, pk):
+    """Marca el envío de un pedido como despachado: guarda el número de
+    seguimiento a mano (hoy no hay integración que lo traiga sola, ver
+    shipments/services.py) y avisa al cliente por correo."""
+    order = get_object_or_404(Order.objects.select_related('shipment'), pk=pk)
+    shipment = getattr(order, 'shipment', None)
+
+    if not shipment:
+        messages.error(request, 'Este pedido no tiene envío asociado.')
+        return redirect('panel:order_detail', pk=pk)
+
+    tracking = request.POST.get('tracking_number', '').strip()
+    if not tracking:
+        messages.error(request, 'Ingresa el número de seguimiento antes de marcar el despacho.')
+        return redirect('panel:order_detail', pk=pk)
+
+    shipment.tracking_number = tracking
+    shipment.status = 'IN_TRANSIT'
+    shipment.dispatched_at = timezone.now()
+    shipment.save(update_fields=['tracking_number', 'status', 'dispatched_at'])
+
+    try:
+        send_dispatch_email(shipment)
+        messages.success(request, 'Envío marcado como despachado. Se avisó al cliente por correo.')
+    except Exception:
+        log.exception('Falló el correo de despacho del pedido %s', order.order_id)
+        messages.warning(request, 'Envío marcado como despachado, pero no se pudo enviar el correo de aviso.')
+
+    return redirect('panel:order_detail', pk=pk)
 
 
 @staff_required

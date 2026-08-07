@@ -18,6 +18,7 @@ urlpatterns = [
     path('pedidos/', views.orders, name='orders'),
     path('pedidos/<int:pk>/detalle/', views.order_detail, name='order_detail'),
     path('pedidos/<int:pk>/emitir-boleta/', views.order_invoice_issue, name='order_invoice_issue'),
+    path('pedidos/<int:pk>/despachar/', views.order_shipment_dispatch, name='order_shipment_dispatch'),
 
     path('cursos/', views.courses, name='courses'),
     path('cursos/reordenar/', views.courses_reorder, name='courses_reorder'),
