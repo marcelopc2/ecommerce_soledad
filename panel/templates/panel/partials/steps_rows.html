@@ -27,26 +27,27 @@
       </span>
     </td>
     <td class="cell-sub">{{ s.created_at|date:'d M Y' }}</td>
-    <td>
-      {% if s.is_active %}<span class="badge-soft green">Visible</span>{% else %}<span class="badge-soft gray">Oculto</span>{% endif %}
-    </td>
     <td class="text-end">
       <div class="d-inline-flex gap-2">
-        <button type="button" class="btn-icon pnl-ojo{% if s.is_active %} activo{% endif %}"
-                aria-label="Mostrar el paso «{{ s.title }}» en la landing"
-                title="{% if s.is_active %}Se muestra en la landing. Haz clic para ocultarlo.{% else %}No se muestra en la landing. Haz clic para publicarlo.{% endif %}"
-                hx-post="{% url 'panel:step_toggle_active' s.pk %}"
-                hx-target="#pnl-pasos-panel"
-                hx-swap="innerHTML transition:false">
-          <i class="bi {% if s.is_active %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
-        </button>
+        {% comment %}
+          Sin ojo ni eliminar, a pedido: el diseño de "Cómo funciona" es una
+          grilla RÍGIDA de 3 columnas (grid-template-columns: repeat(3, 1fr) en
+          landing.css) con una flecha entre cada paso. Ocultar uno no lo saca
+          prolijamente: deja un hueco vacío en la grilla y una flecha apuntando
+          a la nada. Ver la nota en SECCIONES_CONTENIDO, panel/views.py. Para
+          reactivar cualquiera de los dos, descomentar acá abajo.
+
+          <button type="button" class="btn-icon pnl-ojo{% if s.is_active %} activo{% endif %}"
+                  aria-label="Mostrar el paso «{{ s.title }}» en la landing"
+                  title="{% if s.is_active %}Se muestra en la landing. Haz clic para ocultarlo.{% else %}No se muestra en la landing. Haz clic para publicarlo.{% endif %}"
+                  hx-post="{% url 'panel:step_toggle_active' s.pk %}"
+                  hx-target="#pnl-pasos-panel"
+                  hx-swap="innerHTML transition:false">
+            <i class="bi {% if s.is_active %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
+          </button>
+        {% endcomment %}
         <a href="{% url 'panel:step_edit' s.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
         {% comment %}
-          Eliminar deshabilitado a pedido: el diseño de "Cómo funciona" da por
-          hecho exactamente 3 pasos, así que por ahora esta lista es solo de
-          edición (ver la nota en SECCIONES_CONTENIDO, panel/views.py). Para
-          reactivarlo, descomentar este botón.
-
           <button class="btn-icon danger" title="Eliminar"
                   hx-post="{% url 'panel:step_delete' s.pk %}"
                   hx-confirm="¿Eliminar el paso «{{ s.title }}»?"
@@ -59,7 +60,7 @@
   </tr>
 {% empty %}
   <tr class="no-hover">
-    <td colspan="7" class="empty-cell">
+    <td colspan="6" class="empty-cell">
       No hay pasos.
       <a href="#" hx-post="{% url 'panel:step_restore_defaults' %}" hx-confirm="¿Restaurar los pasos a los valores por defecto? Las fotos hay que volver a subirlas.">Restaurar los de por defecto</a>.
     </td>

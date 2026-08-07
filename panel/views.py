@@ -1227,7 +1227,11 @@ def video_form(request, pk=None):
 @require_POST
 def video_toggle_active(request, pk):
     """Prende o apaga un video desde la propia lista — mismo patrón que el ojo
-    en Productos, Testimonios y Preguntas frecuentes."""
+    en Productos, Testimonios y Preguntas frecuentes.
+
+    Sin ningún botón que la llame por ahora: el ojo de Videos está comentado
+    en videos_rows.html (grilla rígida de 3 columnas, ver la nota ahí). La
+    vista se deja viva por si se reactiva."""
     v = get_object_or_404(LandingVideo, pk=pk)
     v.is_active = not v.is_active
     v.save(update_fields=['is_active'])
@@ -1290,7 +1294,11 @@ def step_form(request, pk=None):
 @require_POST
 def step_toggle_active(request, pk):
     """Prende o apaga un paso desde la propia lista — mismo patrón que el ojo
-    en Productos, Testimonios y Preguntas frecuentes."""
+    en Productos, Testimonios y Preguntas frecuentes.
+
+    Sin ningún botón que la llame por ahora: el ojo de Cómo funciona está
+    comentado en steps_rows.html (grilla rígida de 3 columnas, ver la nota
+    ahí). La vista se deja viva por si se reactiva."""
     s = get_object_or_404(LandingStep, pk=pk)
     s.is_active = not s.is_active
     s.save(update_fields=['is_active'])
