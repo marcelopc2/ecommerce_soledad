@@ -313,7 +313,12 @@ class LandingVideo(models.Model):
     cover = models.FileField(
         upload_to='landing_videos/', blank=True,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
-        help_text="Imagen de portada del video (JPG, PNG o WEBP). Ideal horizontal, 16:9.",
+        # 16:9 y mínimo 800×450 no son un tope arbitrario: es 2 veces el tamaño
+        # real en que se ve en la portada (medido: 183×105 px), para que se
+        # vea nítida en pantallas de alta densidad. Se recorta al centro, así
+        # que no hace falta que la foto original venga exactamente en esa
+        # proporción — object-fit:cover absorbe la diferencia.
+        help_text="JPG, PNG o WEBP. Horizontal 16:9, mínimo 800×450 px.",
     )
     order = models.PositiveIntegerField(default=0, help_text="Posición en la lista. Se asigna solo al crear.")
     is_active = models.BooleanField(default=True, help_text="Se muestra en la landing")
@@ -389,7 +394,11 @@ class LandingStep(models.Model):
     photo = models.FileField(
         upload_to='landing_steps/', blank=True,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
-        help_text="Foto del paso (JPG, PNG o WEBP). Ideal horizontal.",
+        # Igual que el video: 800×495 px es 2x el tamaño real en pantalla
+        # (medido: 325×201 px), para que se vea nítida en retina. Se recorta
+        # al centro (aspect-ratio 420/260 ≈ 1.6:1), así que no hace falta que
+        # la foto original venga en esa proporción exacta.
+        help_text="JPG, PNG o WEBP. Horizontal, proporción 1.6:1 aprox., mínimo 800×495 px.",
     )
     color = models.CharField(max_length=7, choices=COLOR_CHOICES, default='#6a3093')
     icon = models.CharField(max_length=10, choices=ICON_CHOICES, default='kit')
@@ -520,7 +529,10 @@ class SeccionConcurso(models.Model):
         upload_to='concurso/', blank=True,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
         verbose_name='Imagen',
-        help_text='La foto del modelo que acompaña a la convocatoria (JPG, PNG o WEBP).',
+        # Esta NO se recorta: se muestra completa (width:100%; height:auto),
+        # así que cualquier proporción funciona. Medido en pantalla: ~363 px
+        # de ancho, de ahí el mínimo recomendado (2x para retina).
+        help_text='La foto del modelo que acompaña a la convocatoria (JPG, PNG o WEBP). No se recorta, se muestra completa. Mínimo 700 px de ancho.',
     )
 
     actualizado = models.DateTimeField(auto_now=True)
@@ -578,7 +590,9 @@ class GanadorConcurso(models.Model):
         upload_to='ganadores/', blank=True,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
         verbose_name='Foto',
-        help_text='Foto del ganador o de su modelo (JPG, PNG o WEBP). Se recorta cuadrada.',
+        # Cuadrada, mínimo 500×500 (2x el tamaño real medido en pantalla:
+        # 162×162 px), para que se vea nítida en retina.
+        help_text='Foto del ganador o de su modelo (JPG, PNG o WEBP). Se recorta cuadrada, mínimo 500×500 px.',
     )
     order = models.PositiveIntegerField(default=0, help_text='Posición en la lista. Se asigna solo al crear.')
     is_active = models.BooleanField(default=True, help_text='Se muestra en la landing')
