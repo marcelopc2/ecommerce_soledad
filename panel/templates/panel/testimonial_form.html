@@ -37,18 +37,6 @@
           {{ form.rating }}
           {% for e in form.rating.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
         </div>
-        {% if testimonial %}
-          <div class="pnl-hint mb-0">
-            <i class="bi bi-info-circle"></i>
-            Para mostrarlo u ocultarlo, usa el ojo de la lista de
-            <a href="{% url 'panel:cfg_testimonios' %}">Testimonios</a>.
-          </div>
-        {% else %}
-          <div class="pnl-hint mb-0">
-            <i class="bi bi-info-circle"></i>
-            Se guarda oculto. Para publicarlo, prende su ojo en la lista.
-          </div>
-        {% endif %}
       </div></div>
 
       <div class="d-flex gap-2 mt-3">
