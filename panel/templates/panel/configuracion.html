@@ -14,23 +14,26 @@
 
 {% block actions %}
 {% comment %}
-  Solo las secciones que son una LISTA tienen "nuevo" y "restaurar". Concurso y
-  Ritmo de entrega son formularios de ajustes: no hay nada que agregar ni
-  valores por defecto que reponer, y antes esos dos botones se escondían con
-  JavaScript después de pintarse.
+  "Restaurar" y "Nuevo" se muestran cada uno por su cuenta: Cómo funciona y
+  Videos tienen restaurar (reponer el set de 3 originales) pero NO nuevo -su
+  diseño da por hecho exactamente 3, agregar un 4º no tiene dónde ir en la
+  landing-. Concurso y Ritmo de entrega son formularios de ajustes: no tienen
+  ninguno de los dos.
 {% endcomment %}
-{% if nuevo_url %}
 <div class="d-flex gap-2">
-  <button type="button" class="btn btn-ghost"
-          hx-post="{% url restaurar_url %}"
-          hx-confirm="{{ restaurar_confirm }}">
-    <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar por defecto
-  </button>
-  <a href="{% url nuevo_url %}" class="btn btn-brand">
-    <i class="bi bi-plus-lg me-1"></i> {{ nuevo_label }}
-  </a>
+  {% if restaurar_url %}
+    <button type="button" class="btn btn-ghost"
+            hx-post="{% url restaurar_url %}"
+            hx-confirm="{{ restaurar_confirm }}">
+      <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar por defecto
+    </button>
+  {% endif %}
+  {% if nuevo_url %}
+    <a href="{% url nuevo_url %}" class="btn btn-brand">
+      <i class="bi bi-plus-lg me-1"></i> {{ nuevo_label }}
+    </a>
+  {% endif %}
 </div>
-{% endif %}
 {% endblock %}
 
 {% block content %}

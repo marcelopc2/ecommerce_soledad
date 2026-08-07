@@ -958,19 +958,26 @@ def invoice_pdf(request, pk):
 #:   tab -> (título, grupo del menú, url de "nuevo", etiqueta, url de "restaurar",
 #:           texto de confirmación del restaurar)
 SECCIONES_CONTENIDO = {
+    # Sin 'nuevo': el diseño de la landing da por hecho exactamente 3 pasos y 3
+    # videos (la grilla de "Cómo funciona" y los recuadros de "Sobre el Mundo
+    # Ingenio Blocks" no tienen dónde poner un 4º). Por ahora el CMS acá es solo
+    # de edición, no de alta/baja -si el cliente pide poder agregar más
+    # adelante, basta con devolverle su 'panel:step_new'/'panel:video_new' y
+    # 'Nuevo paso'/'Nuevo video' a esta tupla, y destapar el botón "Eliminar"
+    # comentado en steps_rows.html / videos_rows.html-.
     'pasos': (
-        'Cómo funciona', 'Portada', 'panel:step_new', 'Nuevo paso',
+        'Cómo funciona', 'Portada', None, None,
         'panel:step_restore_defaults',
-        '¿Restaurar los pasos a los valores por defecto? Se perderán los pasos '
-        'agregados y las ediciones que hayas hecho, y las FOTOS habrá que volver '
-        'a subirlas. Esta acción no se puede deshacer.',
+        '¿Restaurar los pasos a los valores por defecto? Se perderán las '
+        'ediciones que hayas hecho, y las FOTOS habrá que volver a subirlas. '
+        'Esta acción no se puede deshacer.',
     ),
     'videos': (
-        'Videos', 'Portada', 'panel:video_new', 'Nuevo video',
+        'Videos', 'Portada', None, None,
         'panel:video_restore_defaults',
-        '¿Restaurar los videos a los valores por defecto? Se perderán los videos '
-        'agregados y las ediciones que hayas hecho, y las PORTADAS habrá que '
-        'volver a subirlas. Esta acción no se puede deshacer.',
+        '¿Restaurar los videos a los valores por defecto? Se perderán las '
+        'ediciones que hayas hecho, y las PORTADAS habrá que volver a subirlas. '
+        'Esta acción no se puede deshacer.',
     ),
     'testimonios': (
         'Testimonios', 'Portada', 'panel:testimonial_new', 'Nuevo testimonio',
