@@ -31,6 +31,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [resetSent, setResetSent] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [resetBusy, setResetBusy] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -65,8 +66,15 @@ export default function Login() {
 
   const handleReset = async () => {
     if (!email) { setError('Escribe tu email para enviarte el enlace.'); return }
-    await api.post('/auth/request-reset/', { email })
-    setResetSent(true); setError('')
+    setError(''); setResetBusy(true)
+    try {
+      await api.post('/auth/request-reset/', { email })
+      setResetSent(true)
+    } catch {
+      setError('No pudimos enviar el enlace. Intenta nuevamente en unos minutos.')
+    } finally {
+      setResetBusy(false)
+    }
   }
 
   return (
@@ -128,11 +136,11 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)} required
               />
 
-              <button type="button" className="lg-olvide" onClick={handleReset}>
-                ¿Olvidaste tu contraseña?
+              <button type="button" className="lg-olvide" onClick={handleReset} disabled={resetBusy || busy}>
+                {resetBusy ? 'enviando…' : '¿Olvidaste tu contraseña?'}
               </button>
 
-              <button type="submit" className="lg-btn-ingresar" disabled={busy}>
+              <button type="submit" className="lg-btn-ingresar" disabled={busy || resetBusy}>
                 {busy ? 'ingresando…' : 'ingresar'}
               </button>
 

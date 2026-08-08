@@ -478,6 +478,17 @@ h1, h2, h3, h4, h5, .font-heading {
 .htmx-request .htmx-indicator,
 .htmx-request.htmx-indicator { opacity: 1; }
 
+/* Botones/links con hx-post o hx-get propio (emitir boleta, marcar
+   despachado, mostrar/ocultar, restaurar por defecto...): htmx les agrega
+   .htmx-request mientras esperan respuesta. Una sola regla cubre todos, sin
+   tener que acordarse de poner un spinner en cada botón nuevo. */
+button[hx-post].htmx-request, button[hx-get].htmx-request,
+a[hx-post].htmx-request, a[hx-get].htmx-request {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: wait;
+}
+
 /* Fila que se elimina: se desvanece y desliza */
 .pnl-table tbody tr.htmx-swapping {
   opacity: 0;

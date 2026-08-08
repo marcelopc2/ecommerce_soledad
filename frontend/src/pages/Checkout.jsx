@@ -471,11 +471,11 @@ export default function Checkout() {
           <div className="co-pagos">
             <button className="co-btn-pagar co-btn-webpay"
               disabled={!puedePagar} onClick={() => handleCheckout('webpay')}>
-              Pagar con Webpay
+              {paying ? 'Procesando…' : 'Pagar con Webpay'}
             </button>
             <button className="co-btn-pagar co-btn-mp"
               disabled={!puedePagar} onClick={() => handleCheckout('mercadopago')}>
-              Pagar con MercadoPago
+              {paying ? 'Procesando…' : 'Pagar con MercadoPago'}
             </button>
           </div>
 
