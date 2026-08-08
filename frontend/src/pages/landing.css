@@ -2069,13 +2069,18 @@
 }
 
 @media (max-width: 820px) {
+  /* El corte con % de altura persigue su propia cola: agrandar el héroe para
+     que quepa la foto también corre el corte hacia abajo casi lo mismo (92%
+     de una sección más alta sigue cayendo justo donde termina la foto), así
+     que nunca se ganaba margen real entre la mesa blanca y el corte. Con px
+     fijo el corte no se mueve al agrandar el héroe: ese margen queda fijo. */
   .lp-hero::before,
-  .lp-hero-grid { clip-path: polygon(0 0, 100% 0, 100% 92%, 0 100%); }
+  .lp-hero-grid { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 140px), 0 100%); }
   /* La foto (agrandada, ver abajo) desborda hacia abajo más que el padding
      por defecto: sin este espacio extra, su parte de abajo quedaba pintada
      ENCIMA de la sección "Cómo funciona" siguiente (tapando su título), en
      vez de quedar contenida dentro del héroe. */
-  .lp-hero { padding-bottom: 180px; }
+  .lp-hero { padding-bottom: 195px; }
   /* min-height fijo: la foto se ancla al fondo de este bloque (ver abajo), y
      sin esto su posición dependía de cuántas líneas ocupara el título. Con
      poco texto (pantallas ~600-819px, título en 2 líneas) el bloque quedaba
