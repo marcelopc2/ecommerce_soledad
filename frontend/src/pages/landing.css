@@ -2075,7 +2075,7 @@
      que nunca se ganaba margen real entre la mesa blanca y el corte. Con px
      fijo el corte no se mueve al agrandar el héroe: ese margen queda fijo. */
   .lp-hero::before,
-  .lp-hero-grid { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 260px), 0 100%); }
+  .lp-hero-grid { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 320px), 0 calc(100% - 160px)); }
   /* La foto (agrandada, ver abajo) desborda hacia abajo más que el padding
      por defecto: sin este espacio extra, su parte de abajo quedaba pintada
      ENCIMA de la sección "Cómo funciona" siguiente (tapando su título), en
