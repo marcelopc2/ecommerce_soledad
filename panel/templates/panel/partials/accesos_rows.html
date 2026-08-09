@@ -1,0 +1,42 @@
+{% comment %}
+  Solo filas <tr>: este trozo entra dentro de un <tbody> y el navegador
+  descarta cualquier otra etiqueta. Ver la nota en products_rows.html.
+{% endcomment %}
+{% for a in items %}
+  <tr>
+    <td class="cell-sub" style="white-space:nowrap">{{ a.momento|date:'d M Y H:i' }}</td>
+    <td>
+      <div class="cell-title">{{ a.email|default:'—' }}</div>
+      {% comment %}
+        Solo se avisa en los FALLIDOS: ahí "no existe la cuenta" significa que
+        alguien probó un correo al azar (ruido de bots), muy distinto de que
+        estén probando claves contra una cuenta real. En una entrada o salida
+        sin usuario, en cambio, lo único que pasó es que la cuenta se borró
+        después, y decir "inexistente" confundiría.
+      {% endcomment %}
+      {% if a.tipo == 'FALLIDO' and not a.usuario and a.email %}
+        <div class="cell-sub">esta cuenta no existe</div>
+      {% endif %}
+    </td>
+    <td>
+      {% if a.tipo == 'ENTRADA' %}
+        <span class="badge-soft green"><i class="bi bi-box-arrow-in-right"></i> Entró</span>
+      {% elif a.tipo == 'FALLIDO' %}
+        <span class="badge-soft red"><i class="bi bi-x-circle"></i> Falló</span>
+      {% else %}
+        <span class="badge-soft gray"><i class="bi bi-box-arrow-right"></i> Salió</span>
+      {% endif %}
+    </td>
+    <td>
+      <span class="badge-soft {% if a.zona == 'PANEL' %}purple{% else %}gray{% endif %}">
+        {{ a.get_zona_display }}
+      </span>
+    </td>
+    <td class="cell-sub mono">{{ a.ip|default:'—' }}</td>
+    <td class="cell-sub">{{ a.dispositivo|default:'—' }}</td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="6" class="empty-cell">No hay accesos registrados con estos filtros.</td>
+  </tr>
+{% endfor %}

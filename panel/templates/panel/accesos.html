@@ -1,0 +1,65 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Accesos{% endblock %}
+{% block crumb %}Panel · Cuenta{% endblock %}
+{% block heading %}Registro de accesos{% endblock %}
+
+{% block actions %}
+<div class="d-flex gap-2 mfilter-group">
+  <a class="mfilter-pill{% if not zona and not tipo %} active{% endif %}" href="?">Todos</a>
+  <a class="mfilter-pill purple{% if zona == 'PANEL' %} active{% endif %}" href="?zona=PANEL">Panel de gestión</a>
+  <a class="mfilter-pill{% if zona == 'SITIO' %} active{% endif %}" href="?zona=SITIO">Aula Virtual</a>
+  <a class="mfilter-pill red{% if tipo == 'FALLIDO' %} active{% endif %}" href="?tipo=FALLIDO">Solo intentos fallidos</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="pnl-card">
+  <div class="pnl-toolbar">
+    <div class="pnl-search">
+      <i class="bi bi-search"></i>
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por correo o dirección IP…"
+             autocomplete="off"
+             hx-get="{% url 'panel:accesos' %}"
+             hx-trigger="input changed delay:300ms, search"
+             hx-target="#accesos-tbody"
+             hx-swap="innerHTML"
+             hx-include="[name='zona'], [name='tipo']"
+             hx-indicator="#accesos-spin">
+      <span id="accesos-spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
+    </div>
+    <input type="hidden" name="zona" value="{{ zona }}">
+    <input type="hidden" name="tipo" value="{{ tipo }}">
+    <span class="pnl-hint">
+      <i class="bi bi-clock-history"></i>
+      Últimas 24 horas: <strong>{{ counts.entradas_24h }}</strong> entradas ·
+      <strong>{{ counts.fallidos_24h }}</strong> intentos fallidos
+    </span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table pnl-table">
+      <thead>
+        <tr>
+          <th>Cuándo</th>
+          <th>Cuenta</th>
+          <th>Qué pasó</th>
+          <th>Dónde</th>
+          <th>Dirección IP</th>
+          <th>Dispositivo</th>
+        </tr>
+      </thead>
+      <tbody id="accesos-tbody">
+        {% include 'panel/partials/accesos_rows.html' %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="pnl-hint mt-3">
+  <i class="bi bi-info-circle"></i>
+  Se muestran los 200 accesos más recientes. Varios intentos fallidos seguidos
+  sobre la misma cuenta significan que alguien está probando contraseñas: tras
+  5 intentos el sistema bloquea esa cuenta por 30 minutos de forma automática.
+</p>
+{% endblock %}

@@ -1,11 +1,12 @@
 import base64
 import logging
+from datetime import timedelta
 from functools import wraps
 
 from django.conf import settings
 from django.contrib import messages
 from django.db.models import Q, Sum, Max, Count
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.http import HttpResponse, FileResponse, Http404
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied, ValidationError as DjangoValidationError
@@ -1584,3 +1585,169 @@ def staff_user_delete(request, pk):
     user.delete()
     messages.success(request, f'Cuenta de {email} eliminada.')
     return redirect('panel:staff_users')
+
+
+# ---------------------------------------------------------------------------
+# Visitas y registro de accesos
+# ---------------------------------------------------------------------------
+
+# Rango de tiempo que se puede elegir en pantalla. La clave es lo que viaja en
+# la URL (?rango=mes) y el valor es (etiqueta, días hacia atrás).
+RANGOS_VISITAS = {
+    'semana': ('Últimos 7 días', 7),
+    'mes': ('Últimos 30 días', 30),
+    'anio': ('Último año', 365),
+}
+
+
+@staff_required
+def visitas(request):
+    """Cuánta gente entra al sitio, por día, mes o año."""
+    from django.db.models.functions import TruncMonth
+    from .models import OrigenDiario, VisitaDiaria, VisitanteDiario
+
+    clave = request.GET.get('rango', 'mes')
+    if clave not in RANGOS_VISITAS:
+        clave = 'mes'
+    etiqueta, dias = RANGOS_VISITAS[clave]
+
+    hoy = timezone.localdate()
+    desde = hoy - timedelta(days=dias - 1)
+
+    vistas_qs = VisitaDiaria.objects.filter(fecha__gte=desde)
+    unicos_qs = VisitanteDiario.objects.filter(fecha__gte=desde)
+
+    total_vistas = vistas_qs.aggregate(t=Sum('vistas'))['t'] or 0
+    total_personas = unicos_qs.count()
+
+    # Serie para el gráfico. En el rango de un año se agrupa por mes: 365
+    # barras no se leen, y la pregunta ahí es "cómo viene el año", no "qué pasó
+    # el 14 de marzo".
+    if clave == 'anio':
+        serie_raw = (
+            vistas_qs.annotate(periodo=TruncMonth('fecha'))
+            .values('periodo').annotate(v=Sum('vistas')).order_by('periodo')
+        )
+        personas_raw = (
+            unicos_qs.annotate(periodo=TruncMonth('fecha'))
+            .values('periodo').annotate(p=Count('id')).order_by('periodo')
+        )
+        formato = '%b %Y'
+    else:
+        serie_raw = (
+            vistas_qs.values('fecha').annotate(v=Sum('vistas')).order_by('fecha')
+        )
+        serie_raw = [{'periodo': r['fecha'], 'v': r['v']} for r in serie_raw]
+        personas_raw = (
+            unicos_qs.values('fecha').annotate(p=Count('id')).order_by('fecha')
+        )
+        personas_raw = [{'periodo': r['fecha'], 'p': r['p']} for r in personas_raw]
+        formato = '%d/%m'
+
+    personas_por_periodo = {r['periodo']: r['p'] for r in personas_raw}
+    serie = [
+        {
+            'etiqueta': r['periodo'].strftime(formato),
+            'vistas': r['v'],
+            'personas': personas_por_periodo.get(r['periodo'], 0),
+        }
+        for r in serie_raw
+    ]
+    tope = max([p['vistas'] for p in serie], default=0) or 1
+    for p in serie:
+        p['alto'] = round(p['vistas'] * 100 / tope)
+
+    paginas = (
+        vistas_qs.values('ruta').annotate(v=Sum('vistas')).order_by('-v')[:10]
+    )
+    origenes = (
+        OrigenDiario.objects.filter(fecha__gte=desde)
+        .values('origen').annotate(v=Sum('visitas')).order_by('-v')[:10]
+    )
+
+    return render(request, 'panel/visitas.html', {
+        'section': 'visitas',
+        'rango': clave,
+        'rango_etiqueta': etiqueta,
+        'rangos': RANGOS_VISITAS,
+        'total_vistas': total_vistas,
+        'total_personas': total_personas,
+        'serie': serie,
+        'paginas': paginas,
+        'origenes': origenes,
+        'hay_datos': total_vistas > 0,
+    })
+
+
+@staff_required
+def accesos(request):
+    """Quién entró al panel y al Aula, y quién lo intentó sin lograrlo."""
+    from .models import RegistroAcceso
+
+    zona = request.GET.get('zona', '')
+    tipo = request.GET.get('tipo', '')
+    q = request.GET.get('q', '').strip()
+
+    items = RegistroAcceso.objects.select_related('usuario')
+    if zona in (RegistroAcceso.PANEL, RegistroAcceso.SITIO):
+        items = items.filter(zona=zona)
+    if tipo in (RegistroAcceso.ENTRADA, RegistroAcceso.FALLIDO, RegistroAcceso.SALIDA):
+        items = items.filter(tipo=tipo)
+    if q:
+        items = items.filter(Q(email__icontains=q) | Q(ip__icontains=q))
+
+    desde_24h = timezone.now() - timedelta(hours=24)
+    counts = {
+        'entradas_24h': RegistroAcceso.objects.filter(
+            tipo=RegistroAcceso.ENTRADA, momento__gte=desde_24h,
+        ).count(),
+        'fallidos_24h': RegistroAcceso.objects.filter(
+            tipo=RegistroAcceso.FALLIDO, momento__gte=desde_24h,
+        ).count(),
+    }
+
+    ctx = {
+        'section': 'accesos',
+        'items': items[:200],   # el listado es para mirar, no para exportar
+        'counts': counts,
+        'zona': zona,
+        'tipo': tipo,
+        'q': q,
+    }
+    if is_search_request(request):
+        return render(request, 'panel/partials/accesos_rows.html', ctx)
+    return render(request, 'panel/accesos.html', ctx)
+
+
+@staff_required
+def mi_clave(request):
+    """Cada cuenta de gestión cambia SU propia contraseña.
+
+    Existe aparte de la pantalla de cuentas porque aquella es solo para
+    superusuarios y, a propósito, no deja tocarse a uno mismo. Sin esto, un
+    ayudante no tenía forma de cambiar la clave que le dictaron.
+    """
+    if request.method == 'POST':
+        actual = request.POST.get('actual') or ''
+        nueva = (request.POST.get('nueva') or '').strip()
+        repetir = (request.POST.get('repetir') or '').strip()
+
+        if not request.user.check_password(actual):
+            messages.error(request, 'Tu contraseña actual no es correcta.')
+        elif nueva != repetir:
+            messages.error(request, 'Las dos contraseñas nuevas no coinciden.')
+        else:
+            try:
+                validate_password(nueva, user=request.user)
+            except DjangoValidationError as e:
+                messages.error(request, ' '.join(e.messages))
+            else:
+                request.user.set_password(nueva)
+                request.user.save(update_fields=['password'])
+                # Cambiar la clave invalida la sesión actual: sin esto, quien
+                # acaba de cambiarla queda deslogueado sin entender por qué.
+                update_session_auth_hash(request, request.user)
+                messages.success(request, 'Tu contraseña quedó actualizada.')
+                return redirect('panel:mi_clave')
+
+    return render(request, 'panel/mi_clave.html', {'section': 'mi_clave'})

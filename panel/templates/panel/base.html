@@ -43,6 +43,10 @@
       <i class="bi bi-grid-1x2-fill"></i> Resumen
     </a>
 
+    <a href="{% url 'panel:visitas' %}" class="{% if section == 'visitas' %}active{% endif %}">
+      <i class="bi bi-graph-up-arrow"></i> Visitas
+    </a>
+
     <div class="pnl-nav-label">Tienda</div>
     <a href="{% url 'panel:products' %}" class="{% if section == 'products' %}active{% endif %}">
       <i class="bi bi-box-seam-fill"></i> Productos
@@ -79,8 +83,19 @@
       <i class="bi bi-trophy-fill"></i> Concurso
     </a>
 
+    {% comment %}
+      "Cuenta" ya no es solo para superusuarios: cambiar la propia contraseña y
+      ver el registro de accesos le sirve a cualquier cuenta de gestión. Lo que
+      sigue reservado es administrar OTRAS cuentas.
+    {% endcomment %}
+    <div class="pnl-nav-label">Cuenta</div>
+    <a href="{% url 'panel:mi_clave' %}" class="{% if section == 'mi_clave' %}active{% endif %}">
+      <i class="bi bi-key-fill"></i> Mi contraseña
+    </a>
+    <a href="{% url 'panel:accesos' %}" class="{% if section == 'accesos' %}active{% endif %}">
+      <i class="bi bi-clock-history"></i> Registro de accesos
+    </a>
     {% if request.user.is_superuser %}
-      <div class="pnl-nav-label">Cuenta</div>
       <a href="{% url 'panel:staff_users' %}" class="{% if section == 'staff' %}active{% endif %}">
         <i class="bi bi-person-badge"></i> Cuentas de gestión
       </a>

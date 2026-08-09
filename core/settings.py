@@ -123,7 +123,26 @@ NUM_PROXIES = int(os.environ.get('PROXY_COUNT', '0'))
 # servidor nginx debe SOBRESCRIBIR el encabezado (proxy_set_header
 # X-Forwarded-For $remote_addr) en vez de agregarle valores — ver deploy/nginx.conf.
 if NUM_PROXIES > 0:
-    AXES_IPWARE_PROXY_COUNT = NUM_PROXIES
+    # AXES_IPWARE_PROXY_COUNT va en None a propósito, NO en NUM_PROXIES.
+    #
+    # django-ipware entiende proxy_count como "cuántas IP de proxy vienen
+    # DESPUÉS de la del cliente en la cadena", así que con proxy_count=1 exige
+    # que X-Forwarded-For traiga 2 entradas (cliente + proxy). Nuestro nginx
+    # SOBRESCRIBE el encabezado con una sola IP -la real del visitante-, por lo
+    # que ipware no encontraba la cadena esperada, se rendía y caía a
+    # REMOTE_ADDR: la IP de nginx hablando con gunicorn, o sea 127.0.0.1 para
+    # TODO el mundo. Verificado en el servidor: un login fallido desde una IP
+    # pública quedaba registrado como 127.0.0.1.
+    #
+    # Consecuencia: el registro de accesos no servía para auditar (todos con la
+    # misma IP) y el bloqueo de axes por (usuario, IP) agrupaba a visitantes
+    # distintos bajo una sola dirección.
+    #
+    # Con None, ipware toma la primera IP del encabezado. Es seguro justamente
+    # porque nginx lo sobrescribe: el valor que llega nunca lo escribió el
+    # cliente. Si algún día nginx pasara a usar $proxy_add_x_forwarded_for,
+    # habría que revisar esto de nuevo.
+    AXES_IPWARE_PROXY_COUNT = None
     AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
 else:
     AXES_IPWARE_PROXY_COUNT = None
@@ -287,6 +306,10 @@ REST_FRAMEWORK = {
         'payment': '10/min',        # creación de pagos
         'quote': '30/min',          # cotizaciones de envío
         'contact': '5/min',         # formulario de contacto (anti spam de correos)
+        # Contador de visitas: una por cambio de página. Alto a propósito -es
+        # solo un INSERT y quien navega rápido no debe perder sus visitas-,
+        # pero con techo para que nadie infle las métricas a voluntad.
+        'visita': '60/min',
     },
     # Sin esto DRF usa el X-Forwarded-For COMPLETO como identidad del cliente,
     # que el atacante controla: cambiándolo en cada petición el throttling deja

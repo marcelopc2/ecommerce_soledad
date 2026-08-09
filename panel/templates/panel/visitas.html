@@ -1,0 +1,139 @@
+{% extends 'panel/base.html' %}
+{% load humanize %}
+
+{% block title %}Visitas{% endblock %}
+{% block crumb %}Panel · Visitas{% endblock %}
+{% block heading %}Visitas al sitio{% endblock %}
+
+{% block actions %}
+<div class="d-flex gap-2 mfilter-group">
+  {% for clave, datos in rangos.items %}
+    <a class="mfilter-pill{% if rango == clave %} active{% endif %}" href="?rango={{ clave }}">{{ datos.0 }}</a>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% if not hay_datos %}
+  <div class="pnl-card"><div class="card-pad">
+    <p class="mdetail-note mb-0">
+      <i class="bi bi-info-circle"></i>
+      Todavía no hay visitas registradas en este período. Los datos se empiezan
+      a juntar desde que alguien entra al sitio: vuelve mañana para ver el primer día completo.
+    </p>
+  </div></div>
+{% else %}
+
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="cell-sub">Personas distintas · {{ rango_etiqueta|lower }}</div>
+      <div style="font-size:34px;font-weight:700;color:var(--purple-600);line-height:1.2">
+        {{ total_personas|intcomma }}
+      </div>
+      <div class="cell-sub">Cuenta a cada visitante una sola vez por día.</div>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="cell-sub">Páginas vistas · {{ rango_etiqueta|lower }}</div>
+      <div style="font-size:34px;font-weight:700;color:var(--purple-600);line-height:1.2">
+        {{ total_vistas|intcomma }}
+      </div>
+      <div class="cell-sub">Cada pantalla que abre un visitante suma una.</div>
+    </div></div>
+  </div>
+</div>
+
+{% comment %}
+  Gráfico de barras en CSS: no vale traer una librería entera para esto.
+
+  Las barras y sus etiquetas van en DOS filas separadas, no una columna por
+  dato. Es a propósito: la altura en % solo funciona si el elemento de arriba
+  tiene una altura ya resuelta, y dentro de una columna flex no la tiene
+  (queda en "auto" y el navegador ignora el porcentaje: las barras salían
+  invisibles). Acá cada barra cuelga directo del contenedor de 180px.
+{% endcomment %}
+<div class="pnl-card mb-4">
+  <div class="card-pad">
+    <div class="form-section-title"><i class="bi bi-bar-chart"></i> Evolución</div>
+    <div style="overflow-x:auto">
+      <div style="display:flex;align-items:flex-end;gap:4px;height:180px;padding-top:8px;min-width:100%">
+        {% for p in serie %}
+          <div title="{{ p.etiqueta }}: {{ p.vistas }} páginas vistas de {{ p.personas }} persona{{ p.personas|pluralize:'s' }}"
+               style="flex:1 1 22px;max-width:64px;height:{{ p.alto }}%;min-height:3px;border-radius:5px 5px 0 0;
+                      background:linear-gradient(180deg,var(--purple-500),var(--purple-800))"></div>
+        {% endfor %}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:6px;min-width:100%">
+        {% for p in serie %}
+          <span class="cell-sub" style="flex:1 0 22px;font-size:10px;text-align:center;white-space:nowrap">
+            {{ p.etiqueta }}
+          </span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="pnl-card h-100">
+      <div class="card-pad pb-2">
+        <div class="form-section-title"><i class="bi bi-file-earmark-text"></i> Páginas más vistas</div>
+      </div>
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <tbody>
+            {% for p in paginas %}
+              <tr>
+                <td><span class="mono">{{ p.ruta }}</span></td>
+                <td class="text-end fw-semibold">{{ p.v|intcomma }}</td>
+              </tr>
+            {% empty %}
+              <tr class="no-hover"><td class="empty-cell">Sin datos todavía.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="pnl-card h-100">
+      <div class="card-pad pb-2">
+        <div class="form-section-title"><i class="bi bi-signpost-split"></i> De dónde llegan</div>
+      </div>
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <tbody>
+            {% for o in origenes %}
+              <tr>
+                <td>
+                  {% if o.origen == 'directo' %}
+                    Directo <span class="cell-sub">(escribieron la dirección o la tenían guardada)</span>
+                  {% else %}
+                    {{ o.origen }}
+                  {% endif %}
+                </td>
+                <td class="text-end fw-semibold">{{ o.v|intcomma }}</td>
+              </tr>
+            {% empty %}
+              <tr class="no-hover"><td class="empty-cell">Sin datos todavía.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+
+<p class="pnl-hint mt-4">
+  <i class="bi bi-shield-check"></i>
+  Las visitas se cuentan sin cookies y sin guardar la dirección IP de nadie:
+  por eso el sitio no necesita mostrar el aviso de cookies.
+</p>
+{% endblock %}

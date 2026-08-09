@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import './App.css'
+import { api } from './api'
 import { ocultarPreloader } from './preloader'
 import Landing from './pages/Landing'
 import Checkout from './pages/Checkout'
@@ -61,11 +62,32 @@ function OcultarPreloaderSiNoEsLanding() {
   return null
 }
 
+// Avisa al servidor cada cambio de página, para el contador de visitas del
+// panel. Hace falta porque nginx sirve este React ya compilado: las visitas no
+// pasan por Django y sin este aviso no habría nada que contar.
+//
+// No manda nada personal: el servidor cuenta la visita y calcula una huella
+// anónima que se renueva cada día (ver panel/registro.py). Por eso el sitio no
+// necesita aviso de cookies.
+function ContarVisita() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    // Silencioso a propósito: si el contador falla, el visitante no tiene por
+    // qué enterarse ni ver un error en la consola.
+    api.post('/metricas/visita/', {
+      ruta: pathname,
+      referrer: document.referrer || '',
+    }).catch(() => {})
+  }, [pathname])
+  return null
+}
+
 function App() {
   return (
     <>
       <ScrollToTop />
       <OcultarPreloaderSiNoEsLanding />
+      <ContarVisita />
       <Routes>
       <Route path="/" element={<Landing />} />
       {/* /tienda era el catálogo del prototipo anterior: gris, sin el sistema

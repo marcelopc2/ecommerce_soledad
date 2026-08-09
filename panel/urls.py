@@ -48,6 +48,10 @@ urlpatterns = [
 
     path('facturas/<int:pk>/pdf/', views.invoice_pdf, name='invoice_pdf'),
 
+    path('visitas/', views.visitas, name='visitas'),
+    path('accesos/', views.accesos, name='accesos'),
+    path('mi-clave/', views.mi_clave, name='mi_clave'),
+
     # Contenido del sitio público: una entrada de menú por sección, en vez de
     # seis pestañas dentro de un cajón llamado "Configuración". Todas apuntan a
     # la misma vista; el `tab` decide qué se edita (ver SECCIONES_CONTENIDO).

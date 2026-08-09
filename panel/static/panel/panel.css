@@ -1154,6 +1154,6 @@ body.login-body {
    "activo/oculto" de catálogo, aplicado a la portada en vez de la tienda. */
 .pnl-ojo { color: var(--muted); }
 .pnl-ojo.activo { color: var(--purple-600); border-color: var(--purple-200); background: var(--purple-50); }
-.pnl-ojo.activo:hover { color: var(--purple-700); }
+.pnl-ojo.activo:hover { color: var(--purple-800); }
 .pnl-ojo:disabled { opacity: 0.35; cursor: not-allowed; }
 .pnl-ojo:disabled:hover { background: none; border-color: var(--line); color: var(--muted); }
