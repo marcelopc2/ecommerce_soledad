@@ -159,6 +159,63 @@ class RegistroDeAccesosTests(TestCase):
 
 
 @override_settings(AXES_ENABLED=False)
+class PaginacionDeAccesosTests(TestCase):
+    """El registro crece con tráfico de bots (30.000+ intentos de SSH vistos en
+    la auditoría): un tope fijo dejaba los accesos viejos del día invisibles.
+    Se pagina de a 50 con scroll infinito (hx-trigger="revealed")."""
+
+    TAMANO_PAGINA = 50
+
+    def setUp(self):
+        from panel.models import RegistroAcceso
+        self.superuser = User.objects.create_superuser(
+            username='dueno@ingenioblocks.com', email='dueno@ingenioblocks.com',
+            password='UnaClaveLarga123',
+        )
+        self.client.force_login(self.superuser)
+        # 55: uno más que una página completa, para que exista una segunda
+        # página con exactamente 5 filas y así comprobar el corte real.
+        RegistroAcceso.objects.bulk_create([
+            RegistroAcceso(
+                email=f'bot{i}@ejemplo.cl', tipo=RegistroAcceso.FALLIDO,
+                zona=RegistroAcceso.PANEL, ip='1.2.3.4',
+            )
+            for i in range(55)
+        ])
+
+    def test_la_primera_pagina_trae_50_y_avisa_que_hay_mas(self):
+        respuesta = self.client.get(reverse('panel:accesos'))
+        self.assertEqual(respuesta.context['pagina'].object_list.count(), self.TAMANO_PAGINA)
+        self.assertTrue(respuesta.context['pagina'].has_next())
+
+    def test_la_pagina_del_centinela_trae_el_resto_y_no_pide_mas(self):
+        respuesta = self.client.get(
+            reverse('panel:accesos'), {'page': 2},
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertContains(respuesta, 'bot')
+        self.assertNotIn('accesos-sentinel', respuesta.content.decode())
+
+    def test_la_pagina_del_centinela_no_devuelve_la_pagina_completa(self):
+        """El centinela pide solo filas nuevas: si devolviera la página con
+        sidebar, el scroll infinito duplicaría todo el panel dentro del <tbody>."""
+        respuesta = self.client.get(
+            reverse('panel:accesos'), {'page': 2},
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertNotContains(respuesta, 'PANEL DE GESTIÓN')
+
+    def test_un_numero_de_pagina_invalido_no_revienta(self):
+        respuesta = self.client.get(reverse('panel:accesos'), {'page': 'nan'})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context['pagina'].number, 1)
+
+        respuesta = self.client.get(reverse('panel:accesos'), {'page': 999})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context['pagina'].number, 1)
+
+
+@override_settings(AXES_ENABLED=False)
 class ContadorDeVisitasTests(TestCase):
     """Suma vistas y personas, y descarta robots."""
 

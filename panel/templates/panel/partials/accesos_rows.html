@@ -40,3 +40,22 @@
     <td colspan="6" class="empty-cell">No hay accesos registrados con estos filtros.</td>
   </tr>
 {% endfor %}
+{% if pagina.has_next %}
+  {% comment %}
+    Centinela del scroll infinito: apenas esta fila entra en pantalla
+    (hx-trigger="revealed"), pide la página siguiente y se reemplaza a sí
+    misma (hx-swap="outerHTML") por las filas nuevas + un centinela nuevo si
+    todavía queda más. Así se sigue cargando de a 50 mientras se hace scroll,
+    sin números de página ni botón "cargar más".
+  {% endcomment %}
+  <tr id="accesos-sentinel"
+      hx-get="{% url 'panel:accesos' %}?page={{ pagina.next_page_number }}&zona={{ zona }}&tipo={{ tipo }}&q={{ q|urlencode }}"
+      hx-trigger="revealed"
+      hx-swap="outerHTML"
+      hx-target="this">
+    <td colspan="6" class="text-center py-3">
+      <span class="spinner-border spinner-border-sm text-muted" role="status" aria-hidden="true"></span>
+      <span class="cell-sub ms-2">Cargando más accesos…</span>
+    </td>
+  </tr>
+{% endif %}

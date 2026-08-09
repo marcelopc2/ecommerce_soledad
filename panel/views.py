@@ -1682,6 +1682,7 @@ def visitas(request):
 @staff_required
 def accesos(request):
     """Quién entró al panel y al Aula, y quién lo intentó sin lograrlo."""
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     from .models import RegistroAcceso
 
     zona = request.GET.get('zona', '')
@@ -1696,6 +1697,19 @@ def accesos(request):
     if q:
         items = items.filter(Q(email__icontains=q) | Q(ip__icontains=q))
 
+    # Scroll infinito y no un tope fijo: este registro lo alimenta tráfico de
+    # bots (30.000+ intentos de SSH vistos en la auditoría de seguridad), así
+    # que crece rápido. Con un corte duro, los accesos más antiguos del día
+    # quedaban invisibles sin ninguna forma de llegar a ellos. Tampoco es
+    # "página 1, 2, 3…" con números: es un log para revisar de lo más
+    # reciente hacia atrás, no para saltar a una página puntual.
+    TAMANO_PAGINA = 50
+    paginador = Paginator(items, TAMANO_PAGINA)
+    try:
+        pagina = paginador.page(int(request.GET.get('page', 1)))
+    except (ValueError, EmptyPage, PageNotAnInteger):
+        pagina = paginador.page(1)
+
     desde_24h = timezone.now() - timedelta(hours=24)
     counts = {
         'entradas_24h': RegistroAcceso.objects.filter(
@@ -1708,12 +1722,16 @@ def accesos(request):
 
     ctx = {
         'section': 'accesos',
-        'items': items[:200],   # el listado es para mirar, no para exportar
+        'items': pagina.object_list,
+        'pagina': pagina,
         'counts': counts,
         'zona': zona,
         'tipo': tipo,
         'q': q,
     }
+    # El buscador (sin `page` en la URL) y el centinela del scroll infinito
+    # (con `page=N`) son los dos casos que piden solo las filas: cubre ambos
+    # porque los dos llegan como petición htmx sin boost.
     if is_search_request(request):
         return render(request, 'panel/partials/accesos_rows.html', ctx)
     return render(request, 'panel/accesos.html', ctx)
