@@ -35,7 +35,6 @@
     <td>
       <div class="cell-title">
         {{ p.name }}
-        {% if p.is_on_sale %}<span class="badge-soft red">Oferta</span>{% endif %}
         {% if p.is_coming_soon %}<span class="badge-soft yellow">Próximamente</span>{% endif %}
       </div>
       <div class="cell-sub">/{{ p.slug }}</div>
@@ -46,6 +45,31 @@
         <span class="badge-soft green">Activo</span>
       {% else %}
         <span class="badge-soft gray">Oculto</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if p.is_on_sale %}
+        <span class="badge-soft red">En oferta</span>
+      {% else %}
+        <span class="cell-sub">—</span>
+      {% endif %}
+    </td>
+    <td>
+      {% comment %}
+        No es un "sí/no": ambos valores son estados normales del catálogo, así
+        que van con el mismo peso visual en vez de resaltar uno como excepción.
+      {% endcomment %}
+      {% if p.is_digital %}
+        <span class="badge-soft teal">Digital</span>
+      {% else %}
+        <span class="badge-soft gray">Físico</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if p.requires_login %}
+        <span class="badge-soft purple">Necesita membresía</span>
+      {% else %}
+        <span class="cell-sub">—</span>
       {% endif %}
     </td>
     <td class="text-end">
@@ -89,7 +113,7 @@
   </tr>
 {% empty %}
   <tr class="no-hover">
-    <td colspan="5" class="empty-cell">
+    <td colspan="8" class="empty-cell">
       {% if q %}
         <i class="bi bi-search"></i> Sin resultados para «{{ q }}».
       {% else %}
