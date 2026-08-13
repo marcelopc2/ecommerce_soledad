@@ -235,9 +235,6 @@
   border-bottom-color: var(--lp-yellow);
 }
 .lp-header-right { display: flex; align-items: center; gap: 16px; }
-.lp-cart { color: #fff; display: flex; }
-.lp-cart:hover { color: var(--lp-yellow); }
-.lp-header-divider { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.4); }
 .lp-login-btn {
   display: inline-flex;
   align-items: center;
@@ -2158,8 +2155,8 @@
   .lp-logo img { height: 46px; }
   .lp-header-right { gap: 10px; }
   /* En celular el botón de sesión se cae: queda dentro del menú, que es donde
-     se espera encontrarlo. Se mantiene el carrito, que sí es de un toque. */
-  .lp-login-btn, .lp-header-divider { display: none; }
+     se espera encontrarlo. */
+  .lp-login-btn { display: none; }
 
   /* ".lp ." delante a propósito: las reglas base son .lp .lp-h2 y .lp .lp-chip,
      que pesan más que un selector de una sola clase. Escritas como ".lp-h2" y
