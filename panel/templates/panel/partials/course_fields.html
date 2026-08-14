@@ -1,0 +1,51 @@
+{% comment %}
+  Campos del curso. Vive aparte porque se usa en dos contextos distintos: al
+  CREAR va desplegado (no hay nada más que hacer en la página), y al EDITAR va
+  dentro de un panel plegable, porque ahí el trabajo real son los recursos.
+{% endcomment %}
+<div class="row">
+  <div class="col-md-7 mb-3">
+    <label class="form-label" for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+    {{ form.title }}
+    {% for e in form.title.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+  </div>
+  <div class="col-md-5 mb-3">
+    <label class="form-label" for="{{ form.slug.id_for_label }}">{{ form.slug.label }}</label>
+    {{ form.slug }}
+    {% for e in form.slug.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+  </div>
+</div>
+
+<div class="mb-3">
+  <label class="form-label" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+  {{ form.description }}
+</div>
+
+{% comment %}
+  Las dos formas de poner la portada van lado a lado, no apiladas: son
+  alternativas entre sí (subir un archivo O pegar una dirección), y apiladas se
+  leían como dos pasos obligatorios ocupando el doble de alto.
+{% endcomment %}
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <label class="form-label" for="{{ form.image_file.id_for_label }}">{{ form.image_file.label }}</label>
+    {% if course and course.image_file %}
+      <div class="mb-2"><img src="{{ course.image_file.url }}" alt="" style="max-height:80px;border-radius:8px"></div>
+    {% endif %}
+    {{ form.image_file }}
+    <div class="pnl-campo-ayuda">
+      {{ form.image_file.help_text }}
+      Si no subes ninguna, se usa la miniatura del primer video.
+    </div>
+  </div>
+  <div class="col-md-6 mb-3">
+    <label class="form-label" for="{{ form.image_url.id_for_label }}">{{ form.image_url.label }}</label>
+    {{ form.image_url }}
+    <div class="pnl-campo-ayuda">Solo si la imagen ya está publicada en otro sitio. La subida manda sobre esta.</div>
+  </div>
+</div>
+
+<div class="form-check form-switch">
+  {{ form.is_active }}
+  <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+</div>

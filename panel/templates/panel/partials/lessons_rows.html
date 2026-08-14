@@ -6,18 +6,24 @@
         <span class="drag-pos">{{ forloop.counter }}</span>
       </div>
     </td>
+    {% comment %}
+      El tipo va pegado al nombre y no en su propia columna: como columna se
+      llevaba 122px de los 679 disponibles y la tabla desbordaba justo en un
+      notebook de 1366px, cortando los botones de Acciones. Con pocos recursos
+      por curso, la etiqueta al lado del título se escanea igual de bien.
+    {% endcomment %}
     <td>
-      <div class="cell-title">{{ l.title }}</div>
+      <div class="cell-title d-flex align-items-center gap-2 flex-wrap">
+        {{ l.title }}
+        {% if l.lesson_type == 'VIDEO' %}
+          <span class="badge-soft purple"><i class="bi bi-play-circle"></i> Video</span>
+        {% elif l.lesson_type == 'PDF' %}
+          <span class="badge-soft teal"><i class="bi bi-file-earmark-pdf"></i> PDF</span>
+        {% else %}
+          <span class="badge-soft yellow"><i class="bi bi-image"></i> Imagen</span>
+        {% endif %}
+      </div>
       {% if l.description %}<div class="cell-sub text-truncate" style="max-width:360px">{{ l.description }}</div>{% endif %}
-    </td>
-    <td>
-      {% if l.lesson_type == 'VIDEO' %}
-        <span class="badge-soft purple"><i class="bi bi-play-circle"></i> Video</span>
-      {% elif l.lesson_type == 'PDF' %}
-        <span class="badge-soft teal"><i class="bi bi-file-earmark-pdf"></i> PDF</span>
-      {% else %}
-        <span class="badge-soft yellow"><i class="bi bi-image"></i> Imagen</span>
-      {% endif %}
     </td>
     <td class="text-end">
       <div class="d-inline-flex gap-2">
@@ -38,6 +44,6 @@
   </tr>
 {% empty %}
   <tr class="no-hover">
-    <td colspan="4" class="empty-cell">Este curso aún no tiene recursos. Agrega el primero con el formulario de al lado.</td>
+    <td colspan="3" class="empty-cell">Este curso aún no tiene recursos. Agrega el primero con el formulario de al lado.</td>
   </tr>
 {% endfor %}

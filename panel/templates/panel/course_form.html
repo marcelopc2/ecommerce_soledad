@@ -2,71 +2,100 @@
 
 {% block title %}{% if course %}Editar curso{% else %}Nuevo curso{% endif %}{% endblock %}
 {% block crumb %}Panel · Academia · Cursos{% endblock %}
-{% block heading %}{% if course %}Editar «{{ course.title }}»{% else %}Nuevo curso{% endif %}{% endblock %}
+{% block heading %}{% if course %}{{ course.title }}{% else %}Nuevo curso{% endif %}{% endblock %}
 
 {% block actions %}
+{% comment %}
+  En un curso YA CREADO el botón de guardar no va acá arriba: los datos del
+  curso quedan plegados y su guardado pertenece a ese panel. Dejarlo fijo en la
+  cabecera sugería que había algo pendiente por guardar mientras se trabajaba en
+  los recursos, que se guardan solos uno por uno.
+{% endcomment %}
 <div class="d-flex gap-2">
-  <a href="{% url 'panel:courses' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Cancelar</a>
-  <button type="submit" form="course-form" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar curso</button>
+  {% if course %}
+    <a href="{% url 'panel:courses' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+  {% else %}
+    <a href="{% url 'panel:courses' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Cancelar</a>
+    <button type="submit" form="course-form" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Crear curso</button>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block content %}
 
-{# ---------- Sección 1: datos del curso ---------- #}
-<form method="post" id="course-form" enctype="multipart/form-data" novalidate>
-  {% csrf_token %}
-  <input type="hidden" name="form_name" value="course">
-
+{% if course %}
+  {% comment %}
+    ---------- Curso existente ----------
+    Los datos (título, descripción, portada) se escriben UNA vez; los recursos se
+    agregan y reordenan muchas. Antes los datos ocupaban 580px -el 65% de la
+    pantalla- y la tabla de recursos empezaba recién a los 806px, o sea fuera de
+    la vista en cualquier notebook de 768px de alto. Ahora los datos viven en una
+    tira resumida que se despliega solo si hay algo que cambiar, y los recursos
+    quedan arriba del pliegue, que es donde está el trabajo.
+  {% endcomment %}
   <div class="pnl-card mb-4"><div class="card-pad">
-    <div class="form-section-title"><i class="bi bi-mortarboard"></i> 1. Datos del curso</div>
-    <div class="row">
-      <div class="col-md-7 mb-3">
-        <label class="form-label">{{ form.title.label }}</label>
-        {{ form.title }}
-        {% for e in form.title.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-      </div>
-      <div class="col-md-5 mb-3">
-        <label class="form-label">{{ form.slug.label }}</label>
-        {{ form.slug }}
-        {% for e in form.slug.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-      </div>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">{{ form.description.label }}</label>
-      {{ form.description }}
-    </div>
-    <div class="mb-3">
-      <label class="form-label">{{ form.image_file.label }}</label>
-      {% if course and course.image_file %}
-        <div class="mb-2"><img src="{{ course.image_file.url }}" alt="" style="max-height:110px;border-radius:10px"></div>
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      {% if course.image_file %}
+        <img src="{{ course.image_file.url }}" alt=""
+             style="width:64px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0">
+      {% elif course.image_url %}
+        <img src="{{ course.image_url }}" alt=""
+             style="width:64px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0">
+      {% else %}
+        <span class="badge-soft gray" style="width:64px;height:40px;display:grid;place-items:center;flex-shrink:0">
+          <i class="bi bi-image"></i>
+        </span>
       {% endif %}
-      {{ form.image_file }}
-      <div class="pnl-campo-ayuda">
-        {{ form.image_file.help_text }}
-        Si no subes ninguna, se usa la miniatura del primer video del curso.
+
+      <div class="flex-grow-1" style="min-width:180px">
+        <div class="cell-title">{{ course.title }}</div>
+        <div class="cell-sub">
+          /{{ course.slug }} · {{ lessons|length }} recurso{{ lessons|length|pluralize:"s" }}
+        </div>
       </div>
+
+      {% if course.is_active %}
+        <span class="badge-soft green">Activo</span>
+      {% else %}
+        <span class="badge-soft gray">Oculto</span>
+      {% endif %}
+
+      <button class="btn btn-ghost" type="button" data-bs-toggle="collapse"
+              data-bs-target="#datos-curso" aria-expanded="{% if form.errors %}true{% else %}false{% endif %}"
+              aria-controls="datos-curso">
+        <i class="bi bi-pencil me-1"></i> Editar datos
+      </button>
     </div>
-    <div class="mb-3">
-      <label class="form-label">{{ form.image_url.label }}</label>
-      {{ form.image_url }}
-      <div class="pnl-campo-ayuda">Solo si la imagen ya está publicada en otro sitio. La subida de arriba manda sobre esta.</div>
-    </div>
-    <div class="form-check form-switch">
-      {{ form.is_active }}
-      <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+
+    {% comment %}
+      Se abre solo si el guardado falló: si no, el error quedaría escondido
+      detrás de un panel cerrado y parecería que no pasó nada.
+    {% endcomment %}
+    <div class="collapse{% if form.errors %} show{% endif %}" id="datos-curso">
+      <hr class="my-4">
+      <form method="post" id="course-form" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="form_name" value="course">
+        {% include 'panel/partials/course_fields.html' %}
+        <button type="submit" class="btn btn-brand mt-3">
+          <i class="bi bi-check-lg me-1"></i> Guardar datos del curso
+        </button>
+      </form>
     </div>
   </div></div>
-</form>
 
-{# ---------- Sección 2: recursos (solo si el curso ya existe) ---------- #}
-{% if course %}
-  <div class="form-section-title mb-3"><i class="bi bi-collection-play"></i> 2. Recursos del curso</div>
+  {# ---------- Recursos: el contenido principal de esta página ---------- #}
   <div class="row g-4">
-    <div class="col-lg-7">
+    {% comment %}
+      8/4 y no 7/5: con 7 columnas la columna "Acciones" quedaba cortada contra
+      el borde de la tarjeta. El formulario de agregar cabe en 4 sin apretarse
+      porque sus campos son de una sola línea.
+    {% endcomment %}
+    <div class="col-lg-8">
       <div class="pnl-card">
         <div class="pnl-toolbar">
-          <span class="pnl-hint"><i class="bi bi-grip-vertical"></i> Arrastra para ordenar el paso a paso</span>
+          <span class="pnl-hint"><i class="bi bi-collection-play"></i> Paso a paso del curso</span>
+          <span class="pnl-hint"><i class="bi bi-grip-vertical"></i> Arrastra para ordenar</span>
         </div>
         <div class="table-responsive">
           <table class="table pnl-table" id="lessons-table" data-reorder-url="{% url 'panel:lessons_reorder' course.pk %}">
@@ -74,7 +103,6 @@
               <tr>
                 <th class="order-col">Orden</th>
                 <th>Recurso</th>
-                <th>Tipo</th>
                 <th class="text-end">Acciones</th>
               </tr>
             </thead>
@@ -86,38 +114,38 @@
       </div>
     </div>
 
-    <div class="col-lg-5">
+    <div class="col-lg-4">
       <div class="pnl-card"><div class="card-pad">
         <div class="form-section-title"><i class="bi bi-plus-circle"></i> Agregar recurso</div>
         <form method="post" enctype="multipart/form-data" novalidate>
           {% csrf_token %}
           <input type="hidden" name="form_name" value="lesson">
           <div class="mb-3">
-            <label class="form-label">{{ lesson_form.title.label }}</label>
+            <label class="form-label" for="{{ lesson_form.title.id_for_label }}">{{ lesson_form.title.label }}</label>
             {{ lesson_form.title }}
-            {% for e in lesson_form.title.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            {% for e in lesson_form.title.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
           <div class="mb-3">
-            <label class="form-label">{{ lesson_form.lesson_type.label }}</label>
+            <label class="form-label" for="{{ lesson_form.lesson_type.id_for_label }}">{{ lesson_form.lesson_type.label }}</label>
             {{ lesson_form.lesson_type }}
           </div>
           <div class="mb-3" id="video-field">
-            <label class="form-label">{{ lesson_form.video_embed_url.label }}</label>
+            <label class="form-label" for="{{ lesson_form.video_embed_url.id_for_label }}">{{ lesson_form.video_embed_url.label }}</label>
             {{ lesson_form.video_embed_url }}
-            {% for e in lesson_form.video_embed_url.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            {% for e in lesson_form.video_embed_url.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
           <div class="mb-3" id="pdf-field">
-            <label class="form-label">{{ lesson_form.pdf_file.label }}</label>
+            <label class="form-label" for="{{ lesson_form.pdf_file.id_for_label }}">{{ lesson_form.pdf_file.label }}</label>
             {{ lesson_form.pdf_file }}
-            {% for e in lesson_form.pdf_file.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            {% for e in lesson_form.pdf_file.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
           <div class="mb-3" id="image-field">
-            <label class="form-label">{{ lesson_form.image_file.label }}</label>
+            <label class="form-label" for="{{ lesson_form.image_file.id_for_label }}">{{ lesson_form.image_file.label }}</label>
             {{ lesson_form.image_file }}
-            {% for e in lesson_form.image_file.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            {% for e in lesson_form.image_file.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
           <div class="mb-3">
-            <label class="form-label">{{ lesson_form.description.label }}</label>
+            <label class="form-label" for="{{ lesson_form.description.id_for_label }}">{{ lesson_form.description.label }}</label>
             {{ lesson_form.description }}
           </div>
           <button type="submit" class="btn btn-brand w-100"><i class="bi bi-plus-lg me-1"></i> Agregar recurso</button>
@@ -137,11 +165,32 @@
       </div>
     </div>
   </div>
+
 {% else %}
-  <div class="pnl-card"><div class="card-pad">
-    <div class="form-section-title text-muted"><i class="bi bi-collection-play"></i> 2. Recursos del curso</div>
-    <p class="cell-sub mb-0"><i class="bi bi-info-circle"></i> Guarda el curso primero para poder agregarle videos, PDFs e imágenes.</p>
-  </div></div>
+  {% comment %}
+    ---------- Curso nuevo ----------
+    Acá el formulario SÍ es el protagonista: no hay recursos que administrar
+    hasta que el curso exista, así que va desplegado y sin plegable.
+  {% endcomment %}
+  <div class="row">
+    <div class="col-xl-9">
+      <div class="pnl-card mb-4"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-mortarboard"></i> Datos del curso</div>
+        <form method="post" id="course-form" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="form_name" value="course">
+          {% include 'panel/partials/course_fields.html' %}
+        </form>
+      </div></div>
+
+      <div class="pnl-card"><div class="card-pad">
+        <p class="mdetail-note mb-0">
+          <i class="bi bi-info-circle"></i>
+          Los videos, PDFs e imágenes del paso a paso se agregan apenas guardes el curso.
+        </p>
+      </div></div>
+    </div>
+  </div>
 {% endif %}
 
 {% endblock %}
@@ -166,6 +215,9 @@
     {% endif %}
 
     {% if course %}
+      // Solo se muestra el campo que corresponde al tipo de recurso elegido:
+      // pedir a la vez un link de YouTube, un PDF y una imagen para algo que es
+      // una sola de las tres cosas confunde más de lo que ayuda.
       var typeSelect = document.getElementById('{{ lesson_form.lesson_type.id_for_label }}')
       if (typeSelect && !typeSelect.dataset.bound) {
         typeSelect.dataset.bound = '1'
