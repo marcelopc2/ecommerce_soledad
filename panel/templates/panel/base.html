@@ -56,13 +56,11 @@
     </a>
 
     <div class="pnl-nav-label">Academia</div>
-    {% comment %}
-      Sin entrada propia para Categorías: viven dentro de "Cursos y diplomas",
-      junto a lo que agrupan. Como entrada aparte obligaba a saltar entre dos
-      pantallas para entender qué contenido existe y cómo está agrupado.
-    {% endcomment %}
-    <a href="{% url 'panel:courses' %}" class="{% if section == 'courses' or section == 'categories' %}active{% endif %}">
+    <a href="{% url 'panel:courses' %}" class="{% if section == 'courses' %}active{% endif %}">
       <i class="bi bi-mortarboard-fill"></i> Cursos y diplomas
+    </a>
+    <a href="{% url 'panel:categories' %}" class="{% if section == 'categories' %}active{% endif %}">
+      <i class="bi bi-collection-fill"></i> Categorías
     </a>
     <a href="{% url 'panel:memberships' %}" class="{% if section == 'memberships' %}active{% endif %}">
       <i class="bi bi-people-fill"></i> Alumnos

@@ -1,12 +1,12 @@
 {% extends 'panel/base.html' %}
 
 {% block title %}{% if categoria %}Editar categoría{% else %}Nueva categoría{% endif %}{% endblock %}
-{% block crumb %}Panel · Academia · Cursos{% endblock %}
+{% block crumb %}Panel · Academia · Categorías{% endblock %}
 {% block heading %}{% if categoria %}{{ categoria.nombre }}{% else %}Nueva categoría{% endif %}{% endblock %}
 
 {% block actions %}
 <div class="d-flex gap-2">
-  <a href="{% url 'panel:courses' %}" class="btn btn-ghost">
+  <a href="{% url 'panel:categories' %}" class="btn btn-ghost">
     <i class="bi bi-arrow-left me-1"></i> Volver
   </a>
   {% if not categoria %}

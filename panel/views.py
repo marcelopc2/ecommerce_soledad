@@ -1799,10 +1799,20 @@ def mi_clave(request):
 
 @staff_required
 def categories(request):
-    """Ya no tiene pantalla propia: las categorías se listan dentro de
-    "Cursos y diplomas", junto al contenido que agrupan. Se conserva la ruta
-    para no romper un enlace guardado en favoritos."""
-    return redirect('panel:courses')
+    from lms.models import CourseCategory
+
+    return render(request, 'panel/categories.html', {
+        'section': 'categories',
+        'categorias': (
+            CourseCategory.objects.prefetch_related('cursos_en_categoria__curso').all()
+        ),
+        # Un curso sin categoría no lo puede ver NADIE. Es un error silencioso
+        # fácil de cometer -crear el modelo y olvidar etiquetarlo- que no se
+        # nota hasta que alguien reclama.
+        'cursos_sin_categoria': Course.objects.filter(
+            is_active=True, categorias_del_curso__isnull=True,
+        ),
+    })
 
 
 @staff_required
@@ -1817,7 +1827,7 @@ def category_form(request, pk=None):
         return redirect('panel:category_edit', pk=obj.pk)
 
     return render(request, 'panel/category_form.html', {
-        'section': 'courses',
+        'section': 'categories',
         'form': form,
         'categoria': categoria,
         'cursos_en_categoria': (
