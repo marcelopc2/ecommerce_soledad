@@ -49,8 +49,21 @@
 
       <div class="flex-grow-1" style="min-width:180px">
         <div class="cell-title">{{ course.title }}</div>
-        <div class="cell-sub">
+        <div class="cell-sub d-flex align-items-center gap-2 flex-wrap">
           /{{ course.slug }} · {{ lessons|length }} recurso{{ lessons|length|pluralize:"s" }}
+          {% comment %}
+            Las categorías se ven SIN desplegar nada: son lo que decide quién
+            puede ver este modelo, así que esconderlas detrás de "Editar datos"
+            hacía imposible saber de un vistazo si el modelo estaba llegando a
+            alguien. Para cambiarlas se abre el panel.
+          {% endcomment %}
+          {% for cc in course.categorias_del_curso.all %}
+            <span class="badge-soft purple">{{ cc.categoria.nombre }}</span>
+          {% empty %}
+            <span class="badge-soft red" title="Sin categoría, ningún alumno puede verlo">
+              <i class="bi bi-exclamation-triangle"></i> Sin categoría
+            </span>
+          {% endfor %}
         </div>
       </div>
 

@@ -10,7 +10,21 @@
       </td>
       <td>
         <div class="cell-title"><i class="bi bi-mortarboard text-purple"></i> {{ c.title }}</div>
-        <div class="cell-sub">/{{ c.slug }}</div>
+        {% comment %}
+          Las categorías van acá y no en una columna propia: son varias por
+          curso y de largo variable, así que como columna obligaban a un ancho
+          que casi siempre sobraba. Debajo del título se leen igual de bien.
+        {% endcomment %}
+        <div class="cell-sub d-flex align-items-center gap-2 flex-wrap">
+          /{{ c.slug }}
+          {% for cc in c.categorias_del_curso.all %}
+            <span class="badge-soft purple">{{ cc.categoria.nombre }}</span>
+          {% empty %}
+            <span class="badge-soft red" title="Sin categoría no lo ve ningún alumno">
+              <i class="bi bi-exclamation-triangle"></i> Sin categoría
+            </span>
+          {% endfor %}
+        </div>
       </td>
       <td class="text-center">
         <div class="resource-counts">

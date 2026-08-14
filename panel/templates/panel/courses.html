@@ -6,12 +6,105 @@
 
 {% block actions %}
 <div class="d-flex gap-2">
+  <a href="{% url 'panel:category_new' %}" class="btn btn-ghost"><i class="bi bi-collection me-1"></i> Nueva categoría</a>
   <a href="{% url 'panel:diploma_new' %}" class="btn btn-diploma"><i class="bi bi-award me-1"></i> Nuevo diploma</a>
   <a href="{% url 'panel:course_new' %}" class="btn btn-brand"><i class="bi bi-plus-lg me-1"></i> Nuevo curso</a>
 </div>
 {% endblock %}
 
 {% block content %}
+
+{% comment %}
+  Categorías arriba y en la misma pantalla que cursos y diplomas: las tres cosas
+  son "qué contenido existe y cómo se agrupa", y tenerlas en menús separados
+  obligaba a saltar de una a otra para entender el conjunto.
+
+  Cada categoría muestra SUS cursos como etiquetas: así se ve de un vistazo qué
+  incluye cada línea, sin tener que entrar a cada una.
+{% endcomment %}
+<div class="pnl-card mb-4">
+  <div class="pnl-toolbar">
+    <span class="pnl-hint"><i class="bi bi-collection"></i> Categorías</span>
+    <span class="pnl-hint">
+      Agrupan modelos y definen su ritmo. Para poner un modelo en una categoría,
+      se marca en la ficha del modelo.
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table pnl-table">
+      <tbody>
+        {% for cat in categorias %}
+          <tr>
+            <td style="width:230px">
+              <div class="cell-title">{{ cat.nombre }}</div>
+              <div class="cell-sub">
+                {% if cat.abre_todo %}
+                  <span class="badge-soft teal">Todo de una</span>
+                {% else %}
+                  <span class="badge-soft purple">Goteo semanal</span>
+                  · {{ cat.cursos_iniciales }} al comprar
+                {% endif %}
+                {% if not cat.is_active %} · <span class="badge-soft gray">Inactiva</span>{% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="d-flex flex-wrap gap-2">
+                {% for cc in cat.cursos_en_categoria.all %}
+                  <a href="{% url 'panel:course_edit' cc.curso.pk %}"
+                     class="badge-soft {% if cc.curso.is_active %}purple{% else %}gray{% endif %} text-decoration-none"
+                     title="Abrir «{{ cc.curso.title }}»">
+                    {{ forloop.counter }}. {{ cc.curso.title }}
+                  </a>
+                {% empty %}
+                  <span class="cell-sub">
+                    Sin modelos todavía. Se agregan marcando esta categoría en la ficha de cada modelo.
+                  </span>
+                {% endfor %}
+              </div>
+            </td>
+            <td class="text-end" style="width:120px">
+              <div class="d-inline-flex gap-2">
+                <a href="{% url 'panel:category_edit' cat.pk %}" class="btn-icon" title="Editar y reordenar">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <button class="btn-icon danger" title="Eliminar"
+                        hx-post="{% url 'panel:category_delete' cat.pk %}"
+                        hx-confirm="¿Eliminar la categoría «{{ cat.nombre }}»?">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr class="no-hover">
+            <td class="empty-cell">
+              Aún no hay categorías. <a href="{% url 'panel:category_new' %}">Crear la primera</a>.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if cursos_sin_categoria %}
+    {% comment %}
+      Un modelo sin categoría no lo ve NINGÚN alumno. Es un error silencioso
+      fácil de cometer -crear el modelo y olvidar etiquetarlo- que no se nota
+      hasta que alguien reclama.
+    {% endcomment %}
+    <div class="card-pad pt-0">
+      <p class="mdetail-note mb-0" style="border-left:3px solid var(--coral)">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>Estos modelos no los puede ver nadie</strong> porque no están en
+        ninguna categoría:
+        {% for c in cursos_sin_categoria %}
+          <a href="{% url 'panel:course_edit' c.pk %}">{{ c.title }}</a>{% if not forloop.last %}, {% endif %}
+        {% endfor %}
+      </p>
+    </div>
+  {% endif %}
+</div>
+
 <div class="pnl-card">
   <div class="pnl-toolbar">
     <div class="pnl-search">

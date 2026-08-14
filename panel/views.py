@@ -387,10 +387,24 @@ def _sequence_items(q=''):
 
 @staff_required
 def courses(request):
+    from lms.models import CourseCategory
+
     q = request.GET.get('q', '').strip()
     ctx = {'items': _sequence_items(q), 'section': 'courses', 'q': q}
     if is_search_request(request):
         return render(request, 'panel/partials/courses_rows.html', ctx)
+
+    # Las categorías viven en esta misma pantalla, junto a cursos y diplomas:
+    # las tres cosas son "qué contenido existe y cómo se agrupa", y tenerlas
+    # en menús separados obligaba a saltar de una a otra para entender el todo.
+    ctx['categorias'] = (
+        CourseCategory.objects
+        .prefetch_related('cursos_en_categoria__curso')
+        .all()
+    )
+    ctx['cursos_sin_categoria'] = Course.objects.filter(
+        is_active=True, categorias_del_curso__isnull=True,
+    )
     return render(request, 'panel/courses.html', ctx)
 
 
@@ -1785,17 +1799,10 @@ def mi_clave(request):
 
 @staff_required
 def categories(request):
-    from lms.models import Course, CourseCategory
-
-    items = CourseCategory.objects.prefetch_related('cursos_en_categoria').all()
-    # Un curso sin categoría no lo puede ver NADIE. Es un error silencioso muy
-    # fácil de cometer (crear el curso y olvidar etiquetarlo), así que se avisa.
-    huerfanos = Course.objects.filter(is_active=True, categorias_del_curso__isnull=True)
-    return render(request, 'panel/categories.html', {
-        'section': 'categories',
-        'categorias': items,
-        'huerfanos': huerfanos,
-    })
+    """Ya no tiene pantalla propia: las categorías se listan dentro de
+    "Cursos y diplomas", junto al contenido que agrupan. Se conserva la ruta
+    para no romper un enlace guardado en favoritos."""
+    return redirect('panel:courses')
 
 
 @staff_required
@@ -1810,7 +1817,7 @@ def category_form(request, pk=None):
         return redirect('panel:category_edit', pk=obj.pk)
 
     return render(request, 'panel/category_form.html', {
-        'section': 'categories',
+        'section': 'courses',
         'form': form,
         'categoria': categoria,
         'cursos_en_categoria': (
