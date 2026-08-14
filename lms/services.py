@@ -23,15 +23,24 @@ User = get_user_model()
 log = logging.getLogger('ingenioblocks.pagos')
 
 
-# ---------- Desbloqueo semanal de cursos ----------
+# ---------- Desbloqueo de cursos ----------
 #
-# El curso 1 (según Course.order) está disponible desde el día de la compra.
-# Desde ahí se libera uno nuevo cada 7 días CONTADOS DESDE ESA COMPRA -pero solo
-# si el alumno ya marcó como completado el curso anterior-. Cada alumno tiene su
-# propio calendario: el que compró un miércoles recibe los suyos los miércoles.
-# Si llega el día y el curso actual sigue sin completarse, el siguiente queda
-# bloqueado hasta que lo termine (no se salta la fila). Comprar un kit adicional
-# agrega más cursos al final de esta misma secuencia: el calendario no se reinicia.
+# El acceso se organiza por CATEGORÍAS (lms.CourseCategory). Cada una tiene su
+# propio ritmo y su propio calendario, anclado al día en que ESE alumno la
+# obtuvo (MembershipCategory.obtenida_en):
+#
+#   - modo TODO:   sus cursos quedan abiertos desde ese mismo día.
+#   - modo GOTEO:  los primeros `cursos_iniciales` abren ese día y de ahí se
+#                  libera uno cada 7 días, pero solo si el alumno completó el
+#                  anterior (no se salta la fila).
+#
+# Un curso que está en varias categorías toma el estado MÁS FAVORABLE: si
+# cualquiera de las categorías del alumno lo tiene abierto, está abierto. Así,
+# comprar un pack premium que abre todo no queda anulado porque el mismo curso
+# también viva en una categoría con goteo.
+#
+# El alumno ve una sola lista ordenada por Course.order; las categorías son
+# maquinaria interna que él no necesita entender.
 
 def _unlock_date(start_date, index, iniciales=1):
     """Fecha programada de liberación del curso en la posición `index` (0-based).
@@ -83,76 +92,216 @@ def _completion_map(membership, courses):
     return out
 
 
-def get_course_access(membership):
+def _categorias_del_alumno(membership):
+    """Categorías que obtuvo, con sus cursos ya precargados.
+
+    Se traen los cursos de una sola vez (prefetch) porque el cálculo recorre
+    cada categoría por separado: sin esto, un alumno con varias categorías
+    dispararía una consulta por cada una en cada carga del Aula.
     """
-    Devuelve la lista de cursos de la membresía (en orden), cada uno con:
-    - course, unlocked, completed, pct, done, total, unlock_date.
+    from .models import MembershipCategory
+
+    return (
+        MembershipCategory.objects
+        .filter(membership=membership, categoria__is_active=True)
+        .select_related('categoria')
+        .prefetch_related('categoria__cursos_en_categoria__curso')
+    )
+
+
+def cursos_de(membership):
+    """Todos los cursos activos a los que el alumno tiene derecho.
+
+    Se DERIVAN de sus categorías, no de una lista copiada al comprar: por eso
+    agregar un curso a una categoría lo entrega a todos los que ya la tienen,
+    sin tocar productos ni membresías.
+
+    `membership.courses` se sigue considerando para no dejar afuera lo otorgado
+    antes de que existieran las categorías (y cualquier asignación manual).
     """
-    courses = list(membership.courses.filter(is_active=True).order_by('order', 'id'))
-    comp = _completion_map(membership, courses)
-    # Los días que estuvo pausada no cuentan para el calendario: se corre el
-    # punto de partida hacia adelante esa misma cantidad de días.
+    ids = set()
+    for mc in _categorias_del_alumno(membership):
+        for cc in mc.categoria.cursos_en_categoria.all():
+            if cc.curso.is_active:
+                ids.add(cc.curso.id)
+    ids.update(membership.courses.filter(is_active=True).values_list('id', flat=True))
+    return Course.objects.filter(id__in=ids).order_by('order', 'id')
+
+
+def _estado_en_categoria(mc, comp, today):
+    """Cómo queda cada curso de UNA categoría: {curso_id: (abierto, fecha, motivo, curso_requerido)}.
+
+    Es el cálculo de siempre, pero acotado a los cursos de esta categoría y
+    anclado a la fecha en que el alumno la obtuvo.
+    """
+    categoria = mc.categoria
+    membership = mc.membership
+
+    # Los días que estuvo pausada no cuentan: se corre el punto de partida hacia
+    # adelante esa misma cantidad de días.
     #
     # localtime() antes de .date() porque con USE_TZ las fechas se guardan en
     # UTC, y Chile va 3-4 horas atrás: sin convertir, el "día" del goteo
     # cambiaba a las 20:00/21:00 hora local, así que el contenido se liberaba
     # una tarde antes de lo prometido y una compra hecha un domingo por la
     # noche quedaba registrada como lunes, corriendo toda la secuencia.
-    start_date = (timezone.localtime(membership.created_at).date()
-                  + timedelta(days=membership.total_paused_days))
-    today = timezone.localdate()
-    iniciales = AjustesAula.obtener().cursos_iniciales
+    inicio = (timezone.localtime(mc.obtenida_en).date()
+              + timedelta(days=membership.total_paused_days))
 
-    result = []
-    blocked = False
+    cursos = [cc.curso for cc in categoria.cursos_en_categoria.all() if cc.curso.is_active]
+
+    estados = {}
+
+    if categoria.abre_todo:
+        # Sin goteo ni cadena de "termina el anterior": la categoría se compró
+        # justamente para tenerlo todo disponible.
+        for curso in cursos:
+            estados[curso.id] = (True, inicio, None, None)
+        return estados
+
+    bloqueado = False
     curso_previo = None      # el que hay que terminar para abrir el siguiente
-    for i, course in enumerate(courses):
-        unlock_date = _unlock_date(start_date, i, iniciales)
-        info = comp[course.id]
-        falta_fecha = today < unlock_date
-        unlocked = not falta_fecha and not blocked
+    for i, curso in enumerate(cursos):
+        fecha = _unlock_date(inicio, i, categoria.cursos_iniciales)
+        info = comp.get(curso.id)
+        falta_fecha = today < fecha
+        abierto = not falta_fecha and not bloqueado
 
         # Por qué está cerrado. Son dos motivos distintos y el alumno necesita
         # distinguirlos: mostrar siempre "disponible el <fecha>" hacía que un
         # curso trabado por no haber terminado el anterior luciera una fecha ya
         # pasada, y el apoderado concluía que la plataforma estaba fallando.
-        if unlocked:
-            motivo, curso_requerido = None, None
-        elif blocked:
-            motivo, curso_requerido = 'previo', curso_previo
+        if abierto:
+            motivo, requerido = None, None
+        elif bloqueado:
+            motivo, requerido = 'previo', curso_previo
         else:
-            motivo, curso_requerido = 'fecha', None
+            motivo, requerido = 'fecha', None
 
+        estados[curso.id] = (abierto, fecha, motivo, requerido)
+
+        completado = info['completed'] if info else False
+        if not abierto or not completado:
+            if not bloqueado:
+                curso_previo = curso
+            bloqueado = True
+
+    return estados
+
+
+def get_course_access(membership):
+    """
+    Devuelve la lista de cursos de la membresía (en orden), cada uno con:
+    - course, unlocked, completed, pct, done, total, unlock_date.
+
+    Cada categoría se evalúa por separado y el curso toma el estado MÁS
+    FAVORABLE de todas las que lo incluyen: abierto gana sobre cerrado, y entre
+    cerrados gana la fecha más cercana. Si no, tener un pack que abre todo no
+    serviría de nada cuando el mismo curso vive también en una categoría con
+    goteo.
+    """
+    courses = list(cursos_de(membership))
+    comp = _completion_map(membership, courses)
+    today = timezone.localdate()
+
+    por_categoria = [
+        _estado_en_categoria(mc, comp, today)
+        for mc in _categorias_del_alumno(membership)
+    ]
+
+    # Respaldo para lo otorgado antes de las categorías (o a mano): sin esto,
+    # esos cursos no aparecerían en ninguna categoría y quedarían cerrados para
+    # siempre. Replica el cálculo anterior, anclado a la creación de la membresía.
+    sueltos = [c for c in courses if not any(c.id in est for est in por_categoria)]
+    if sueltos:
+        inicio = (timezone.localtime(membership.created_at).date()
+                  + timedelta(days=membership.total_paused_days))
+        iniciales = AjustesAula.obtener().cursos_iniciales
+        estados_sueltos = {}
+        bloqueado = False
+        previo = None
+        for i, curso in enumerate(sueltos):
+            fecha = _unlock_date(inicio, i, iniciales)
+            info = comp.get(curso.id)
+            abierto = today >= fecha and not bloqueado
+            if abierto:
+                motivo, requerido = None, None
+            elif bloqueado:
+                motivo, requerido = 'previo', previo
+            else:
+                motivo, requerido = 'fecha', None
+            estados_sueltos[curso.id] = (abierto, fecha, motivo, requerido)
+            if not abierto or not (info['completed'] if info else False):
+                if not bloqueado:
+                    previo = curso
+                bloqueado = True
+        por_categoria.append(estados_sueltos)
+
+    result = []
+    for course in courses:
+        candidatos = [est[course.id] for est in por_categoria if course.id in est]
+        if not candidatos:
+            # No debería pasar: `courses` sale de las mismas fuentes. Se cierra
+            # por seguridad antes que regalar contenido por un hueco de datos.
+            abierto, fecha, motivo, requerido = False, today, 'fecha', None
+        else:
+            abiertos = [c for c in candidatos if c[0]]
+            # Abierto gana; si todas están cerradas, la que abra primero.
+            abierto, fecha, motivo, requerido = (
+                min(abiertos, key=lambda c: c[1]) if abiertos
+                else min(candidatos, key=lambda c: c[1])
+            )
+
+        info = comp[course.id]
         result.append({
             'course': course,
-            'unlocked': unlocked,
+            'unlocked': abierto,
             'completed': info['completed'],
             'pct': info['pct'],
             'done': info['done'],
             'total': info['total'],
-            'unlock_date': unlock_date,
+            'unlock_date': fecha,
             'lock_reason': motivo,              # None | 'fecha' | 'previo'
-            'required_course': curso_requerido,  # el curso que falta completar
+            'required_course': requerido,        # el curso que falta completar
         })
-        # Lo que sigue queda bloqueado si este no se pudo desbloquear, o si se
-        # desbloqueó pero el alumno todavía no lo completa.
-        if not unlocked or not info['completed']:
-            if not blocked:
-                curso_previo = course   # el primero que traba la cadena
-            blocked = True
     return result
 
 
 def get_sequence_access(membership):
     """Secuencia completa del alumno: cursos y diplomas mezclados por su `order`.
-    Un diploma se desbloquea cuando todos los cursos que lo preceden están
-    completos. Al desbloquearse se registra el DiplomaAward (congela la fecha)."""
+
+    Un diploma CON categoría se gana al completar todos los cursos de esa
+    categoría que el alumno tenga; uno SIN categoría conserva el comportamiento
+    anterior (todos los cursos que lo preceden en la secuencia). Al desbloquearse
+    se registra el DiplomaAward, que congela la fecha del logro.
+    """
     course_access = get_course_access(membership)
     items = [{'type': 'course', 'order': a['course'].order, **a} for a in course_access]
-    for d in Diploma.objects.filter(is_active=True):
+
+    # Solo los diplomas de categorías que el alumno tiene (más los sin categoría,
+    # que son globales): mostrarle el diploma de una línea que no compró es
+    # ofrecerle algo que nunca va a poder ganar.
+    mis_categorias = {mc.categoria_id for mc in _categorias_del_alumno(membership)}
+    diplomas = [
+        d for d in Diploma.objects.filter(is_active=True)
+        if d.categoria_id is None or d.categoria_id in mis_categorias
+    ]
+    for d in diplomas:
         items.append({'type': 'diploma', 'order': d.order, 'diploma': d})
     # dentro del mismo `order`, el curso va antes que el diploma
     items.sort(key=lambda x: (x['order'], 0 if x['type'] == 'course' else 1))
+
+    # Por categoría: qué cursos de ella le faltan al alumno. Se calcula una vez
+    # para no recorrer la lista entera por cada diploma.
+    completado_por_categoria = {}
+    for cat_id in mis_categorias:
+        completado_por_categoria[cat_id] = True
+    accesos_por_curso = {a['course'].id: a for a in course_access}
+    from .models import CategoryCourse
+    for cc in CategoryCourse.objects.filter(categoria_id__in=mis_categorias).select_related('curso'):
+        acceso = accesos_por_curso.get(cc.curso_id)
+        if acceso is not None and not acceso['completed']:
+            completado_por_categoria[cc.categoria_id] = False
 
     all_prev_courses_done = True
     for it in items:
@@ -160,10 +309,14 @@ def get_sequence_access(membership):
             if not it['completed']:
                 all_prev_courses_done = False
         else:
-            it['unlocked'] = all_prev_courses_done
+            diploma = it['diploma']
+            if diploma.categoria_id:
+                it['unlocked'] = completado_por_categoria.get(diploma.categoria_id, False)
+            else:
+                it['unlocked'] = all_prev_courses_done
             it['awarded_at'] = None
-            if all_prev_courses_done:
-                award, _ = DiplomaAward.objects.get_or_create(membership=membership, diploma=it['diploma'])
+            if it['unlocked']:
+                award, _ = DiplomaAward.objects.get_or_create(membership=membership, diploma=diploma)
                 it['awarded_at'] = award.awarded_at
 
     return _recortar_bloqueados(items, AjustesAula.obtener().bloqueados_visibles)
@@ -270,9 +423,12 @@ def _grant(order):
     """
     products = list(order.products.all())
     courses = [c for p in products for c in p.courses.filter(is_active=True)]
+    categorias = {c for p in products for c in p.categories.filter(is_active=True)}
     months = max((p.access_months for p in products), default=0)
 
-    if not courses or months <= 0:
+    # Basta con que otorgue categorías O cursos sueltos: los productos migrados
+    # traen las dos cosas, pero uno nuevo bien configurado solo trae categorías.
+    if (not courses and not categorias) or months <= 0:
         return None  # la orden no incluye contenido LMS
 
     email = order.customer_email.lower().strip()
@@ -308,6 +464,16 @@ def _grant(order):
     membership.save()
     membership.courses.add(*courses)
     membership.orders.add(order)
+
+    # Cada categoría arranca su calendario el día en que se obtuvo. get_or_create
+    # y no update: si el alumno ya la tenía, reiniciar la fecha le quitaría de
+    # golpe los modelos que ya tenía disponibles.
+    from .models import MembershipCategory
+    for categoria in categorias:
+        MembershipCategory.objects.get_or_create(
+            membership=membership, categoria=categoria,
+            defaults={'obtenida_en': timezone.now()},
+        )
 
     if user_created or not user.has_usable_password():
         _send_welcome_email(user, membership)

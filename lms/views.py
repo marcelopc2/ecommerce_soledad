@@ -9,7 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Course, Lesson, Diploma, LessonProgress
 from .serializers import CourseListSerializer, CourseStudentSerializer
 from .services import (
-    get_course_access, get_preview_sequence, get_sequence_access, mark_lesson_completed,
+    cursos_de, get_course_access, get_preview_sequence, get_sequence_access,
+    mark_lesson_completed,
 )
 
 
@@ -126,7 +127,10 @@ class CourseDetailView(APIView):
             })
             return Response(data)
 
-        if membership is None or not membership.courses.filter(slug=slug).exists():
+        # cursos_de() y no membership.courses: el acceso se deriva de las
+        # categorías del alumno, así que un curso agregado después a una
+        # categoría que ya tiene también cuenta.
+        if membership is None or not cursos_de(membership).filter(slug=slug).exists():
             return Response({'error': 'No tienes acceso a este curso'}, status=status.HTTP_403_FORBIDDEN)
 
         course = Course.objects.get(slug=slug)
@@ -239,7 +243,7 @@ def _authorized_lesson_file(request, pk):
         return lesson, None
 
     if (membership is None or not membership.is_active
-            or not membership.courses.filter(pk=lesson.course_id).exists()):
+            or not cursos_de(membership).filter(pk=lesson.course_id).exists()):
         raise PermissionDenied('Necesitas una membresía activa para ver este contenido')
 
     access = get_course_access(membership)

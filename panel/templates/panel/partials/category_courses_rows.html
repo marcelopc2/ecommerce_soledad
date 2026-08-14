@@ -1,0 +1,36 @@
+{% comment %}
+  Solo filas <tr>: entra dentro de un <tbody> y el navegador descarta cualquier
+  otra etiqueta, llevándose las filas por delante.
+
+  data-id es el id de CategoryCourse (el vínculo), no el del curso: es esa fila
+  la que lleva el orden dentro de ESTA categoría.
+{% endcomment %}
+{% for cc in cursos_en_categoria %}
+  <tr class="pnl-drag-row" data-id="{{ cc.id }}">
+    <td class="order-cell">
+      <div class="order-cell-inner">
+        <span class="drag-handle" title="Arrastrar"><i class="bi bi-grip-vertical"></i></span>
+        <span class="drag-pos">{{ forloop.counter }}</span>
+      </div>
+    </td>
+    <td>
+      <div class="cell-title">{{ cc.curso.title }}</div>
+      <div class="cell-sub">
+        {{ cc.curso.lessons.count }} recurso{{ cc.curso.lessons.count|pluralize:"s" }}
+        {% if not cc.curso.is_active %} · <span class="badge-soft gray">Oculto</span>{% endif %}
+      </div>
+    </td>
+    <td class="text-end">
+      <a href="{% url 'panel:course_edit' cc.curso.pk %}" class="btn-icon" title="Abrir el modelo">
+        <i class="bi bi-box-arrow-up-right"></i>
+      </a>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="3" class="empty-cell">
+      Esta categoría todavía no tiene modelos. Se agregan desde cada modelo,
+      marcando esta categoría en su ficha.
+    </td>
+  </tr>
+{% endfor %}

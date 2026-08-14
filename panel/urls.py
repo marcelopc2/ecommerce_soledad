@@ -20,6 +20,12 @@ urlpatterns = [
     path('pedidos/<int:pk>/emitir-boleta/', views.order_invoice_issue, name='order_invoice_issue'),
     path('pedidos/<int:pk>/despachar/', views.order_shipment_dispatch, name='order_shipment_dispatch'),
 
+    path('categorias/', views.categories, name='categories'),
+    path('categorias/nueva/', views.category_form, name='category_new'),
+    path('categorias/<int:pk>/editar/', views.category_form, name='category_edit'),
+    path('categorias/<int:pk>/eliminar/', views.category_delete, name='category_delete'),
+    path('categorias/<int:pk>/reordenar/', views.category_courses_reorder, name='category_courses_reorder'),
+
     path('cursos/', views.courses, name='courses'),
     path('cursos/reordenar/', views.courses_reorder, name='courses_reorder'),
     path('cursos/nuevo/', views.course_form, name='course_new'),

@@ -1,0 +1,104 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Categorías{% endblock %}
+{% block crumb %}Panel · Academia{% endblock %}
+{% block heading %}Categorías de modelos{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:category_new' %}" class="btn btn-brand">
+  <i class="bi bi-plus-lg me-1"></i> Nueva categoría
+</a>
+{% endblock %}
+
+{% block content %}
+
+{% if huerfanos %}
+  {% comment %}
+    Un curso sin categoría no lo puede ver NINGÚN alumno. Es un error silencioso
+    fácil de cometer -crear el modelo y olvidar etiquetarlo- que no se nota
+    hasta que alguien reclama, así que se avisa acá arriba.
+  {% endcomment %}
+  <div class="pnl-card mb-4" style="border-left:4px solid var(--coral)"><div class="card-pad">
+    <div class="form-section-title" style="color:var(--coral)">
+      <i class="bi bi-exclamation-triangle"></i> Modelos que nadie puede ver
+    </div>
+    <p class="cell-sub mb-2">
+      Estos modelos no están en ninguna categoría, así que no aparecen en el Aula
+      de ningún alumno. Ábrelos y márcales al menos una.
+    </p>
+    <div class="d-flex flex-wrap gap-2">
+      {% for c in huerfanos %}
+        <a href="{% url 'panel:course_edit' c.pk %}" class="badge-soft red text-decoration-none">
+          {{ c.title }}
+        </a>
+      {% endfor %}
+    </div>
+  </div></div>
+{% endif %}
+
+<div class="pnl-card">
+  <div class="pnl-toolbar">
+    <span class="pnl-hint">
+      <i class="bi bi-info-circle"></i>
+      Cada categoría agrupa modelos y define su ritmo. Un modelo puede estar en varias.
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table pnl-table">
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th>Modelos</th>
+          <th>Ritmo de entrega</th>
+          <th>Estado</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in categorias %}
+          <tr>
+            <td>
+              <div class="cell-title">{{ c.nombre }}</div>
+              <div class="cell-sub">/{{ c.slug }}</div>
+            </td>
+            <td class="cell-sub">{{ c.cursos_en_categoria.count }}</td>
+            <td>
+              {% if c.abre_todo %}
+                <span class="badge-soft teal">Todo de una</span>
+              {% else %}
+                <span class="badge-soft purple">Goteo semanal</span>
+                <div class="cell-sub">{{ c.cursos_iniciales }} al comprar</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if c.is_active %}
+                <span class="badge-soft green">Activa</span>
+              {% else %}
+                <span class="badge-soft gray">Inactiva</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <div class="d-inline-flex gap-2">
+                <a href="{% url 'panel:category_edit' c.pk %}" class="btn-icon" title="Editar">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <button class="btn-icon danger" title="Eliminar"
+                        hx-post="{% url 'panel:category_delete' c.pk %}"
+                        hx-confirm="¿Eliminar la categoría «{{ c.nombre }}»?">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr class="no-hover">
+            <td colspan="5" class="empty-cell">
+              Aún no hay categorías. <a href="{% url 'panel:category_new' %}">Crear la primera</a>.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

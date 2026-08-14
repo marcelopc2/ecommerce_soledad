@@ -27,7 +27,11 @@ from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 from lms.services import get_course_access, send_reset_email
 from payments.models import Order
 from shipments.services import send_dispatch_email
-from .forms import LoginForm, ProductForm, CourseForm, LessonForm, MembershipForm, DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm, StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm
+from .forms import (
+    LoginForm, ProductForm, CourseForm, CourseCategoryForm, LessonForm, MembershipForm,
+    DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm,
+    StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
+)
 
 log = logging.getLogger('ingenioblocks.pagos')
 
@@ -1769,3 +1773,93 @@ def mi_clave(request):
                 return redirect('panel:mi_clave')
 
     return render(request, 'panel/mi_clave.html', {'section': 'mi_clave'})
+
+
+# ---------------------------------------------------------------------------
+# Categorías de cursos
+#
+# Una categoría agrupa modelos y define su ritmo de entrega. Es lo que hace que
+# agregar un modelo nuevo no obligue a ir producto por producto marcándolo:
+# se etiqueta con la categoría y llega solo a todos los alumnos que la tienen.
+# ---------------------------------------------------------------------------
+
+@staff_required
+def categories(request):
+    from lms.models import Course, CourseCategory
+
+    items = CourseCategory.objects.prefetch_related('cursos_en_categoria').all()
+    # Un curso sin categoría no lo puede ver NADIE. Es un error silencioso muy
+    # fácil de cometer (crear el curso y olvidar etiquetarlo), así que se avisa.
+    huerfanos = Course.objects.filter(is_active=True, categorias_del_curso__isnull=True)
+    return render(request, 'panel/categories.html', {
+        'section': 'categories',
+        'categorias': items,
+        'huerfanos': huerfanos,
+    })
+
+
+@staff_required
+def category_form(request, pk=None):
+    from lms.models import CourseCategory
+
+    categoria = get_object_or_404(CourseCategory, pk=pk) if pk else None
+    form = CourseCategoryForm(request.POST or None, instance=categoria)
+    if request.method == 'POST' and form.is_valid():
+        obj = form.save()
+        messages.success(request, f'Categoría "{obj.nombre}" guardada.')
+        return redirect('panel:category_edit', pk=obj.pk)
+
+    return render(request, 'panel/category_form.html', {
+        'section': 'categories',
+        'form': form,
+        'categoria': categoria,
+        'cursos_en_categoria': (
+            categoria.cursos_en_categoria.select_related('curso').all() if categoria else None
+        ),
+    })
+
+
+@staff_required
+@require_POST
+def category_delete(request, pk):
+    """Borra una categoría, salvo que haya alumnos que la tengan.
+
+    Borrarla les quitaría el acceso a todo su contenido de golpe, y a productos
+    que ya se vendieron. En ese caso se desactiva: deja de ofrecerse en
+    productos nuevos, pero quien ya la compró conserva lo suyo.
+    """
+    from lms.models import CourseCategory
+
+    categoria = get_object_or_404(CourseCategory, pk=pk)
+    nombre = categoria.nombre
+    alumnos = categoria.membresias_con_categoria.count()
+
+    if alumnos:
+        categoria.is_active = False
+        categoria.save(update_fields=['is_active'])
+        messages.success(
+            request,
+            f'"{nombre}" tiene {alumnos} alumno{"s" if alumnos != 1 else ""}, '
+            f'así que se desactivó en vez de borrarse (conservan su acceso).',
+        )
+    else:
+        categoria.delete()
+        messages.success(request, f'Categoría "{nombre}" eliminada.')
+    return redirect('panel:categories')
+
+
+@staff_required
+@require_POST
+def category_courses_reorder(request, pk):
+    """Reordena los cursos DENTRO de una categoría (arrastre)."""
+    from lms.models import CategoryCourse, CourseCategory
+
+    categoria = get_object_or_404(CourseCategory, pk=pk)
+    ids = [int(i) for i in request.POST.getlist('order') if str(i).isdigit()]
+    for posicion, cc_id in enumerate(ids, start=1):
+        CategoryCourse.objects.filter(pk=cc_id, categoria=categoria).update(orden=posicion)
+
+    return render(request, 'panel/partials/category_courses_rows.html', {
+        'categoria': categoria,
+        'cursos_en_categoria': categoria.cursos_en_categoria.select_related('curso').all(),
+    })

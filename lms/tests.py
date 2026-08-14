@@ -11,7 +11,10 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 
-from lms.models import AjustesAula, Course, Lesson, Membership, UnlockNotice
+from lms.models import (
+    AjustesAula, CategoryCourse, Course, CourseCategory, Lesson, Membership,
+    MembershipCategory, UnlockNotice,
+)
 from lms.services import _unlock_date, get_course_access, mark_lesson_completed
 
 
@@ -263,3 +266,132 @@ class AccesoAArchivosTests(TestCase):
         leccion = self.curso_abierto.lessons.first()
         respuesta = self.client.get(f'/api/lms/lessons/{leccion.id}/pdf/')
         self.assertIn(respuesta.status_code, (401, 403))
+
+
+class CategoriasDeCursosTests(TestCase):
+    """Cada categoría corre su propio calendario y su propio ritmo.
+
+    Antes había UN solo calendario anclado a la creación de la membresía, así
+    que un pack comprado más tarde heredaba el ritmo ya en marcha en vez de
+    abrir lo suyo. Estos tests fijan el comportamiento nuevo.
+    """
+
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username='alumno@test.cl', email='alumno@test.cl', password='x')
+        # La membresía nació hace 60 días: si algo se anclara a esa fecha en vez
+        # de a la de la categoría, el goteo ya vendría muy avanzado y los tests
+        # de "recién comprado" no detectarían el error.
+        self.membresia = Membership.objects.create(
+            user=self.usuario, expires_at=timezone.now() + timedelta(days=300))
+        Membership.objects.filter(pk=self.membresia.pk).update(
+            created_at=timezone.now() - timedelta(days=60))
+        self.membresia.refresh_from_db()
+
+    def _categoria(self, nombre, modo, iniciales=1, cursos=(), obtenida_hace=0):
+        cat = CourseCategory.objects.create(
+            nombre=nombre, slug=nombre.lower().replace(' ', '-'),
+            modo=modo, cursos_iniciales=iniciales)
+        for i, curso in enumerate(cursos):
+            CategoryCourse.objects.create(categoria=cat, curso=curso, orden=i + 1)
+        MembershipCategory.objects.create(
+            membership=self.membresia, categoria=cat,
+            obtenida_en=timezone.now() - timedelta(days=obtenida_hace))
+        return cat
+
+    def _cursos(self, cuantos, prefijo='c'):
+        return [
+            Course.objects.create(title=f'{prefijo}{i}', slug=f'{prefijo}-{i}', order=i)
+            for i in range(1, cuantos + 1)
+        ]
+
+    def test_modo_todo_abre_los_cursos_apenas_se_obtiene(self):
+        """El caso que motivó todo esto: un pack premium comprado hoy debe abrir
+        sus modelos hoy, no meterlos en la fila del goteo que ya venía."""
+        cursos = self._cursos(8, 'premium')
+        self._categoria('Premium', CourseCategory.TODO, cursos=cursos, obtenida_hace=0)
+        acceso = get_course_access(self.membresia)
+        self.assertEqual(len(acceso), 8)
+        self.assertTrue(all(a['unlocked'] for a in acceso),
+                        'el modo TODO debe abrir todos sus cursos de inmediato')
+
+    def test_modo_goteo_respeta_los_iniciales_de_su_categoria(self):
+        """`cursos_iniciales` = cuántos quedan disponibles POR FECHA el día de la
+        compra. No significa tres abiertos a la vez: la cadena de "termina el
+        anterior" sigue rigiendo, así que el efecto real es poder recorrer tres
+        seguidos sin esperar una semana entre uno y otro."""
+        cursos = self._cursos(6, 'normal')
+        self._categoria('Normal', CourseCategory.GOTEO, iniciales=3,
+                        cursos=cursos, obtenida_hace=0)
+        acceso = get_course_access(self.membresia)
+        hoy = timezone.localdate()
+
+        disponibles_por_fecha = [a for a in acceso if a['unlock_date'] <= hoy]
+        self.assertEqual(len(disponibles_por_fecha), 3,
+                         'con 3 iniciales, los tres primeros no deben esperar')
+        self.assertGreater(acceso[3]['unlock_date'], hoy,
+                           'el cuarto sí espera a la semana siguiente')
+        # Solo el primero está abierto de entrada: los otros dos esperan a que
+        # se complete el anterior, no a que pase el tiempo.
+        self.assertTrue(acceso[0]['unlocked'])
+        self.assertEqual(acceso[1]['lock_reason'], 'previo')
+
+    def test_cada_categoria_tiene_su_propio_calendario(self):
+        """Una categoría obtenida hace 60 días va más avanzada que una de hoy,
+        aunque las dos vivan en la misma membresía."""
+        viejos = self._cursos(6, 'viejo')
+        nuevos = self._cursos(6, 'nuevo')
+        self._categoria('Antigua', CourseCategory.GOTEO, iniciales=1,
+                        cursos=viejos, obtenida_hace=60)
+        self._categoria('Reciente', CourseCategory.GOTEO, iniciales=1,
+                        cursos=nuevos, obtenida_hace=0)
+        acceso = {a['course'].title: a for a in get_course_access(self.membresia)}
+        # En la antigua ya pasaron 8 semanas: el 2º está disponible por fecha
+        # (aunque la cadena de "completa el anterior" lo trabe, la FECHA ya pasó).
+        self.assertLess(acceso['viejo2']['unlock_date'], acceso['nuevo2']['unlock_date'],
+                        'la categoría más antigua debe ir más adelantada')
+
+    def test_un_curso_en_dos_categorias_toma_el_estado_mas_favorable(self):
+        """Si Premium lo abre, da igual que en Normal todavía falten semanas."""
+        curso = Course.objects.create(title='Compartido', slug='compartido', order=1)
+        relleno = self._cursos(5, 'relleno')
+        # En Normal queda al final de la fila: le faltarían semanas.
+        self._categoria('Normal', CourseCategory.GOTEO, iniciales=1,
+                        cursos=relleno + [curso], obtenida_hace=0)
+        # En Premium está abierto de una.
+        self._categoria('Premium', CourseCategory.TODO, cursos=[curso], obtenida_hace=0)
+        acceso = {a['course'].title: a for a in get_course_access(self.membresia)}
+        self.assertTrue(acceso['Compartido']['unlocked'],
+                        'basta que UNA categoría lo abra para que esté disponible')
+
+    def test_un_curso_agregado_despues_llega_a_quien_ya_tenia_la_categoria(self):
+        """El problema original: agregar un modelo nuevo obligaba a ir producto
+        por producto marcándolo."""
+        cursos = self._cursos(2, 'inicial')
+        cat = self._categoria('Normal', CourseCategory.TODO, cursos=cursos, obtenida_hace=10)
+        self.assertEqual(len(get_course_access(self.membresia)), 2)
+
+        nuevo = Course.objects.create(title='Modelo 9', slug='modelo-9', order=9)
+        CategoryCourse.objects.create(categoria=cat, curso=nuevo, orden=3)
+
+        titulos = [a['course'].title for a in get_course_access(self.membresia)]
+        self.assertIn('Modelo 9', titulos,
+                      'el curso nuevo debe llegar solo, sin tocar la membresía')
+
+    def test_un_curso_inactivo_no_aparece_aunque_este_en_la_categoria(self):
+        cursos = self._cursos(3, 'x')
+        cursos[1].is_active = False
+        cursos[1].save()
+        self._categoria('Normal', CourseCategory.TODO, cursos=cursos, obtenida_hace=0)
+        titulos = [a['course'].title for a in get_course_access(self.membresia)]
+        self.assertNotIn('x2', titulos)
+
+    def test_sin_categorias_sigue_funcionando_lo_otorgado_a_mano(self):
+        """Respaldo para lo que se otorgó antes de que existieran las categorías:
+        esos cursos no pueden quedar cerrados para siempre."""
+        cursos = self._cursos(3, 'legado')
+        self.membresia.courses.add(*cursos)
+        acceso = get_course_access(self.membresia)
+        self.assertEqual(len(acceso), 3)
+        self.assertTrue(acceso[0]['unlocked'],
+                        'el primero debe estar disponible, como antes')

@@ -71,14 +71,43 @@
             {{ form.access_months }}
           </div>
         </div>
+        {% comment %}
+          Las categorías van PRIMERO y los modelos sueltos después: la vía normal
+          es incluir una categoría entera, porque así los modelos que se agreguen
+          después llegan solos. La lista de modelos uno por uno queda para casos
+          puntuales y por eso pasó a segundo plano.
+        {% endcomment %}
+        <label class="form-label">
+          {{ form.categories.label }}
+          <span class="pnl-ayuda" tabindex="0">
+            <i class="bi bi-info-circle"></i>
+            <span class="pnl-ayuda-globo">
+              Todo lo que esté en estas categorías queda incluido, ahora y cuando
+              se agreguen modelos nuevos. Cada categoría trae su propio ritmo de
+              entrega (goteo semanal o todo de una).
+            </span>
+          </span>
+        </label>
+        {% if form.categories.field.queryset.exists %}
+          <div class="d-flex flex-wrap gap-3 mt-2 mb-3">
+            {% for cb in form.categories %}
+              <div class="form-check">{{ cb.tag }}<label class="form-check-label ms-2" for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label></div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="cell-sub mb-3">
+            Aún no hay categorías. <a href="{% url 'panel:category_new' %}">Crear la primera</a>
+          </div>
+        {% endif %}
+
         <label class="form-label">
           {{ form.courses.label }}
           <span class="pnl-ayuda" tabindex="0">
             <i class="bi bi-info-circle"></i>
             <span class="pnl-ayuda-globo">
-              Los modelos que se le abren al alumno con esta compra. Se entregan
-              en este mismo orden, uno por semana. El orden se cambia arrastrando
-              en Cursos.
+              Solo para agregar modelos que no están en las categorías de arriba.
+              Lo normal es dejarlo vacío: si un modelo debe ir en este producto,
+              conviene etiquetarlo con la categoría que corresponda.
             </span>
           </span>
         </label>

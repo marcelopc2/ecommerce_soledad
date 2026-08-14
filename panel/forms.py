@@ -5,7 +5,9 @@ from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
     SeccionConcurso, GanadorConcurso,
 )
-from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
+from lms.models import (
+    AjustesAula, CategoryCourse, Course, CourseCategory, Lesson, Membership, Diploma,
+)
 
 
 class BootstrapFormMixin:
@@ -58,7 +60,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
         #    Antes eran dos controles en dos pantallas para lo mismo.
         fields = [
             'name', 'description', 'price',
-            'is_digital', 'courses', 'access_months',
+            'is_digital', 'categories', 'courses', 'access_months',
             'weight_kg', 'width_cm', 'height_cm', 'length_cm',
             # oferta / próximamente / compra restringida
             'is_on_sale', 'sale_price', 'is_coming_soon', 'requires_login',
@@ -72,7 +74,8 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'description': 'Descripción',
             'price': 'Precio (CLP)',
             'is_digital': 'Producto digital',
-            'courses': 'Modelos que incluye',
+            'categories': 'Categorías que incluye',
+            'courses': 'Modelos sueltos extra',
             'access_months': 'Meses de acceso',
             'weight_kg': 'Peso (kg)',
             'width_cm': 'Ancho (cm)',
@@ -89,6 +92,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
         }
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
+            'categories': forms.CheckboxSelectMultiple(),
             'courses': forms.CheckboxSelectMultiple(),
             'features': forms.Textarea(attrs={'rows': 5, 'placeholder': 'Acceso al aula virtual por 6 meses.\n24 modelos (1 cada semana).\nCertificado de aprobación.'}),
             'landing_badge': forms.TextInput(attrs={'placeholder': 'pago único'}),
@@ -98,6 +102,11 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['courses'].required = False
+        self.fields['categories'].required = False
+        self.fields['categories'].queryset = CourseCategory.objects.filter(is_active=True)
+        self.fields['categories'].label_from_instance = (
+            lambda c: f'{c.nombre} ({c.cursos_en_categoria.count()} modelos)'
+        )
         # Se muestran en el orden semanal real (el mismo que se arrastra en
         # /gestion/cursos/) para que sea claro cuáles modelos otorga este kit.
         self.fields['courses'].queryset = Course.objects.order_by('order', 'id')
@@ -162,6 +171,18 @@ class MembershipForm(BootstrapFormMixin, forms.ModelForm):
 
 
 class CourseForm(BootstrapFormMixin, forms.ModelForm):
+    # No es un campo del modelo: la relación vive en CategoryCourse, que además
+    # guarda el orden del curso DENTRO de cada categoría. Acá solo se elige a
+    # cuáles pertenece; el orden se arrastra en la pantalla de la categoría.
+    categorias = forms.ModelMultipleChoiceField(
+        queryset=CourseCategory.objects.filter(is_active=True),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label='Categorías a las que pertenece',
+        help_text='Un curso puede estar en varias. Si no marcas ninguna, ningún '
+                  'alumno podrá verlo.',
+    )
+
     class Meta:
         model = Course
         fields = ['title', 'slug', 'description', 'image_file', 'image_url', 'is_active']
@@ -177,6 +198,13 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 4}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields['categorias'].initial = CourseCategory.objects.filter(
+                cursos_en_categoria__curso=self.instance,
+            )
+
     def save(self, commit=True):
         """El orden (posición en la secuencia semanal) se maneja arrastrando en la
         lista de cursos, no en este formulario: los cursos nuevos se agregan al
@@ -187,7 +215,29 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
             obj.order = last + 1
         if commit:
             obj.save()
+            self._guardar_categorias(obj)
         return obj
+
+    def _guardar_categorias(self, curso):
+        """Sincroniza a qué categorías pertenece.
+
+        Al agregarlo a una categoría se pone al FINAL de esa fila: meterlo al
+        medio correría el calendario de todos los alumnos que ya la tienen y les
+        cambiaría las fechas de lo que viene. Para moverlo se arrastra en la
+        pantalla de la categoría, que es donde se ve el efecto.
+        """
+        elegidas = set(self.cleaned_data.get('categorias', []))
+        actuales = set(CourseCategory.objects.filter(cursos_en_categoria__curso=curso))
+
+        CategoryCourse.objects.filter(
+            curso=curso, categoria__in=(actuales - elegidas),
+        ).delete()
+
+        for categoria in (elegidas - actuales):
+            ultimo = categoria.cursos_en_categoria.aggregate(m=Max('orden'))['m'] or 0
+            CategoryCourse.objects.create(
+                categoria=categoria, curso=curso, orden=ultimo + 1,
+            )
 
 
 class LessonForm(BootstrapFormMixin, forms.ModelForm):
@@ -258,8 +308,9 @@ class LessonForm(BootstrapFormMixin, forms.ModelForm):
 class DiplomaForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Diploma
-        fields = ['title', 'description', 'image_file', 'image_url', 'is_active']
+        fields = ['categoria', 'title', 'description', 'image_file', 'image_url', 'is_active']
         labels = {
+            'categoria': 'Se gana al completar',
             'title': 'Título del diploma',
             'description': 'Mensaje del diploma',
             'image_file': 'Imagen del diploma (opcional)',
@@ -567,6 +618,37 @@ class GanadorConcursoForm(BootstrapFormMixin, forms.ModelForm):
         if not obj.pk and not obj.order:
             last = GanadorConcurso.objects.aggregate(m=Max('order'))['m'] or 0
             obj.order = last + 1
+        if commit:
+            obj.save()
+        return obj
+
+
+class CourseCategoryForm(BootstrapFormMixin, forms.ModelForm):
+    """Una línea de contenido con su propio ritmo de entrega."""
+
+    class Meta:
+        model = CourseCategory
+        fields = ['nombre', 'modo', 'cursos_iniciales', 'is_active']
+        labels = {
+            'nombre': 'Nombre de la categoría',
+            'modo': 'Cómo se entregan los modelos',
+            'cursos_iniciales': 'Modelos disponibles al comprar',
+            'is_active': 'Categoría activa',
+        }
+        widgets = {
+            'nombre': forms.TextInput(attrs={'placeholder': 'Ej: General, Premium, Institucional'}),
+        }
+
+    def save(self, commit=True):
+        """El slug se genera solo: es un dato técnico que quien administra la
+        tienda no tiene por qué inventar ni mantener único a mano."""
+        obj = super().save(commit=False)
+        if not obj.slug:
+            base = slugify(obj.nombre) or 'categoria'
+            slug, n = base, 2
+            while CourseCategory.objects.exclude(pk=obj.pk).filter(slug=slug).exists():
+                slug, n = f'{base}-{n}', n + 1
+            obj.slug = slug
         if commit:
             obj.save()
         return obj

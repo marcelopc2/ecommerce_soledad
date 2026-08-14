@@ -72,7 +72,18 @@ class Product(models.Model):
     # --- LMS: qué acceso otorga comprar este producto ---
     courses = models.ManyToManyField(
         'lms.Course', related_name='products', blank=True,
-        help_text="Cursos a los que da acceso la compra de este producto",
+        help_text="Cursos sueltos a los que da acceso (heredado). Lo normal es "
+                  "usar las categorías: los cursos nuevos de esa categoría "
+                  "llegan solos, sin tener que volver acá.",
+    )
+    # La vía normal para decir qué contenido incluye un producto. Se prefiere a
+    # `courses` porque no hay que volver a tocar el producto cada vez que se
+    # agrega un modelo nuevo: basta etiquetarlo con la categoría.
+    categories = models.ManyToManyField(
+        'lms.CourseCategory', related_name='products', blank=True,
+        verbose_name='Categorías que incluye',
+        help_text="Todo lo que esté en estas categorías queda incluido, ahora y "
+                  "cuando se agreguen modelos nuevos.",
     )
     access_months = models.PositiveIntegerField(
         default=12, help_text="Meses de acceso al LMS incluidos al comprar este producto",

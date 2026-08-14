@@ -18,6 +18,52 @@ def protected_storage():
     return FileSystemStorage(location=settings.PROTECTED_MEDIA_ROOT)
 
 
+class CourseCategory(models.Model):
+    """Un grupo de cursos con su propio ritmo de entrega.
+
+    Existe para que agregar un curso nuevo no obligue a ir producto por producto
+    marcándolo: se etiqueta el curso con la categoría y llega solo a todos los
+    alumnos que la tienen. Y para poder tener líneas distintas -normal, premium,
+    institucional- sin que se pisen entre sí.
+
+    Un curso puede estar en varias categorías a la vez (ver CategoryCourse) y un
+    producto puede incluir varias (ver Product.categories).
+    """
+    GOTEO = 'GOTEO'
+    TODO = 'TODO'
+    MODO_CHOICES = [
+        (GOTEO, 'Goteo semanal'),
+        (TODO, 'Todo desbloqueado de una'),
+    ]
+
+    nombre = models.CharField(max_length=120, unique=True)
+    slug = models.SlugField(unique=True)
+    modo = models.CharField(
+        max_length=10, choices=MODO_CHOICES, default=GOTEO,
+        help_text='Goteo: se libera un modelo por semana. Todo: quedan todos '
+                  'disponibles apenas se compra.',
+    )
+    cursos_iniciales = models.PositiveIntegerField(
+        default=3,
+        help_text='Solo en modo goteo: cuántos modelos quedan disponibles apenas '
+                  'se compra. Del siguiente en adelante se libera uno por semana.',
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['nombre']
+        verbose_name = 'categoría de cursos'
+        verbose_name_plural = 'categorías de cursos'
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def abre_todo(self):
+        return self.modo == self.TODO
+
+
 class Course(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -73,6 +119,34 @@ class Course(models.Model):
         return self.title
 
 
+class CategoryCourse(models.Model):
+    """Un curso dentro de una categoría, con su posición EN ESA categoría.
+
+    No es un ManyToMany pelado porque el orden depende de desde qué categoría se
+    mire: el mismo curso puede ser el 5º de "Normal" y el 2º de "Institucional",
+    ya que cada categoría contiene un subconjunto distinto. Guardar el orden en
+    el curso (Course.order) no alcanzaba para eso.
+    """
+    categoria = models.ForeignKey(
+        CourseCategory, related_name='cursos_en_categoria', on_delete=models.CASCADE,
+    )
+    curso = models.ForeignKey(
+        Course, related_name='categorias_del_curso', on_delete=models.CASCADE,
+    )
+    orden = models.PositiveIntegerField(
+        default=0, help_text='Posición dentro de esta categoría (1 = primero).',
+    )
+
+    class Meta:
+        ordering = ['orden', 'id']
+        unique_together = [('categoria', 'curso')]
+        verbose_name = 'curso de la categoría'
+        verbose_name_plural = 'cursos de la categoría'
+
+    def __str__(self):
+        return f'{self.categoria.nombre} · {self.orden}. {self.curso.title}'
+
+
 class Lesson(models.Model):
     """Un recurso dentro de un curso: video de YouTube, documento PDF o imagen
     (paso a paso). Cada uno lleva una descripción que se muestra junto al recurso."""
@@ -116,7 +190,15 @@ class Membership(models.Model):
     hasta expires_at. Cada compra/renovación EXTIENDE el vencimiento y suma cursos.
     """
     user = models.OneToOneField(settings.AUTH_USER_MODEL, related_name='membership', on_delete=models.CASCADE)
+    # `courses` queda como respaldo histórico y para casos manuales, pero el
+    # acceso real se deriva de las categorías (ver MembershipCategory y
+    # lms.services.cursos_de). Se conserva para no perder el registro de qué se
+    # otorgó antes de que existieran las categorías.
     courses = models.ManyToManyField(Course, related_name='memberships', blank=True)
+    categorias = models.ManyToManyField(
+        CourseCategory, through='MembershipCategory',
+        related_name='membresias', blank=True,
+    )
     orders = models.ManyToManyField(Order, related_name='memberships', blank=True)
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -197,9 +279,18 @@ class LessonProgress(models.Model):
 
 
 class Diploma(models.Model):
-    """Reconocimiento que el alumno gana al completar los cursos que lo preceden
-    en la secuencia. Comparte el espacio de orden con los cursos (Course.order):
-    la lista arrastrable del panel mezcla cursos y diplomas."""
+    """Reconocimiento que el alumno gana al completar una categoría de cursos.
+
+    `categoria` es opcional a propósito: un diploma sin categoría es el
+    comportamiento heredado (se gana al completar todos los cursos que lo
+    preceden en la secuencia global). La migración le asigna "General" a los que
+    ya existían, así que en la práctica todos quedan con categoría.
+    """
+    categoria = models.ForeignKey(
+        'lms.CourseCategory', related_name='diplomas', on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='Categoría',
+        help_text='Se gana al completar todos los cursos de esta categoría.',
+    )
     title = models.CharField(max_length=200, help_text="Ej: 'Diploma Nivel Básico'")
     description = models.TextField(blank=True, help_text="Mensaje que aparece en el diploma")
     image_file = models.FileField(
@@ -307,3 +398,32 @@ class AjustesAula(models.Model):
     def obtener(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class MembershipCategory(models.Model):
+    """Una categoría que un alumno obtuvo, y CUÁNDO la obtuvo.
+
+    Es lo que permite que cada categoría corra su propio calendario. Antes el
+    goteo se anclaba a `Membership.created_at`, así que todo lo comprado después
+    heredaba el ritmo que ya venía corriendo: un pack premium comprado en la
+    semana 3 no abría sus modelos de inmediato, entraba a la fila existente.
+
+    Si el alumno vuelve a comprar algo que incluye una categoría que ya tenía,
+    la fecha NO se pisa: su calendario ya venía corriendo y reiniciarlo le
+    quitaría los modelos que ya tenía disponibles.
+    """
+    membership = models.ForeignKey(
+        Membership, related_name='categorias_obtenidas', on_delete=models.CASCADE,
+    )
+    categoria = models.ForeignKey(
+        CourseCategory, related_name='membresias_con_categoria', on_delete=models.CASCADE,
+    )
+    obtenida_en = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = [('membership', 'categoria')]
+        verbose_name = 'categoría del alumno'
+        verbose_name_plural = 'categorías del alumno'
+
+    def __str__(self):
+        return f'{self.membership.user.email} · {self.categoria.nombre}'

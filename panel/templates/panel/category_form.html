@@ -1,0 +1,152 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}{% if categoria %}Editar categoría{% else %}Nueva categoría{% endif %}{% endblock %}
+{% block crumb %}Panel · Academia · Categorías{% endblock %}
+{% block heading %}{% if categoria %}{{ categoria.nombre }}{% else %}Nueva categoría{% endif %}{% endblock %}
+
+{% block actions %}
+<div class="d-flex gap-2">
+  <a href="{% url 'panel:categories' %}" class="btn btn-ghost">
+    <i class="bi bi-arrow-left me-1"></i> Volver
+  </a>
+  {% if not categoria %}
+    <button type="submit" form="cat-form" class="btn btn-brand">
+      <i class="bi bi-check-lg me-1"></i> Crear categoría
+    </button>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-collection"></i> Datos de la categoría</div>
+      <form method="post" id="cat-form" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
+          {{ form.nombre }}
+          {% for e in form.nombre.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.modo.id_for_label }}">{{ form.modo.label }}</label>
+          {{ form.modo }}
+          <div class="pnl-campo-ayuda">
+            <strong>Goteo semanal:</strong> se libera un modelo por semana, y hay que
+            terminar el anterior para pasar al siguiente.<br>
+            <strong>Todo de una:</strong> quedan todos disponibles apenas se compra.
+            Útil para un pack premium.
+          </div>
+        </div>
+
+        {% comment %}
+          Solo tiene sentido en modo goteo; el JS de abajo lo esconde en el otro
+          modo para no pedir un dato que no se va a usar.
+        {% endcomment %}
+        <div class="mb-3" id="campo-iniciales">
+          <label class="form-label" for="{{ form.cursos_iniciales.id_for_label }}">{{ form.cursos_iniciales.label }}</label>
+          {{ form.cursos_iniciales }}
+          <div class="pnl-campo-ayuda">
+            Cuántos modelos no tienen que esperar la semana. Con 3, quien compra
+            hoy puede hacer tres seguidos y recién el cuarto espera.
+          </div>
+        </div>
+
+        <div class="form-check form-switch mb-3">
+          {{ form.is_active }}
+          <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+        </div>
+
+        {% if categoria %}
+          <button type="submit" class="btn btn-brand">
+            <i class="bi bi-check-lg me-1"></i> Guardar categoría
+          </button>
+        {% endif %}
+      </form>
+    </div></div>
+  </div>
+
+  <div class="col-lg-7">
+    {% if categoria %}
+      <div class="pnl-card">
+        <div class="pnl-toolbar">
+          <span class="pnl-hint"><i class="bi bi-list-ol"></i> Orden de entrega en esta categoría</span>
+          <span class="pnl-hint"><i class="bi bi-grip-vertical"></i> Arrastra para cambiarlo</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table pnl-table" id="cat-cursos-table"
+                 data-reorder-url="{% url 'panel:category_courses_reorder' categoria.pk %}">
+            <thead>
+              <tr>
+                <th class="order-col">Orden</th>
+                <th>Modelo</th>
+                <th class="text-end">Abrir</th>
+              </tr>
+            </thead>
+            <tbody id="cat-cursos-tbody">
+              {% include 'panel/partials/category_courses_rows.html' %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="pnl-hint mt-3">
+        <i class="bi bi-info-circle"></i>
+        Para agregar o sacar modelos de esta categoría, entra al modelo y marca
+        (o desmarca) la categoría en su ficha. Reordenar acá afecta a los alumnos
+        que todavía no llegan a ese punto del calendario.
+      </p>
+    {% else %}
+      <div class="pnl-card"><div class="card-pad">
+        <p class="mdetail-note mb-0">
+          <i class="bi bi-info-circle"></i>
+          Guarda la categoría primero. Después podrás ordenar los modelos que le
+          asignes desde la ficha de cada uno.
+        </p>
+      </div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function initCategoryForm() {
+    var modo = document.getElementById('{{ form.modo.id_for_label }}')
+    var campo = document.getElementById('campo-iniciales')
+    if (modo && campo && !modo.dataset.bound) {
+      modo.dataset.bound = '1'
+      // "Cuántos al comprar" no aplica cuando la categoría abre todo de una:
+      // mostrarlo ahí haría pensar que limita algo.
+      function sync() { campo.style.display = (modo.value === 'GOTEO') ? '' : 'none' }
+      modo.addEventListener('change', sync)
+      sync()
+    }
+
+    {% if categoria %}
+      var tbody = document.getElementById('cat-cursos-tbody')
+      var table = document.getElementById('cat-cursos-table')
+      if (tbody && table && !tbody.dataset.sortableInit) {
+        tbody.dataset.sortableInit = '1'
+        Sortable.create(tbody, {
+          handle: '.drag-handle', animation: 180,
+          ghostClass: 'drag-ghost', dragClass: 'drag-dragging',
+          onEnd: function () {
+            var ids = Array.from(tbody.querySelectorAll('tr.pnl-drag-row'))
+              .map(function (tr) { return tr.dataset.id })
+            if (ids.length === 0) return
+            htmx.ajax('POST', table.dataset.reorderUrl, {
+              source: tbody, target: '#cat-cursos-tbody',
+              swap: 'innerHTML', values: { order: ids },
+            })
+          },
+        })
+      }
+    {% endif %}
+  }
+  document.addEventListener('DOMContentLoaded', initCategoryForm)
+  document.body.addEventListener('htmx:afterSettle', initCategoryForm)
+</script>
+{% endblock %}

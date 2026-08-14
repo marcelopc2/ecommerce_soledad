@@ -45,6 +45,28 @@
   </div>
 </div>
 
+{% comment %}
+  A qué categorías pertenece. Es lo que decide quién puede verlo: sin ninguna
+  marcada, el modelo no aparece en el Aula de nadie.
+{% endcomment %}
+<div class="mb-3">
+  <label class="form-label">{{ form.categorias.label }}</label>
+  <div class="d-flex flex-wrap gap-3">
+    {% for opcion in form.categorias %}
+      <div class="form-check">
+        {{ opcion.tag }}
+        <label class="form-check-label" for="{{ opcion.id_for_label }}">{{ opcion.choice_label }}</label>
+      </div>
+    {% empty %}
+      <span class="cell-sub">
+        Todavía no hay categorías.
+        <a href="{% url 'panel:category_new' %}">Crear la primera</a>.
+      </span>
+    {% endfor %}
+  </div>
+  <div class="pnl-campo-ayuda">{{ form.categorias.help_text }}</div>
+</div>
+
 <div class="form-check form-switch">
   {{ form.is_active }}
   <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
