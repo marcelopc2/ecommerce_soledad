@@ -391,15 +391,16 @@ class AjustesAula(models.Model):
     TODO = 'TODO'
     NADA = 'NADA'
     ACCESO_VENCIDO_CHOICES = [
-        (CARATULAS, 'Ve las carátulas pero no puede entrar'),
+        (CARATULAS, 'Puede repasar los modelos que terminó, el resto queda cerrado'),
         (TODO, 'Sigue viendo todo, como si no se hubiera vencido'),
         (NADA, 'No ve nada hasta que renueve'),
     ]
     acceso_vencido = models.CharField(
         max_length=10, choices=ACCESO_VENCIDO_CHOICES, default=CARATULAS,
         verbose_name='Cuando se le vence la suscripción',
-        help_text='Dejarle las carátulas a la vista le recuerda lo que se está '
-                  'perdiendo; esconderlo todo hace que el Aula se vea vacía.',
+        help_text='Lo que ya terminó lo pagó y volver a armarlo es lo que más se '
+                  'hace en ese estado; lo que le falta es justamente lo que compra '
+                  'al renovar. Esconderlo todo hace que el Aula se vea vacía.',
     )
     reanudar_goteo = models.BooleanField(
         default=True,

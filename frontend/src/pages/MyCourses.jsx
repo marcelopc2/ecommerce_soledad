@@ -69,7 +69,11 @@ export default function MyCourses() {
             <p className="sub">
               {preview
                 ? 'Así ve el Aula un alumno. Todo desbloqueado, sin guardar avance.'
-                : 'Tu ruta de aprendizaje, paso a paso.'}
+                : active
+                  ? 'Tu ruta de aprendizaje, paso a paso.'
+                  /* Con la suscripción caída lo primero que hay que aclarar es
+                     que no perdió nada: lo terminado sigue ahí. */
+                  : 'Puedes volver a ver los modelos que terminaste. Renueva para seguir avanzando.'}
             </p>
           </div>
           <div className="lms-hero-right">
@@ -160,11 +164,16 @@ function faltaTexto(unlockDate) {
 
 function CourseCard({ course: c, active, onReady }) {
   useMinuteTick()
+  // Con la suscripción caída el permiso es POR MODELO, no por membresía: los que
+  // terminó siguen abiertos para repasar. Por eso todo se decide con
+  // `c.unlocked`, que ya trae resuelto el estado de la suscripción, y no con
+  // `active`, que solo sirve para saber si además hay que invitar a renovar.
+  const vencido = c.lock_reason === 'vencida'
+  const locked = !c.unlocked
   // Misterio: un curso que el goteo todavía no libera. Se oculta nombre, foto y
-  // descripción para dar expectativa; queda solo el contador. La membresía
-  // vencida NO es misterio (el alumno ya tuvo el curso), se muestra normal.
-  const misterio = active && !c.completed && !c.unlocked
-  const locked = !active || !c.unlocked
+  // descripción para dar expectativa; queda solo el contador. Un modelo cerrado
+  // por vencimiento NO es misterio: el alumno ya lo tenía a la vista.
+  const misterio = locked && !vencido && !c.completed
   const porFecha = c.lock_reason !== 'previo'
 
   // Cuando llega la hora exacta, recargar para que el curso se libere solo, sin
@@ -186,7 +195,7 @@ function CourseCard({ course: c, active, onReady }) {
           : (c.image_url ? <img src={c.image_url} alt={c.title} /> : <span className="fallback">🧱</span>)}
         {c.completed ? (
           <span className="lock-badge done">✓ Completado</span>
-        ) : !active ? (
+        ) : vencido ? (
           <span className="lock-badge">🔒 Membresía vencida</span>
         ) : !c.unlocked ? (
           /* Dos motivos de bloqueo, hay que distinguirlos: por fecha (goteo) va
@@ -206,7 +215,7 @@ function CourseCard({ course: c, active, onReady }) {
               ? 'Se viene algo nuevo. Te avisamos por correo apenas se abra.'
               : 'Termina el modelo anterior para descubrir cuál es.')
           : c.description}</p>
-        {active && c.unlocked && c.total > 0 && (
+        {c.unlocked && c.total > 0 && (
           <div className="lms-progress">
             <div className="lms-progress-track"><div className="lms-progress-bar" style={{ width: `${c.pct}%` }} /></div>
             <span className="lms-progress-label">{c.pct}%</span>
@@ -218,7 +227,10 @@ function CourseCard({ course: c, active, onReady }) {
             : <>
                 <span className="lms-lessons-chip">{c.done}/{c.total} pasos</span>
                 <span className="go">
-                  {!active ? 'Renovar para entrar' : c.completed ? 'Revisar →' : 'Entrar →'}
+                  {vencido ? 'Renovar para entrar'
+                    : !active && c.completed ? 'Volver a verlo →'
+                    : c.completed ? 'Revisar →'
+                    : 'Entrar →'}
                 </span>
               </>}
         </div>
@@ -226,13 +238,16 @@ function CourseCard({ course: c, active, onReady }) {
     </>
   )
 
-  // Ni el curso misterio ni los de una membresía vencida son clickeables. El
+  // Ni el curso misterio ni el cerrado por vencimiento son clickeables. El
   // misterio, para no dejar un callejón sin salida ni filtrar el nombre por la
   // URL (/curso/su-slug). El vencido, porque la carátula está justamente para
   // que se vea lo que ya no puede abrir: llevarlo a una pantalla de error se
   // siente como una falla de la plataforma, no como una invitación a renovar.
+  //
+  // Los que SÍ terminó siguen siendo un link aunque la suscripción esté caída:
+  // volver a armar un modelo que le gustó es lo que más se hace en ese estado.
   if (misterio) return <div className="lms-course-card locked misterio">{cuerpo}</div>
-  if (!active) return <div className="lms-course-card locked vencida">{cuerpo}</div>
+  if (vencido) return <div className="lms-course-card locked vencida">{cuerpo}</div>
   return <Link to={`/curso/${c.slug}`} className={'lms-course-card' + (locked ? ' locked' : '')}>{cuerpo}</Link>
 }
 

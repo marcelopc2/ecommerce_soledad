@@ -1,8 +1,8 @@
 """Qué pasa cuando se acaban los 12 meses, y qué pasa cuando vuelve a comprar.
 
-Son las dos mitades de la misma promesa comercial: mientras no paga ve lo que se
-está perdiendo pero no lo puede abrir, y cuando vuelve retoma su ritmo semanal
-desde donde quedó, en vez de recibir el año entero de golpe.
+Son las dos mitades de la misma promesa comercial: mientras no paga puede repasar
+los modelos que terminó pero no abrir los que le faltan, y cuando vuelve retoma
+su ritmo semanal desde donde quedó, en vez de recibir el año entero de golpe.
 """
 from datetime import timedelta
 
@@ -15,8 +15,8 @@ from lms.models import (
     Membership, MembershipCategory,
 )
 from lms.services import (
-    _reanudar_goteo, contenido_cerrado, get_course_access, get_sequence_access,
-    mark_lesson_completed,
+    _reanudar_goteo, get_course_access, get_sequence_access, mark_lesson_completed,
+    no_puede_avanzar,
 )
 
 
@@ -72,20 +72,52 @@ class VencimientoYRenovacionTests(TestCase):
 
     # --- mientras está vencida --------------------------------------------
 
-    def test_vencida_muestra_las_caratulas_pero_ninguna_se_puede_abrir(self):
+    def test_vencida_deja_repasar_lo_terminado_y_cierra_lo_demas(self):
+        """Volver a armar un modelo que ya hizo es la razón más común para entrar
+        con la suscripción caída, y ya lo pagó. Lo que no alcanzó a terminar es
+        justamente lo que está comprando al renovar."""
         self._comprada_hace(60)
+        self._terminar(3)
         self._vencer()
         seq = [it for it in get_sequence_access(self.membresia) if it['type'] == 'course']
 
         self.assertEqual(len(seq), 10, 'las carátulas se siguen viendo todas')
+        for it in seq[:3]:
+            self.assertTrue(it['unlocked'], 'lo terminado se puede repasar')
+            self.assertIsNone(it['lock_reason'])
+        for it in seq[3:]:
+            self.assertFalse(it['unlocked'])
+            self.assertEqual(it['lock_reason'], 'vencida')
+
+    def test_vencida_sin_nada_terminado_no_deja_abrir_nada(self):
+        self._comprada_hace(60)
+        self._vencer()
+        seq = [it for it in get_sequence_access(self.membresia) if it['type'] == 'course']
+        self.assertEqual(len(seq), 10)
         self.assertTrue(all(not it['unlocked'] for it in seq))
-        self.assertTrue(all(it['lock_reason'] == 'vencida' for it in seq))
 
     def test_vencida_no_deja_seguir_avanzando(self):
+        """Repasar no es avanzar: puede volver a ver lo terminado, pero no sumar
+        avance nuevo mientras no pague."""
+        self._terminar(3)
         self._vencer()
         self.assertFalse(
             mark_lesson_completed(self.membresia, self.cursos[0].lessons.first()),
         )
+
+    def test_con_NADA_ni_siquiera_puede_repasar_lo_terminado(self):
+        from lms.services import get_course_access as acceso
+
+        ajustes = AjustesAula.obtener()
+        ajustes.acceso_vencido = AjustesAula.NADA
+        ajustes.save()
+        self._comprada_hace(60)
+        self._terminar(3)
+        self._vencer()
+
+        self.assertEqual(get_sequence_access(self.membresia), [])
+        self.assertTrue(all(not a['unlocked'] for a in acceso(self.membresia)),
+                        'tampoco se le sirven los archivos de lo terminado')
 
     def test_se_puede_configurar_que_no_vea_nada(self):
         ajustes = AjustesAula.obtener()
@@ -103,17 +135,22 @@ class VencimientoYRenovacionTests(TestCase):
 
         seq = [it for it in get_sequence_access(self.membresia) if it['type'] == 'course']
         self.assertTrue(seq[0]['unlocked'])
-        self.assertFalse(contenido_cerrado(self.membresia))
+        self.assertFalse(no_puede_avanzar(self.membresia))
 
-    def test_una_pausa_cierra_el_contenido_aunque_se_configure_ver_todo(self):
+    def test_una_pausa_cierra_lo_no_terminado_aunque_se_configure_ver_todo(self):
         """La pausa la aplica la clienta a mano: es una decisión explícita y no
         puede quedar anulada por un ajuste pensado para el vencimiento."""
         ajustes = AjustesAula.obtener()
         ajustes.acceso_vencido = AjustesAula.TODO
         ajustes.save()
+        self._comprada_hace(60)
+        self._terminar(3)
         self.membresia.pause()
 
-        self.assertTrue(contenido_cerrado(self.membresia))
+        self.assertTrue(no_puede_avanzar(self.membresia))
+        acceso = get_course_access(self.membresia)
+        self.assertTrue(acceso[0]['unlocked'], 'lo terminado se sigue pudiendo repasar')
+        self.assertEqual(acceso[3]['lock_reason'], 'vencida')
 
     # --- al renovar --------------------------------------------------------
 

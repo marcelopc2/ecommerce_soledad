@@ -260,9 +260,42 @@ def get_course_access(membership):
             'done': info['done'],
             'total': info['total'],
             'unlock_date': fecha,
-            'lock_reason': motivo,              # None | 'fecha' | 'previo'
+            'lock_reason': motivo,              # None | 'fecha' | 'previo' | 'vencida'
             'required_course': requerido,        # el curso que falta completar
         })
+
+    return _aplicar_cierre(result, politica_de_cierre(membership))
+
+
+def _aplicar_cierre(result, politica):
+    """Reescribe el acceso cuando la membresía dejó de dar acceso.
+
+    Va acá, en el cálculo, y no en cada vista: `get_course_access` es la única
+    fuente de la que salen tanto la lista del Aula como el permiso para servir un
+    video o un PDF. Aplicándolo en un solo lugar, no hay forma de que la lista
+    diga una cosa y el archivo entregue otra.
+
+    Lo que TERMINÓ se conserva abierto: ya lo vio y lo pagó, y volver a armar un
+    modelo que le gustó es la razón más común para entrar con la suscripción
+    caída. Lo que no alcanzó a terminar se cierra: eso es lo que está comprando
+    al renovar.
+    """
+    from .models import AjustesAula
+
+    if politica is None or politica == AjustesAula.TODO:
+        return result
+
+    for r in result:
+        # NADA cierra todo, incluso lo terminado: es la opción para cuando la
+        # clienta no quiere dejar nada disponible sin pagar.
+        if politica != AjustesAula.NADA and r['completed']:
+            r['unlocked'] = True
+            r['lock_reason'] = None
+            r['required_course'] = None
+        else:
+            r['unlocked'] = False
+            r['lock_reason'] = 'vencida'
+            r['required_course'] = None
     return result
 
 
@@ -348,12 +381,15 @@ def get_sequence_access(membership):
 def _aplicar_vencimiento(items, politica):
     """Qué queda a la vista cuando la suscripción se venció.
 
-    Por omisión se dejan las carátulas de todo lo que tenía y se cierra la
-    entrada: el Aula vacía parece un error de la plataforma, mientras que ver lo
-    que ya no puede abrir es un recordatorio concreto de qué se está perdiendo.
-    No se recorta a los `bloqueados_visibles`, porque ese recorte existe para no
-    delatar el catálogo futuro y acá no hay nada futuro que esconder: es
-    contenido que ya tenía.
+    El estado de cada curso ya viene resuelto de `get_course_access` (ver
+    `_aplicar_cierre`): lo terminado abierto para repasar, lo demás cerrado. Acá
+    solo se decide qué se lista.
+
+    Se deja la secuencia completa y no se recorta a los `bloqueados_visibles`,
+    porque ese recorte existe para no delatar el catálogo futuro, y acá no hay
+    nada futuro que esconder: es contenido que ya tenía. Verlo con candado es un
+    recordatorio concreto de qué se está perdiendo; el Aula vacía, en cambio,
+    parece un error de la plataforma.
     """
     from .models import AjustesAula
 
@@ -361,12 +397,6 @@ def _aplicar_vencimiento(items, politica):
         return items
     if politica == AjustesAula.NADA:
         return []
-
-    for it in items:
-        if it['type'] == 'course':
-            it['unlocked'] = False
-            it['lock_reason'] = 'vencida'
-            it['required_course'] = None
     return items
 
 
@@ -443,12 +473,13 @@ def politica_de_cierre(membership):
     return AjustesAula.obtener().acceso_vencido
 
 
-def contenido_cerrado(membership):
-    """¿Está cerrado el contenido ahora mismo?
+def no_puede_avanzar(membership):
+    """¿Se le cerró la posibilidad de seguir avanzando?
 
-    Vive acá y no repetida en cada vista porque son cuatro los puntos de entrada
-    al contenido (ficha del curso, marcar visto, PDF, imagen) y basta con que uno
-    se olvide del chequeo para que el contenido pagado quede accesible.
+    Es distinto de "no puede ver nada": con la suscripción caída puede volver a
+    entrar a los modelos que terminó, pero no sumar avance nuevo. Qué modelo
+    puede abrir se decide curso por curso en `_aplicar_cierre`; esto es solo para
+    la escritura.
     """
     return politica_de_cierre(membership) not in (None, AjustesAula.TODO)
 
@@ -456,7 +487,7 @@ def contenido_cerrado(membership):
 def mark_lesson_completed(membership, lesson):
     """Marca un recurso como visto (solo si su curso está desbloqueado). Al
     completar el último recurso, marca el curso como terminado. Idempotente."""
-    if contenido_cerrado(membership):
+    if no_puede_avanzar(membership):
         return False
     access = get_course_access(membership)
     entry = next((a for a in access if a['course'].id == lesson.course_id), None)

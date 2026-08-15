@@ -9,8 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Course, Lesson, Diploma, LessonProgress
 from .serializers import CourseListSerializer, CourseStudentSerializer
 from .services import (
-    contenido_cerrado, cursos_de, get_course_access, get_preview_sequence,
-    get_sequence_access, mark_lesson_completed,
+    cursos_de, get_course_access, get_preview_sequence, get_sequence_access,
+    mark_lesson_completed,
 )
 
 
@@ -133,21 +133,22 @@ class CourseDetailView(APIView):
         if membership is None or not cursos_de(membership).filter(slug=slug).exists():
             return Response({'error': 'No tienes acceso a este curso'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Vencida: la carátula se sigue viendo en la lista, pero acá se corta. El
-        # mensaje distingue "todavía no te toca" de "se te venció", que para el
-        # apoderado son problemas distintos y con soluciones distintas.
-        if contenido_cerrado(membership):
-            return Response({
-                'error': 'Tu suscripción venció. Renuévala para volver a entrar a los modelos.',
-                'expired': True,
-                'expires_at': membership.expires_at,
-            }, status=status.HTTP_403_FORBIDDEN)
-
         course = Course.objects.get(slug=slug)
         access = get_course_access(membership)
         entry = next((a for a in access if a['course'].id == course.id), None)
 
+        # Se pregunta por el CURSO y no por la membresía: con la suscripción
+        # caída los modelos terminados siguen abiertos para repasar y solo se
+        # cierran los que no alcanzó a terminar.
         if entry is None or not entry['unlocked']:
+            if entry is not None and entry['lock_reason'] == 'vencida':
+                # "Se te venció" y "todavía no te toca" son problemas distintos y
+                # con soluciones distintas; el mensaje tiene que decir cuál es.
+                return Response({
+                    'error': 'Tu suscripción venció. Renuévala para volver a entrar a este modelo.',
+                    'expired': True,
+                    'expires_at': membership.expires_at,
+                }, status=status.HTTP_403_FORBIDDEN)
             return Response({
                 'error': 'Este curso todavía no está disponible.',
                 'unlock_date': entry['unlock_date'] if entry else None,
@@ -157,13 +158,18 @@ class CourseDetailView(APIView):
             LessonProgress.objects.filter(membership=membership, lesson__course=course)
             .values_list('lesson_id', flat=True)
         )
+        # El contenido se entrega porque ESTE curso está abierto, no porque la
+        # membresía esté al día: un modelo terminado se puede repasar con la
+        # suscripción caída. `expired` va aparte para que el Aula igual muestre
+        # el aviso de renovar mientras repasa.
         serializer = CourseStudentSerializer(course, context={
-            'membership_active': membership.is_active,
+            'membership_active': entry['unlocked'],
             'completed_lesson_ids': completed_ids,
         })
         data = serializer.data
         data.update({
-            'membership_active': membership.is_active,
+            'membership_active': entry['unlocked'],
+            'expired': not membership.is_active,
             'completed': entry['completed'],
             'pct': entry['pct'],
             'done': entry['done'],
@@ -252,13 +258,14 @@ def _authorized_lesson_file(request, pk):
     if membership is None and _es_vista_previa(request.user):
         return lesson, None
 
-    # contenido_cerrado() y no `not is_active`: si la clienta configuró que al
-    # vencer se siga viendo todo, los archivos tienen que seguir la misma regla
-    # que la ficha del curso. La pausa sigue cerrando siempre.
-    if (membership is None or contenido_cerrado(membership)
+    if (membership is None
             or not cursos_de(membership).filter(pk=lesson.course_id).exists()):
         raise PermissionDenied('Necesitas una membresía activa para ver este contenido')
 
+    # `unlocked` ya trae resuelto el estado de la suscripción (ver
+    # _aplicar_cierre): un modelo terminado sigue abierto con la suscripción
+    # caída, y uno que no alcanzó a terminar no. Chequear acá `is_active` por
+    # separado volvería a cerrar justo lo que se quiere dejar abierto.
     access = get_course_access(membership)
     entry = next((a for a in access if a['course'].id == lesson.course_id), None)
     if entry is None or not entry['unlocked']:

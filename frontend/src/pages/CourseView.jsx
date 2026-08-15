@@ -126,9 +126,13 @@ export default function CourseView() {
           </div>
         )}
 
-        {!membershipActive && (
+        {/* `expired` y no `!membershipActive`: si llegó hasta acá con la
+            suscripción caída es porque terminó este modelo y lo está repasando,
+            así que el aviso no dice "no puedes ver esto" —lo está viendo— sino
+            que para seguir con los que faltan hay que renovar. */}
+        {course.expired && (
           <div className="lms-expired-banner">
-            <span>⚠️ Tu membresía está vencida. Renuévala para ver los videos y el material.</span>
+            <span>⚠️ Tu suscripción venció. Puedes repasar los modelos que terminaste; renuévala para seguir con los que faltan.</span>
             <Link to="/#kits" className="lms-btn yellow">Renovar</Link>
           </div>
         )}
@@ -174,6 +178,12 @@ export default function CourseView() {
                   <div className="lms-lesson-done preview">
                     👁 Vista previa · el avance no se guarda
                   </div>
+                ) : course.expired ? (
+                  /* Repasando con la suscripción caída: el avance no se guarda,
+                     así que el botón solo daría un error al apretarlo. */
+                  active.completed
+                    ? <div className="lms-lesson-done">✓ Ya lo hiciste</div>
+                    : null
                 ) : membershipActive && (
                   active.completed
                     ? <div className="lms-lesson-done">✓ ¡Listo, ya lo hiciste!</div>
