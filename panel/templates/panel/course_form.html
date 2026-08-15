@@ -81,10 +81,12 @@
     </div>
 
     {% comment %}
-      Se abre solo si el guardado falló: si no, el error quedaría escondido
-      detrás de un panel cerrado y parecería que no pasó nada.
+      Se abre solo en dos casos. Si el guardado falló, porque si no el error
+      quedaría escondido detrás de un panel cerrado y parecería que no pasó nada.
+      Y si el modelo no tiene ninguna categoría, porque así no lo ve ningún
+      alumno: dejar plegado justo el campo que lo arregla es esconder el remedio.
     {% endcomment %}
-    <div class="collapse{% if form.errors %} show{% endif %}" id="datos-curso">
+    <div class="collapse{% if form.errors or not course.categorias_del_curso.all %} show{% endif %}" id="datos-curso">
       <hr class="my-4">
       <form method="post" id="course-form" enctype="multipart/form-data" novalidate>
         {% csrf_token %}

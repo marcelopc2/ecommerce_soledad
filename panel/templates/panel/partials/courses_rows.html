@@ -10,19 +10,21 @@
       </td>
       <td>
         <div class="cell-title"><i class="bi bi-mortarboard text-purple"></i> {{ c.title }}</div>
-        {% comment %}
-          Las categorías van acá y no en una columna propia: son varias por
-          curso y de largo variable, así que como columna obligaban a un ancho
-          que casi siempre sobraba. Debajo del título se leen igual de bien.
-        {% endcomment %}
-        <div class="cell-sub d-flex align-items-center gap-2 flex-wrap">
-          /{{ c.slug }}
+        <div class="cell-sub">/{{ c.slug }}</div>
+      </td>
+      {% comment %}
+        A qué grupos pertenece el modelo: es lo que decide qué alumnos lo ven.
+        Se cambia en la ficha del modelo, por eso el badge lleva a editarlo.
+      {% endcomment %}
+      <td>
+        <div class="d-flex flex-wrap gap-1">
           {% for cc in c.categorias_del_curso.all %}
-            <span class="badge-soft purple">{{ cc.categoria.nombre }}</span>
+            <a href="{% url 'panel:course_edit' c.pk %}" class="badge-soft purple text-decoration-none">{{ cc.categoria.nombre }}</a>
           {% empty %}
-            <span class="badge-soft red" title="Sin categoría no lo ve ningún alumno">
+            <a href="{% url 'panel:course_edit' c.pk %}" class="badge-soft red text-decoration-none"
+               title="Sin categoría no lo ve ningún alumno. Haz clic para asignarle una.">
               <i class="bi bi-exclamation-triangle"></i> Sin categoría
-            </span>
+            </a>
           {% endfor %}
         </div>
       </td>
@@ -33,17 +35,27 @@
           <span class="badge-soft yellow" title="{{ c.image_count }} imagen(es)"><i class="bi bi-image"></i> {{ c.image_count }}</span>
         </div>
       </td>
-      <td class="cell-sub">{{ c.created_at|date:'d M Y' }}</td>
+      <td class="cell-sub cell-nowrap">{{ c.created_at|date:'d M Y' }}</td>
       <td>
         {% if c.is_active %}<span class="badge-soft green">Activo</span>{% else %}<span class="badge-soft gray">Inactivo</span>{% endif %}
       </td>
       <td class="text-end">
         <div class="d-inline-flex gap-2">
-          <a href="{% url 'panel:course_edit' c.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
-          <button class="btn-icon" title="Duplicar"
-                  hx-post="{% url 'panel:course_duplicate' c.pk %}" hx-confirm="¿Duplicar «{{ c.title }}» con todos sus recursos?">
-            <i class="bi bi-copy"></i>
+          {% comment %}
+            Mismo ojo que en Productos, Videos y Testimonios: ocultar un modelo
+            se hace desde la lista, sin entrar a su ficha. hx-include lleva la
+            búsqueda para que al volver no se pierda lo que estaba filtrado.
+          {% endcomment %}
+          <button type="button" class="btn-icon pnl-ojo{% if c.is_active %} activo{% endif %}"
+                  aria-label="Mostrar u ocultar el modelo «{{ c.title }}»"
+                  title="{% if c.is_active %}Los alumnos lo ven. Haz clic para ocultarlo.{% else %}Está oculto para los alumnos. Haz clic para mostrarlo.{% endif %}"
+                  hx-post="{% url 'panel:course_toggle_active' c.pk %}"
+                  hx-include="[name='q']"
+                  hx-target="#courses-tbody"
+                  hx-swap="innerHTML">
+            <i class="bi {% if c.is_active %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
           </button>
+          <a href="{% url 'panel:course_edit' c.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
           <button class="btn-icon danger" title="Eliminar"
                   hx-post="{% url 'panel:course_delete' c.pk %}"
                   hx-confirm="¿Eliminar el curso «{{ c.title }}» y todos sus recursos?"
@@ -67,14 +79,30 @@
         <div class="cell-title"><i class="bi bi-award text-yellow"></i> {{ d.title }}</div>
         <div class="cell-sub">Diploma · se gana al completar los cursos anteriores</div>
       </td>
+      {# Un diploma no pertenece a categorías: premia la secuencia completa. #}
+      <td class="cell-sub">—</td>
       <td class="text-center cell-sub">—</td>
-      <td class="cell-sub">{{ d.created_at|date:'d M Y' }}</td>
+      <td class="cell-sub cell-nowrap">{{ d.created_at|date:'d M Y' }}</td>
       <td>
         {% if d.is_active %}<span class="badge-soft green">Activo</span>{% else %}<span class="badge-soft gray">Inactivo</span>{% endif %}
       </td>
       <td class="text-end">
         <div class="d-inline-flex gap-2">
-          <a href="{% url 'panel:diploma_preview' d.pk %}" class="btn-icon" title="Vista previa" target="_blank"><i class="bi bi-eye"></i></a>
+          {% comment %}
+            El diploma lleva el mismo ojo que los modelos: están en la misma
+            tabla y esconder uno u otro es el mismo gesto. La vista previa pasa a
+            lupa para no tener dos ojos con significados distintos en la fila.
+          {% endcomment %}
+          <button type="button" class="btn-icon pnl-ojo{% if d.is_active %} activo{% endif %}"
+                  aria-label="Mostrar u ocultar el diploma «{{ d.title }}»"
+                  title="{% if d.is_active %}Los alumnos lo pueden ganar. Haz clic para ocultarlo.{% else %}Está oculto. Haz clic para ponerlo en juego.{% endif %}"
+                  hx-post="{% url 'panel:diploma_toggle_active' d.pk %}"
+                  hx-include="[name='q']"
+                  hx-target="#courses-tbody"
+                  hx-swap="innerHTML">
+            <i class="bi {% if d.is_active %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
+          </button>
+          <a href="{% url 'panel:diploma_preview' d.pk %}" class="btn-icon" title="Vista previa" target="_blank"><i class="bi bi-search"></i></a>
           <a href="{% url 'panel:diploma_edit' d.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
           <button class="btn-icon danger" title="Eliminar"
                   hx-post="{% url 'panel:diploma_delete' d.pk %}"
@@ -89,7 +117,7 @@
   {% endif %}
 {% empty %}
   <tr class="no-hover">
-    <td colspan="6" class="empty-cell">
+    <td colspan="7" class="empty-cell">
       {% if q %}<i class="bi bi-search"></i> Sin resultados para «{{ q }}».
       {% else %}Aún no hay cursos. <a href="{% url 'panel:course_new' %}">Crear el primero</a>.{% endif %}
     </td>

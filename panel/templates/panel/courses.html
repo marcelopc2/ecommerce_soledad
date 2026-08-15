@@ -6,59 +6,18 @@
 
 {% block actions %}
 <div class="d-flex gap-2">
-  <a href="{% url 'panel:category_new' %}" class="btn btn-ghost"><i class="bi bi-collection me-1"></i> Nueva categoría</a>
+  {% comment %}
+    "Categorías" y no "Nueva categoría": lleva a administrarlas todas, y crear
+    una es solo una de las cosas que se hacen ahí. Va en gris porque tocar las
+    categorías es raro; lo de todos los días es agregar un modelo.
+  {% endcomment %}
+  <a href="{% url 'panel:categories' %}" class="btn btn-ghost"><i class="bi bi-collection me-1"></i> Categorías</a>
   <a href="{% url 'panel:diploma_new' %}" class="btn btn-diploma"><i class="bi bi-award me-1"></i> Nuevo diploma</a>
   <a href="{% url 'panel:course_new' %}" class="btn btn-brand"><i class="bi bi-plus-lg me-1"></i> Nuevo curso</a>
 </div>
 {% endblock %}
 
 {% block content %}
-
-{% comment %}
-  Las categorías van arriba porque son la capa que agrupa: primero se ve en qué
-  grupos está repartido el contenido y a qué ritmo entrega cada uno, y debajo la
-  secuencia de modelos y diplomas. Ocupan poco porque van plegadas.
-{% endcomment %}
-<div class="pnl-card mb-4">
-  <div class="pnl-toolbar">
-    <span class="pnl-hint"><i class="bi bi-collection"></i> Categorías</span>
-    <span class="pnl-hint">Agrupan los modelos y definen su ritmo de entrega. Un modelo puede estar en varias; se marcan en su ficha.</span>
-  </div>
-  <div class="table-responsive">
-    <table class="table pnl-table">
-      <thead>
-        <tr>
-          <th>Categoría</th>
-          <th>Ritmo de entrega</th>
-          <th class="text-center">Modelos</th>
-          <th>Estado</th>
-          <th class="text-end">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% include 'panel/partials/categories_rows.html' %}
-      </tbody>
-    </table>
-  </div>
-
-  {% comment %}
-    Un modelo sin categoría no lo ve NINGÚN alumno. Es un error silencioso -crear
-    el modelo y olvidar etiquetarlo- que no se nota hasta que alguien reclama,
-    así que se avisa acá mismo y no en una pantalla que hay que ir a buscar.
-  {% endcomment %}
-  {% if cursos_sin_categoria %}
-    <div class="cat-warning">
-      <div class="cell-title" style="color:var(--coral)">
-        <i class="bi bi-exclamation-triangle-fill"></i> Sin categoría, no los ve ningún alumno
-      </div>
-      <div class="d-flex flex-wrap gap-2 mt-2">
-        {% for c in cursos_sin_categoria %}
-          <a href="{% url 'panel:course_edit' c.pk %}" class="badge-soft red text-decoration-none">{{ c.title }}</a>
-        {% endfor %}
-      </div>
-    </div>
-  {% endif %}
-</div>
 
 <div class="pnl-card">
   <div class="pnl-toolbar">
@@ -81,6 +40,7 @@
         <tr>
           <th class="order-col">Orden</th>
           <th>Curso / Diploma</th>
+          <th>Categorías</th>
           <th class="text-center">Recursos</th>
           <th>Creado</th>
           <th>Estado</th>

@@ -343,3 +343,94 @@ class PermisosDeCuentasTests(TestCase):
         self.assertEqual(
             self.client.get(reverse('panel:staff_users')).status_code, 302,
         )
+
+
+class OjoDeCursosYDiplomasTests(TestCase):
+    """Ocultar un modelo se hace desde la lista, con el mismo ojo que ya existe
+    en Productos y Testimonios. Antes había que entrar a la ficha y bajar hasta
+    un switch, y el botón que ocupaba ese lugar era "duplicar", que la clienta
+    no usaba nunca."""
+
+    def setUp(self):
+        from lms.models import Course, Diploma
+
+        self.admin = User.objects.create_user(
+            username='admin', email='admin@ingenioblocks.com',
+            password='UnaClaveLarga123', is_staff=True,
+        )
+        self.client.force_login(self.admin)
+        self.curso = Course.objects.create(
+            title='Grúa Torre', slug='grua', order=1, is_active=True,
+        )
+        self.diploma = Diploma.objects.create(
+            title='Constructor Inicial', order=2, is_active=True,
+        )
+
+    def test_el_ojo_oculta_y_vuelve_a_mostrar_un_modelo(self):
+        url = reverse('panel:course_toggle_active', args=[self.curso.pk])
+
+        self.client.post(url)
+        self.curso.refresh_from_db()
+        self.assertFalse(self.curso.is_active)
+
+        self.client.post(url)
+        self.curso.refresh_from_db()
+        self.assertTrue(self.curso.is_active)
+
+    def test_el_ojo_tambien_sirve_para_los_diplomas(self):
+        self.client.post(reverse('panel:diploma_toggle_active', args=[self.diploma.pk]))
+        self.diploma.refresh_from_db()
+        self.assertFalse(self.diploma.is_active)
+
+    def test_el_ojo_devuelve_solo_las_filas_y_no_la_pagina_entera(self):
+        """El htmx reemplaza el <tbody>: si volviera la página completa, el panel
+        entero quedaría anidado dentro de la tabla."""
+        respuesta = self.client.post(
+            reverse('panel:course_toggle_active', args=[self.curso.pk]),
+        )
+        self.assertContains(respuesta, 'Grúa Torre')
+        self.assertNotContains(respuesta, 'PANEL DE GESTIÓN')
+
+    def test_el_ojo_respeta_la_busqueda_activa(self):
+        """Al ocultar mientras se busca, la tabla que vuelve debe seguir
+        filtrada; si no, la lista salta a mostrarlo todo."""
+        respuesta = self.client.post(
+            reverse('panel:course_toggle_active', args=[self.curso.pk]),
+            {'q': 'grúa'},
+        )
+        self.assertContains(respuesta, 'Grúa Torre')
+        self.assertNotContains(respuesta, 'Constructor Inicial')
+
+
+class PantallaDeCategoriasTests(TestCase):
+    """Las categorías tienen pantalla propia, a la que se entra desde Cursos y
+    diplomas. No está en el menú lateral a propósito."""
+
+    def setUp(self):
+        from lms.models import CategoryCourse, Course, CourseCategory
+
+        self.admin = User.objects.create_user(
+            username='admin', email='admin@ingenioblocks.com',
+            password='UnaClaveLarga123', is_staff=True,
+        )
+        self.client.force_login(self.admin)
+        self.categoria = CourseCategory.objects.create(nombre='General', slug='general')
+        self.curso = Course.objects.create(title='Grúa Torre', slug='grua', order=1)
+        CategoryCourse.objects.create(categoria=self.categoria, curso=self.curso, orden=1)
+        self.huerfano = Course.objects.create(
+            title='Molino de Viento', slug='molino', order=2, is_active=True,
+        )
+
+    def test_lista_cada_categoria_con_los_modelos_que_agrupa(self):
+        respuesta = self.client.get(reverse('panel:categories'))
+        self.assertContains(respuesta, 'General')
+        self.assertContains(respuesta, 'Grúa Torre')
+
+    def test_avisa_de_los_modelos_que_no_ve_ningun_alumno(self):
+        respuesta = self.client.get(reverse('panel:categories'))
+        self.assertIn(self.huerfano, respuesta.context['cursos_sin_categoria'])
+
+    def test_la_lista_de_cursos_muestra_a_que_categoria_pertenece_cada_uno(self):
+        respuesta = self.client.get(reverse('panel:courses'))
+        self.assertContains(respuesta, 'General')
+        self.assertContains(respuesta, 'Sin categoría')

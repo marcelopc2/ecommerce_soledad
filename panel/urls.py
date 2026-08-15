@@ -31,7 +31,7 @@ urlpatterns = [
     path('cursos/nuevo/', views.course_form, name='course_new'),
     path('cursos/<int:pk>/editar/', views.course_form, name='course_edit'),
     path('cursos/<int:pk>/eliminar/', views.course_delete, name='course_delete'),
-    path('cursos/<int:pk>/duplicar/', views.course_duplicate, name='course_duplicate'),
+    path('cursos/<int:pk>/mostrar/', views.course_toggle_active, name='course_toggle_active'),
     path('cursos/<int:pk>/recursos/reordenar/', views.lessons_reorder, name='lessons_reorder'),
     path('recursos/<int:pk>/eliminar/', views.lesson_delete, name='lesson_delete'),
     path('recursos/<int:pk>/vista-previa/', views.lesson_preview, name='lesson_preview'),
@@ -42,6 +42,7 @@ urlpatterns = [
     path('diplomas/<int:pk>/editar/', views.diploma_form, name='diploma_edit'),
     path('diplomas/<int:pk>/eliminar/', views.diploma_delete, name='diploma_delete'),
     path('diplomas/<int:pk>/vista-previa/', views.diploma_preview, name='diploma_preview'),
+    path('diplomas/<int:pk>/mostrar/', views.diploma_toggle_active, name='diploma_toggle_active'),
 
     path('membresias/', views.memberships, name='memberships'),
     path('membresias/<int:pk>/detalle/', views.membership_detail, name='membership_detail'),

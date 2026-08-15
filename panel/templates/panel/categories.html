@@ -1,0 +1,56 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Categorías{% endblock %}
+{% block crumb %}Panel · Academia · Cursos y diplomas{% endblock %}
+{% block heading %}Categorías de modelos{% endblock %}
+
+{% block actions %}
+<div class="d-flex gap-2">
+  <a href="{% url 'panel:courses' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver a cursos</a>
+  <a href="{% url 'panel:category_new' %}" class="btn btn-brand"><i class="bi bi-plus-lg me-1"></i> Nueva categoría</a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="pnl-card">
+  <div class="pnl-toolbar">
+    <span class="pnl-hint"><i class="bi bi-collection"></i> Haz clic en una categoría para ver los modelos que agrupa</span>
+    <span class="pnl-hint">Un modelo puede estar en varias. Se marcan en la ficha del modelo.</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table pnl-table">
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th>Ritmo de entrega</th>
+          <th class="text-center">Modelos</th>
+          <th>Estado</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% include 'panel/partials/categories_rows.html' %}
+      </tbody>
+    </table>
+  </div>
+
+  {% comment %}
+    Un modelo sin categoría no lo ve NINGÚN alumno. El aviso va acá, que es la
+    pantalla donde se entiende el problema, y cada nombre lleva directo a la
+    ficha donde se arregla.
+  {% endcomment %}
+  {% if cursos_sin_categoria %}
+    <div class="cat-warning">
+      <div class="cell-title" style="color:var(--coral)">
+        <i class="bi bi-exclamation-triangle-fill"></i> Sin categoría, no los ve ningún alumno
+      </div>
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        {% for c in cursos_sin_categoria %}
+          <a href="{% url 'panel:course_edit' c.pk %}" class="badge-soft red text-decoration-none">{{ c.title }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -369,12 +369,13 @@ def _sequence_items(q=''):
     """Cursos + diplomas mezclados por su `order` (la secuencia que arma el staff).
     Cada item: {'kind': 'course'|'diploma', 'obj': <modelo>, 'order': int}.
     Los cursos traen el desglose de recursos por tipo (pdf/video/imagen) ya
-    contado en la consulta, para mostrarlo en la lista sin queries extra."""
+    contado en la consulta, para mostrarlo en la lista sin queries extra, y sus
+    categorías prefetcheadas por lo mismo: son una columna de la lista."""
     courses = Course.objects.annotate(
         pdf_count=Count('lessons', filter=Q(lessons__lesson_type='PDF')),
         video_count=Count('lessons', filter=Q(lessons__lesson_type='VIDEO')),
         image_count=Count('lessons', filter=Q(lessons__lesson_type='IMAGE')),
-    )
+    ).prefetch_related('categorias_del_curso__categoria')
     diplomas = Diploma.objects.all()
     if q:
         courses = courses.filter(Q(title__icontains=q) | Q(slug__icontains=q))
@@ -387,24 +388,10 @@ def _sequence_items(q=''):
 
 @staff_required
 def courses(request):
-    from lms.models import CourseCategory
-
     q = request.GET.get('q', '').strip()
     ctx = {'items': _sequence_items(q), 'section': 'courses', 'q': q}
     if is_search_request(request):
         return render(request, 'panel/partials/courses_rows.html', ctx)
-
-    # Las categorías viven en esta misma pantalla, junto a cursos y diplomas:
-    # las tres cosas son "qué contenido existe y cómo se agrupa", y tenerlas
-    # en menús separados obligaba a saltar de una a otra para entender el todo.
-    ctx['categorias'] = (
-        CourseCategory.objects
-        .prefetch_related('cursos_en_categoria__curso')
-        .all()
-    )
-    ctx['cursos_sin_categoria'] = Course.objects.filter(
-        is_active=True, categorias_del_curso__isnull=True,
-    )
     return render(request, 'panel/courses.html', ctx)
 
 
@@ -511,29 +498,32 @@ def course_delete(request, pk):
 
 @staff_required
 @require_POST
-def course_duplicate(request, pk):
-    """Clona un curso con todos sus recursos (útil para armar cursos parecidos)."""
-    original = get_object_or_404(Course, pk=pk)
-    lessons_copy = list(original.lessons.all())
-    last = Course.objects.aggregate(m=Max('order'))['m'] or 0
-    base_slug = f'{original.slug}-copia'
-    slug = base_slug
-    n = 2
-    while Course.objects.filter(slug=slug).exists():
-        slug = f'{base_slug}-{n}'
-        n += 1
-    clone = Course.objects.create(
-        title=f'{original.title} (copia)', slug=slug, description=original.description,
-        image_url=original.image_url, is_active=False, order=last + 1,
-    )
-    for l in lessons_copy:
-        Lesson.objects.create(
-            course=clone, title=l.title, description=l.description, order=l.order,
-            lesson_type=l.lesson_type, video_embed_url=l.video_embed_url,
-            pdf_file=l.pdf_file, image_file=l.image_file,
-        )
-    messages.success(request, f'Curso duplicado como "{clone.title}" (queda inactivo hasta que lo revises).')
-    return redirect('panel:courses')
+def course_toggle_active(request, pk):
+    """Muestra u oculta un modelo desde la propia lista — mismo ojo que en
+    Productos, Videos y Testimonios. Devuelve la tabla completa y no solo la
+    fila porque el orden es una secuencia: se lee mejor viéndola entera."""
+    c = get_object_or_404(Course, pk=pk)
+    c.is_active = not c.is_active
+    c.save(update_fields=['is_active'])
+    verbo = 'se muestra' if c.is_active else 'quedó oculto'
+    messages.success(request, f'El modelo "{c.title}" {verbo} en el Aula.')
+    q = request.POST.get('q', '').strip()
+    return render(request, 'panel/partials/courses_rows.html',
+                  {'items': _sequence_items(q), 'q': q})
+
+
+@staff_required
+@require_POST
+def diploma_toggle_active(request, pk):
+    """El mismo ojo para los diplomas: viven en la misma tabla que los modelos."""
+    d = get_object_or_404(Diploma, pk=pk)
+    d.is_active = not d.is_active
+    d.save(update_fields=['is_active'])
+    verbo = 'se puede ganar' if d.is_active else 'quedó oculto'
+    messages.success(request, f'El diploma "{d.title}" {verbo}.')
+    q = request.POST.get('q', '').strip()
+    return render(request, 'panel/partials/courses_rows.html',
+                  {'items': _sequence_items(q), 'q': q})
 
 
 # ---------- Diplomas ----------
@@ -1799,11 +1789,24 @@ def mi_clave(request):
 
 @staff_required
 def categories(request):
-    """Las categorías se listan dentro de Cursos y diplomas, no en pantalla
-    aparte: agrupar modelos y ordenar la secuencia son la misma tarea, y tenerlas
-    separadas obligaba a saltar de una pantalla a otra. La ruta sobrevive solo
-    para no romper enlaces guardados."""
-    return redirect('panel:courses')
+    """Pantalla interna a la que se entra desde Cursos y diplomas. No tiene
+    entrada propia en el menú a propósito: se administran categorías cuando se
+    está trabajando en el contenido, no como una tarea aparte. Por eso la sección
+    marcada sigue siendo 'courses'."""
+    from lms.models import CourseCategory
+
+    return render(request, 'panel/categories.html', {
+        'section': 'courses',
+        'categorias': (
+            CourseCategory.objects.prefetch_related('cursos_en_categoria__curso').all()
+        ),
+        # Un modelo sin categoría no lo puede ver NADIE. Es un error silencioso
+        # -crearlo y olvidar etiquetarlo- que no se nota hasta que alguien
+        # reclama, así que se avisa en la pantalla donde se arregla.
+        'cursos_sin_categoria': Course.objects.filter(
+            is_active=True, categorias_del_curso__isnull=True,
+        ),
+    })
 
 
 @staff_required
@@ -1853,7 +1856,7 @@ def category_delete(request, pk):
     else:
         categoria.delete()
         messages.success(request, f'Categoría "{nombre}" eliminada.')
-    return redirect('panel:courses')
+    return redirect('panel:categories')
 
 
 @staff_required

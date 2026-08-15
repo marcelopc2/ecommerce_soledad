@@ -1203,3 +1203,7 @@ body.login-body {
   border-top: 1px solid var(--line);
   background: #fff7f7;
 }
+
+/* Con la columna de categorías la tabla se apretó y la fecha se partía en dos
+   líneas, que estiraba todas las filas sin ganar nada. */
+.pnl-table td.cell-nowrap { white-space: nowrap; }
