@@ -241,6 +241,20 @@ else:
         }
     }
 
+# El de Django va PRIMERO: es el que cifra toda clave nueva o cambiada. El de
+# WordPress va detrás y es solo de lectura, para que los clientes que vienen de
+# la tienda vieja entren con la clave que ya tenían. En cuanto uno entra bien,
+# Django reescribe su clave con PBKDF2 y esa cuenta deja de usar el formato
+# viejo: la lista se limpia sola a medida que la gente vuelve.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.ScryptPasswordHasher',
+    'core.hashers.WordPressPasswordHasher',
+]
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',

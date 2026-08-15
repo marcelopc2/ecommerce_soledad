@@ -868,3 +868,24 @@
   border-radius: 999px;
   padding: 8px 16px;
 }
+
+/* ---------- El manual se lee acá dentro, no se descarga ---------- */
+/* El cliente pidió que los recursos no se puedan bajar. Nada que el navegador
+   muestre se puede volver imposible de copiar -siempre queda la captura de
+   pantalla-, pero sí se sacan todos los caminos fáciles: el botón de descargar,
+   el clic derecho, arrastrar la imagen al escritorio y seleccionar el texto. */
+.lms-pdf-wrap {
+  height: min(78vh, 900px);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #14041f;
+}
+.lms-pdf-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+.lms-image-wrap img,
+.lms-pdf-wrap {
+  user-select: none;
+  -webkit-user-select: none;
+  /* En el celular, mantener apretado abre "Guardar imagen". Esto lo desactiva. */
+  -webkit-touch-callout: none;
+}

@@ -207,18 +207,38 @@ class LessonCompleteView(APIView):
                          'total': entry['total'], 'course_completed': entry['completed']})
 
 
+def _sin_guardar(response):
+    """Marca la respuesta como para MIRAR, no para guardar.
+
+    `inline` evita que el navegador la ofrezca como archivo, y `no-store` que
+    quede en la carpeta de caché del disco, que es de donde se sacan estos
+    archivos sin siquiera saber que existe una URL.
+
+    Que quede claro: esto NO hace imposible guardar el contenido. Nada que el
+    navegador muestre se puede volver imposible de copiar —siempre queda la
+    captura de pantalla, y quien sepa abrir las herramientas de desarrollador
+    llega al archivo igual—. Lo que sí hace es sacar todos los caminos fáciles:
+    el botón de descargar, el clic derecho, el "guardar como" y la caché.
+    """
+    response['Content-Disposition'] = 'inline'
+    response['Cache-Control'] = 'private, no-store, max-age=0'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 class LessonPdfView(APIView):
-    """Descarga protegida del PDF: requiere membresía ACTIVA y curso otorgado."""
+    """Sirve el PDF para verlo dentro del Aula. Requiere membresía ACTIVA y curso
+    otorgado."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         lesson, membership = _authorized_lesson_file(request, pk)
         if not lesson.pdf_file:
             raise Http404
-        return FileResponse(
-            lesson.pdf_file.open('rb'), as_attachment=True,
-            filename=lesson.pdf_file.name.split('/')[-1], content_type='application/pdf',
-        )
+        return _sin_guardar(FileResponse(
+            lesson.pdf_file.open('rb'), as_attachment=False,
+            content_type='application/pdf',
+        ))
 
 
 class LessonImageView(APIView):
@@ -230,7 +250,7 @@ class LessonImageView(APIView):
         lesson, membership = _authorized_lesson_file(request, pk)
         if not lesson.image_file:
             raise Http404
-        return FileResponse(lesson.image_file.open('rb'))
+        return _sin_guardar(FileResponse(lesson.image_file.open('rb')))
 
 
 def _authorized_lesson_file(request, pk):

@@ -109,7 +109,7 @@
                 <td class="text-end fw-semibold">${{ row.order.total_amount|floatformat:0|intcomma }}</td>
                 <td class="text-end">
                   {% if row.invoice and row.invoice.pdf_base64 %}
-                    <a href="{% url 'panel:invoice_pdf' row.invoice.pk %}" class="btn-icon" title="Descargar PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+                    <a href="{% url 'panel:invoice_pdf' row.invoice.pk %}" hx-boost="false" download class="btn-icon" title="Descargar PDF"><i class="bi bi-file-earmark-pdf"></i></a>
                   {% else %}<span class="cell-sub">—</span>{% endif %}
                 </td>
               </tr>

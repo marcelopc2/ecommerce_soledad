@@ -42,21 +42,6 @@ export default function CourseView() {
       .finally(() => setLoading(false))
   }, [slug])
 
-  // Los errores se muestran dentro de la página y no con alert() del navegador:
-  // el cuadro gris del sistema se ve ajeno a la marca y en móvil es peor.
-  const downloadPdf = async (lessonId, title) => {
-    setAviso('')
-    try {
-      const res = await api.get(`/lms/lessons/${lessonId}/pdf/`, { responseType: 'blob' })
-      const url = URL.createObjectURL(res.data)
-      const a = document.createElement('a')
-      a.href = url; a.download = `${title}.pdf`; a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      setAviso('No pudimos abrir el documento. Revisa que tu membresía siga activa.')
-    }
-  }
-
   const markSeen = async (lesson) => {
     setBusy(true)
     setAviso('')
@@ -169,7 +154,7 @@ export default function CourseView() {
             ) : (
               <>
                 <h2>{active.order}. {active.title}</h2>
-                <LessonBody lesson={active} membershipActive={membershipActive} onDownloadPdf={downloadPdf} />
+                <LessonBody lesson={active} membershipActive={membershipActive} />
                 {active.description && <p className="lms-lesson-desc">{active.description}</p>}
 
                 {/* En vista previa no hay membresía donde guardar el avance,
@@ -200,7 +185,7 @@ export default function CourseView() {
   )
 }
 
-function LessonBody({ lesson, membershipActive, onDownloadPdf }) {
+function LessonBody({ lesson, membershipActive }) {
   if (!membershipActive) {
     return (
       <div className="lms-locked">
@@ -219,11 +204,40 @@ function LessonBody({ lesson, membershipActive, onDownloadPdf }) {
     return <LessonImage lesson={lesson} />
   }
   // PDF
+  return <LessonPdf lesson={lesson} />
+}
+
+// El manual se lee DENTRO del Aula: no hay botón de descargar. `#toolbar=0`
+// esconde la barra del visor del navegador, que es donde vive el botón de
+// guardar e imprimir. Chrome y Edge la respetan; Firefox no, así que ahí el
+// botón sigue apareciendo. No hay forma de taparlo en todos los navegadores sin
+// meter un visor propio de medio megabyte, y no vale la pena: quien quiera el
+// archivo lo saca igual con una captura de pantalla.
+function LessonPdf({ lesson }) {
+  const [src, setSrc] = useState(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let url
+    let cancelled = false
+    setSrc(null); setFailed(false)
+    // Por blob y no por URL directa: así la dirección del archivo no queda a la
+    // vista en el HTML para copiarla y pasarla por WhatsApp.
+    api.get(`/lms/lessons/${lesson.id}/pdf/`, { responseType: 'blob' })
+      .then(res => {
+        if (cancelled) return
+        url = URL.createObjectURL(res.data)
+        setSrc(url + '#toolbar=0&navpanes=0&statusbar=0')
+      })
+      .catch(() => !cancelled && setFailed(true))
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
+  }, [lesson.id])
+
+  if (failed) return <div className="lms-locked"><span className="lock">📄</span><strong>No se pudo cargar el documento</strong></div>
+  if (!src) return <div className="lms-image-loading">Cargando documento…</div>
   return (
-    <div className="lms-pdf-card">
-      <span className="pdf-ico">📄</span>
-      <div className="info"><strong>{lesson.title}</strong><span>Documento PDF descargable</span></div>
-      <button className="lms-btn yellow" onClick={() => onDownloadPdf(lesson.id, lesson.title)}>Descargar</button>
+    <div className="lms-pdf-wrap">
+      <iframe src={src} title={lesson.title} />
     </div>
   )
 }
@@ -248,5 +262,9 @@ function LessonImage({ lesson }) {
 
   if (failed) return <div className="lms-locked"><span className="lock">🖼</span><strong>No se pudo cargar la imagen</strong></div>
   if (!src) return <div className="lms-image-loading">Cargando imagen…</div>
-  return <div className="lms-image-wrap"><img src={src} alt={lesson.title} /></div>
+  return (
+    <div className="lms-image-wrap" onContextMenu={e => e.preventDefault()}>
+      <img src={src} alt={lesson.title} draggable="false" />
+    </div>
+  )
 }
