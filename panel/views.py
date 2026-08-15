@@ -990,7 +990,13 @@ def invoice_pdf(request, pk):
     pdf_bytes = base64.b64decode(invoice.pdf_base64)
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     filename = f"boleta_{invoice.folio or invoice.pk}.pdf"
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    # `inline` y no `attachment`: la boleta se abre en una pestaña y se mira. Casi
+    # siempre lo que se necesita es revisar un folio o un monto, no guardar el
+    # archivo; con `attachment` eso obligaba a bajarlo, abrirlo desde la carpeta
+    # de descargas y después borrarlo. Quien sí la necesite la baja desde el
+    # visor del navegador, que ya trae su botón. El filename se conserva para
+    # que ese botón proponga el nombre correcto.
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
     return response
 
 

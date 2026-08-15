@@ -21,7 +21,7 @@
     <td class="text-end">
       <div class="d-inline-flex gap-2">
         {% if o.invoice.pdf_base64 %}
-          <a href="{% url 'panel:invoice_pdf' o.invoice.pk %}" hx-boost="false" download class="btn-icon" title="Descargar boleta (PDF)"><i class="bi bi-download"></i></a>
+          <a href="{% url 'panel:invoice_pdf' o.invoice.pk %}" hx-boost="false" target="_blank" rel="noopener" class="btn-icon" title="Ver la boleta"><i class="bi bi-file-earmark-text"></i></a>
         {% endif %}
         {% if o.status == 'PAID' and o.invoice.status != 'ISSUED' %}
           <button class="btn-icon" title="{% if o.invoice %}Reintentar emisión de la boleta{% else %}Emitir boleta{% endif %} en OpenFactura"

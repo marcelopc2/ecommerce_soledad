@@ -101,7 +101,7 @@
         {% endif %}
         <div class="mdetail-actions mt-3">
           {% if invoice.pdf_base64 %}
-            <a href="{% url 'panel:invoice_pdf' invoice.pk %}" hx-boost="false" download class="btn btn-ghost"><i class="bi bi-download me-1"></i> Descargar PDF</a>
+            <a href="{% url 'panel:invoice_pdf' invoice.pk %}" hx-boost="false" target="_blank" rel="noopener" class="btn btn-ghost"><i class="bi bi-file-earmark-text me-1"></i> Ver boleta</a>
           {% endif %}
           {% if invoice.status != 'ISSUED' and order.status == 'PAID' %}
             <button class="btn btn-brand"
