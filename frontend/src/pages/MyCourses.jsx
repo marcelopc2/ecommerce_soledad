@@ -217,18 +217,23 @@ function CourseCard({ course: c, active, onReady }) {
             ? <span className="lms-lessons-chip muted">Muy pronto</span>
             : <>
                 <span className="lms-lessons-chip">{c.done}/{c.total} pasos</span>
-                <span className="go">{c.completed ? 'Revisar →' : 'Entrar →'}</span>
+                <span className="go">
+                  {!active ? 'Renovar para entrar' : c.completed ? 'Revisar →' : 'Entrar →'}
+                </span>
               </>}
         </div>
       </div>
     </>
   )
 
-  // El curso misterio no es clickeable: evita un callejón sin salida y que el
-  // nombre se filtre por la URL (/curso/su-slug).
-  return misterio
-    ? <div className="lms-course-card locked misterio">{cuerpo}</div>
-    : <Link to={`/curso/${c.slug}`} className={'lms-course-card' + (locked ? ' locked' : '')}>{cuerpo}</Link>
+  // Ni el curso misterio ni los de una membresía vencida son clickeables. El
+  // misterio, para no dejar un callejón sin salida ni filtrar el nombre por la
+  // URL (/curso/su-slug). El vencido, porque la carátula está justamente para
+  // que se vea lo que ya no puede abrir: llevarlo a una pantalla de error se
+  // siente como una falla de la plataforma, no como una invitación a renovar.
+  if (misterio) return <div className="lms-course-card locked misterio">{cuerpo}</div>
+  if (!active) return <div className="lms-course-card locked vencida">{cuerpo}</div>
+  return <Link to={`/curso/${c.slug}`} className={'lms-course-card' + (locked ? ' locked' : '')}>{cuerpo}</Link>
 }
 
 function DiplomaCard({ diploma: d }) {

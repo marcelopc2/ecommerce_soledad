@@ -15,6 +15,7 @@ export default function CourseView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [unlockDate, setUnlockDate] = useState(null)
+  const [expiresAt, setExpiresAt] = useState(null)
   const [busy, setBusy] = useState(false)
   const [aviso, setAviso] = useState('')   // errores puntuales, en la propia página
 
@@ -25,7 +26,12 @@ export default function CourseView() {
         setActiveId(r.data.lessons?.[0]?.id ?? null)
       })
       .catch(err => {
-        if (err.response?.status === 403 && err.response?.data?.unlock_date) {
+        // Tres motivos distintos para el mismo 403, y el apoderado necesita
+        // distinguirlos: "todavía no te toca", "se te venció" y "esto no es
+        // tuyo" se arreglan de maneras muy diferentes.
+        if (err.response?.status === 403 && err.response?.data?.expired) {
+          setExpiresAt(err.response.data.expires_at); setError('expired')
+        } else if (err.response?.status === 403 && err.response?.data?.unlock_date) {
           setUnlockDate(err.response.data.unlock_date); setError('drip-locked')
         } else if (err.response?.status === 403) {
           setError('No tienes acceso a este curso.')
@@ -71,14 +77,27 @@ export default function CourseView() {
 
   if (error) {
     const isDrip = error === 'drip-locked'
+    const isExpired = error === 'expired'
     return (
       <div className="lms">
         <LmsHeader />
         <div className="lms-content">
           <div className="lms-empty">
-            <span className="big">{isDrip ? '📅' : '🔒'}</span>
-            <h3>{isDrip ? 'Todavía no puedes entrar a este curso' : error}</h3>
+            <span className="big">{isDrip ? '📅' : isExpired ? '⏳' : '🔒'}</span>
+            <h3>
+              {isDrip ? 'Todavía no puedes entrar a este curso'
+                : isExpired ? 'Tu suscripción venció'
+                : error}
+            </h3>
             {isDrip && <p>Se desbloquea el <strong>{fmtDate(unlockDate)}</strong>, cuando completes el curso anterior.</p>}
+            {isExpired && (
+              <p>
+                {expiresAt && <>Venció el <strong>{new Date(expiresAt).toLocaleDateString('es-CL')}</strong>. </>}
+                Al renovar retomas justo donde quedaste: tu avance está guardado y
+                no pierdes ningún modelo.
+              </p>
+            )}
+            {isExpired && <Link to="/#kits" className="lms-btn yellow">Renovar mi acceso</Link>}
             <Link to="/mis-cursos" className="lms-btn ghost">← Volver a mis cursos</Link>
           </div>
         </div>

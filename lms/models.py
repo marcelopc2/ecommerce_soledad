@@ -380,6 +380,42 @@ class AjustesAula(models.Model):
         help_text='Cuántos modelos bloqueados se muestran después de los disponibles, '
                   'para dar a entender que viene más. 0 = mostrarlos todos.',
     )
+
+    # --- Qué pasa cuando se le vence la suscripción ---
+    #
+    # Las tres son decisiones comerciales, no técnicas: cuánto se le deja ver a
+    # quien dejó de pagar, y qué tan generosa es la renovación. Por eso viven acá
+    # y no en el código.
+
+    CARATULAS = 'CARATULAS'
+    TODO = 'TODO'
+    NADA = 'NADA'
+    ACCESO_VENCIDO_CHOICES = [
+        (CARATULAS, 'Ve las carátulas pero no puede entrar'),
+        (TODO, 'Sigue viendo todo, como si no se hubiera vencido'),
+        (NADA, 'No ve nada hasta que renueve'),
+    ]
+    acceso_vencido = models.CharField(
+        max_length=10, choices=ACCESO_VENCIDO_CHOICES, default=CARATULAS,
+        verbose_name='Cuando se le vence la suscripción',
+        help_text='Dejarle las carátulas a la vista le recuerda lo que se está '
+                  'perdiendo; esconderlo todo hace que el Aula se vea vacía.',
+    )
+    reanudar_goteo = models.BooleanField(
+        default=True,
+        verbose_name='Al renovar, el goteo empieza de nuevo desde donde quedó',
+        help_text='Se le abren de inmediato los primeros modelos de cada categoría '
+                  'contando desde el último que terminó, y de ahí sigue uno por '
+                  'semana. Si lo apagas, al renovar se le abre de golpe todo lo que '
+                  'el calendario había liberado mientras estuvo vencido.',
+    )
+    diplomas_tras_vencer = models.BooleanField(
+        default=True,
+        verbose_name='Los diplomas ya ganados se siguen pudiendo descargar',
+        help_text='Un diploma ganado es del alumno. Bloquearlo genera reclamos de '
+                  'quien ya lo tenía y no cambia si renueva o no.',
+    )
+
     actualizado = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -420,10 +456,46 @@ class MembershipCategory(models.Model):
     )
     obtenida_en = models.DateTimeField(default=timezone.now)
 
+    # --- Reanudación del goteo tras una renovación ---
+    #
+    # Si la suscripción se vence y el alumno vuelve a comprar tiempo, el goteo no
+    # sigue desde la fecha original: eso le abriría de golpe todos los modelos
+    # cuya fecha ya pasó mientras estuvo vencido, y el ritmo semanal —que es el
+    # producto— desaparecería. En vez de eso el calendario se vuelve a anclar acá,
+    # a partir del último modelo que alcanzó a terminar.
+    reanudada_en = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Si renovó después de vencerse, desde cuándo corre su calendario ahora.',
+    )
+    entregados_al_reanudar = models.PositiveIntegerField(
+        default=0,
+        help_text='Cuántos modelos de esta categoría ya tenía terminados al reanudar. '
+                  'Esos siguen abiertos; el goteo continúa desde el siguiente.',
+    )
+    # Los días de pausa son un acumulado histórico de la membresía. Al reanudar se
+    # guarda cuántos llevaba, para que solo cuenten las pausas POSTERIORES: si no,
+    # una pausa vieja volvería a correr hacia adelante un calendario que ya se
+    # reancló a hoy, y el alumno vería su próximo modelo semanas después.
+    pausa_al_reanudar = models.PositiveIntegerField(default=0)
+
     class Meta:
         unique_together = [('membership', 'categoria')]
         verbose_name = 'categoría del alumno'
         verbose_name_plural = 'categorías del alumno'
+
+    @property
+    def inicio_del_calendario(self):
+        """Fecha desde la que se cuenta el goteo, ya corrida por las pausas."""
+        if self.reanudada_en:
+            base, pausa_previa = self.reanudada_en, self.pausa_al_reanudar
+        else:
+            base, pausa_previa = self.obtenida_en, 0
+        dias = max(0, self.membership.total_paused_days - pausa_previa)
+        # localtime() antes de .date(): con USE_TZ las fechas se guardan en UTC y
+        # Chile va 3-4 horas atrás, así que sin convertir el "día" del goteo
+        # cambiaba a las 20:00 hora local y el contenido se liberaba una tarde
+        # antes de lo prometido.
+        return timezone.localtime(base).date() + timedelta(days=dias)
 
     def __str__(self):
         return f'{self.membership.user.email} · {self.categoria.nombre}'

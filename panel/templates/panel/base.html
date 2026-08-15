@@ -6,8 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>{% block title %}Panel{% endblock %} · IngenioBlocks</title>
-  {# Mismo isotipo que la landing y el aula: con varias pestañas abiertas se
-     reconocen todas como el mismo sitio. #}
+  {% comment %}
+    Mismo isotipo que la landing y el aula: con varias pestañas abiertas se
+    reconocen todas como el mismo sitio.
+  {% endcomment %}
   <link rel="icon" type="image/svg+xml" href="{% static 'panel/img/favicon.svg' %}">
   <link rel="alternate icon" href="{% static 'panel/img/favicon.ico' %}" sizes="16x16 32x32 48x48">
   {# Transiciones suaves entre páginas (View Transitions API) al navegar con hx-boost #}

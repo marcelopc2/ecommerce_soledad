@@ -135,18 +135,11 @@ def _estado_en_categoria(mc, comp, today):
     anclado a la fecha en que el alumno la obtuvo.
     """
     categoria = mc.categoria
-    membership = mc.membership
 
-    # Los días que estuvo pausada no cuentan: se corre el punto de partida hacia
-    # adelante esa misma cantidad de días.
-    #
-    # localtime() antes de .date() porque con USE_TZ las fechas se guardan en
-    # UTC, y Chile va 3-4 horas atrás: sin convertir, el "día" del goteo
-    # cambiaba a las 20:00/21:00 hora local, así que el contenido se liberaba
-    # una tarde antes de lo prometido y una compra hecha un domingo por la
-    # noche quedaba registrada como lunes, corriendo toda la secuencia.
-    inicio = (timezone.localtime(mc.obtenida_en).date()
-              + timedelta(days=membership.total_paused_days))
+    # Punto de partida del calendario: la fecha en que obtuvo la categoría, o
+    # aquella en que se reanudó el goteo si renovó después de vencerse. Ya viene
+    # corrido por los días que la membresía estuvo pausada.
+    inicio = mc.inicio_del_calendario
 
     cursos = [cc.curso for cc in categoria.cursos_en_categoria.all() if cc.curso.is_active]
 
@@ -159,10 +152,16 @@ def _estado_en_categoria(mc, comp, today):
             estados[curso.id] = (True, inicio, None, None)
         return estados
 
+    # Lo que ya se le había entregado antes de reanudar no vuelve a la fila: el
+    # goteo se reanuda desde ahí, así que esas posiciones cuentan como abiertas
+    # desde el día uno y el conteo semanal parte del siguiente.
+    entregados = mc.entregados_al_reanudar if mc.reanudada_en else 0
+
     bloqueado = False
     curso_previo = None      # el que hay que terminar para abrir el siguiente
     for i, curso in enumerate(cursos):
-        fecha = _unlock_date(inicio, i, categoria.cursos_iniciales)
+        fecha = (inicio if i < entregados
+                 else _unlock_date(inicio, i - entregados, categoria.cursos_iniciales))
         info = comp.get(curso.id)
         falta_fecha = today < fecha
         abierto = not falta_fecha and not bloqueado
@@ -303,6 +302,20 @@ def get_sequence_access(membership):
         if acceso is not None and not acceso['completed']:
             completado_por_categoria[cc.categoria_id] = False
 
+    ajustes = AjustesAula.obtener()
+    politica = politica_de_cierre(membership)
+    vencida = politica is not None
+
+    # Con la suscripción caída no se ganan diplomas nuevos ni se registran
+    # premios: el alumno no está pagando, y un DiplomaAward creado ahora
+    # congelaría una fecha de logro que no corresponde.
+    ya_ganados = set()
+    if vencida:
+        ya_ganados = set(
+            DiplomaAward.objects.filter(membership=membership)
+            .values_list('diploma_id', flat=True)
+        )
+
     all_prev_courses_done = True
     for it in items:
         if it['type'] == 'course':
@@ -315,11 +328,46 @@ def get_sequence_access(membership):
             else:
                 it['unlocked'] = all_prev_courses_done
             it['awarded_at'] = None
-            if it['unlocked']:
+            if vencida:
+                # Un diploma ganado es del alumno: se conserva descargable aunque
+                # dejara de pagar, si así está configurado.
+                it['unlocked'] = (diploma.id in ya_ganados
+                                  and ajustes.diplomas_tras_vencer)
+                if it['unlocked']:
+                    it['awarded_at'] = DiplomaAward.objects.get(
+                        membership=membership, diploma=diploma).awarded_at
+            elif it['unlocked']:
                 award, _ = DiplomaAward.objects.get_or_create(membership=membership, diploma=diploma)
                 it['awarded_at'] = award.awarded_at
 
-    return _recortar_bloqueados(items, AjustesAula.obtener().bloqueados_visibles)
+    if vencida:
+        return _aplicar_vencimiento(items, politica)
+    return _recortar_bloqueados(items, ajustes.bloqueados_visibles)
+
+
+def _aplicar_vencimiento(items, politica):
+    """Qué queda a la vista cuando la suscripción se venció.
+
+    Por omisión se dejan las carátulas de todo lo que tenía y se cierra la
+    entrada: el Aula vacía parece un error de la plataforma, mientras que ver lo
+    que ya no puede abrir es un recordatorio concreto de qué se está perdiendo.
+    No se recorta a los `bloqueados_visibles`, porque ese recorte existe para no
+    delatar el catálogo futuro y acá no hay nada futuro que esconder: es
+    contenido que ya tenía.
+    """
+    from .models import AjustesAula
+
+    if politica == AjustesAula.TODO:
+        return items
+    if politica == AjustesAula.NADA:
+        return []
+
+    for it in items:
+        if it['type'] == 'course':
+            it['unlocked'] = False
+            it['lock_reason'] = 'vencida'
+            it['required_course'] = None
+    return items
 
 
 def _recortar_bloqueados(items, limite):
@@ -379,9 +427,37 @@ def get_preview_sequence():
     return items
 
 
+def politica_de_cierre(membership):
+    """Qué se le muestra cuando su membresía no está dando acceso. None = normal.
+
+    Pausa y vencimiento no son lo mismo, aunque los dos dejen `is_active` en
+    False. La pausa la aplica la clienta a mano y siempre cierra el contenido;
+    para el vencimiento manda lo que esté configurado en el panel, porque ahí sí
+    es una decisión comercial (dejarle las carátulas a la vista es una invitación
+    a renovar, no un descuido).
+    """
+    if membership is None or membership.is_active:
+        return None
+    if membership.is_paused:
+        return AjustesAula.CARATULAS
+    return AjustesAula.obtener().acceso_vencido
+
+
+def contenido_cerrado(membership):
+    """¿Está cerrado el contenido ahora mismo?
+
+    Vive acá y no repetida en cada vista porque son cuatro los puntos de entrada
+    al contenido (ficha del curso, marcar visto, PDF, imagen) y basta con que uno
+    se olvide del chequeo para que el contenido pagado quede accesible.
+    """
+    return politica_de_cierre(membership) not in (None, AjustesAula.TODO)
+
+
 def mark_lesson_completed(membership, lesson):
     """Marca un recurso como visto (solo si su curso está desbloqueado). Al
     completar el último recurso, marca el curso como terminado. Idempotente."""
+    if contenido_cerrado(membership):
+        return False
     access = get_course_access(membership)
     entry = next((a for a in access if a['course'].id == lesson.course_id), None)
     if entry is None or not entry['unlocked']:
@@ -459,6 +535,10 @@ def _grant(order):
         membership.save()   # los nombres sí se guardan aunque no se re-sumen meses
         return membership
 
+    # Se mira ANTES de extender: si estaba vencida, esta compra es una
+    # reactivación y el goteo tiene que volver a anclarse (ver _reanudar_goteo).
+    venia_vencida = membership.expires_at <= timezone.now()
+
     base = membership.expires_at if membership.expires_at > timezone.now() else timezone.now()
     membership.expires_at = base + relativedelta(months=months)
     membership.save()
@@ -475,12 +555,65 @@ def _grant(order):
             defaults={'obtenida_en': timezone.now()},
         )
 
+    if venia_vencida and AjustesAula.obtener().reanudar_goteo:
+        _reanudar_goteo(membership)
+
     if user_created or not user.has_usable_password():
         _send_welcome_email(user, membership)
     else:
         _send_extended_email(user, membership)
 
     return membership
+
+
+def _reanudar_goteo(membership):
+    """Vuelve a anclar el calendario de TODAS sus categorías al día de hoy,
+    desde el último modelo que alcanzó a terminar en cada una.
+
+    Sin esto, quien renueva después de vencerse recibe de golpe todos los modelos
+    cuya fecha pasó mientras no pagaba: el ritmo semanal —que es el producto— se
+    evapora justo en la compra que debía renovarlo. Reanclando, la renovación se
+    comporta igual que la compra inicial (los primeros `cursos_iniciales` de una
+    vez, después uno por semana), solo que empezando donde quedó y no en cero.
+
+    Se reanudan todas sus categorías y no solo las de esta orden: lo que se
+    reactiva es la cuenta, no un paquete.
+    """
+    from .models import MembershipCategory
+
+    ahora = timezone.now()
+    mcs = list(
+        MembershipCategory.objects
+        .filter(membership=membership)
+        .select_related('categoria')
+        .prefetch_related('categoria__cursos_en_categoria__curso')
+    )
+    if not mcs:
+        return
+
+    cursos = list(cursos_de(membership))
+    comp = _completion_map(membership, cursos)
+
+    for mc in mcs:
+        # Cuántos lleva terminados EN FILA. Se corta en el primero sin terminar y
+        # no se cuenta el total: con la regla de "termina el anterior" no debería
+        # haber huecos, pero si los hubiera —un curso agregado a la categoría
+        # después, o un avance migrado— contar el total le saltaría modelos que
+        # nunca vio.
+        terminados = 0
+        for cc in mc.categoria.cursos_en_categoria.all():
+            info = comp.get(cc.curso_id)
+            if not info or not info['completed']:
+                break
+            terminados += 1
+
+        mc.reanudada_en = ahora
+        mc.entregados_al_reanudar = terminados
+        mc.pausa_al_reanudar = membership.total_paused_days
+
+    MembershipCategory.objects.bulk_update(
+        mcs, ['reanudada_en', 'entregados_al_reanudar', 'pausa_al_reanudar'],
+    )
 
 
 def _set_password_link(user):

@@ -9,8 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Course, Lesson, Diploma, LessonProgress
 from .serializers import CourseListSerializer, CourseStudentSerializer
 from .services import (
-    cursos_de, get_course_access, get_preview_sequence, get_sequence_access,
-    mark_lesson_completed,
+    contenido_cerrado, cursos_de, get_course_access, get_preview_sequence,
+    get_sequence_access, mark_lesson_completed,
 )
 
 
@@ -133,6 +133,16 @@ class CourseDetailView(APIView):
         if membership is None or not cursos_de(membership).filter(slug=slug).exists():
             return Response({'error': 'No tienes acceso a este curso'}, status=status.HTTP_403_FORBIDDEN)
 
+        # Vencida: la carátula se sigue viendo en la lista, pero acá se corta. El
+        # mensaje distingue "todavía no te toca" de "se te venció", que para el
+        # apoderado son problemas distintos y con soluciones distintas.
+        if contenido_cerrado(membership):
+            return Response({
+                'error': 'Tu suscripción venció. Renuévala para volver a entrar a los modelos.',
+                'expired': True,
+                'expires_at': membership.expires_at,
+            }, status=status.HTTP_403_FORBIDDEN)
+
         course = Course.objects.get(slug=slug)
         access = get_course_access(membership)
         entry = next((a for a in access if a['course'].id == course.id), None)
@@ -242,7 +252,10 @@ def _authorized_lesson_file(request, pk):
     if membership is None and _es_vista_previa(request.user):
         return lesson, None
 
-    if (membership is None or not membership.is_active
+    # contenido_cerrado() y no `not is_active`: si la clienta configuró que al
+    # vencer se siga viendo todo, los archivos tienen que seguir la misma regla
+    # que la ficha del curso. La pausa sigue cerrando siempre.
+    if (membership is None or contenido_cerrado(membership)
             or not cursos_de(membership).filter(pk=lesson.course_id).exists()):
         raise PermissionDenied('Necesitas una membresía activa para ver este contenido')
 

@@ -19,8 +19,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>{% block title %}Error{% endblock %} · Ingenio Blocks</title>
-  {# Ruta absoluta y sin {% static %}, por la razón 1 de arriba: si lo que falló
-     fueron los estáticos, el ícono se cae pero la página se sigue viendo. #}
+  {% comment %}
+    Ruta absoluta y sin la etiqueta static, por la razón 1 de arriba: si lo que
+    falló fueron los estáticos, el ícono se cae pero la página se sigue viendo.
+  {% endcomment %}
   <link rel="icon" href="/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

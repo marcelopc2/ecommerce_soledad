@@ -253,6 +253,56 @@
           {% if total_cursos %}Hoy hay {{ total_cursos }} modelo{{ total_cursos|pluralize }} publicado{{ total_cursos|pluralize }}.{% endif %}
         </div>
 
+        {% comment %}
+          Sección aparte: lo de arriba es el ritmo de entrega de quien está al
+          día; esto es qué pasa con quien dejó de pagar. Son dos momentos
+          distintos de la relación y mezclarlos confunde.
+        {% endcomment %}
+        <hr class="my-4">
+        <div class="form-section-title"><i class="bi bi-hourglass-bottom"></i> Cuando se le vence la suscripción</div>
+
+        <div class="row g-4">
+          <div class="col-md-5">
+            <label class="form-label" for="{{ ajustes_form.acceso_vencido.id_for_label }}">
+              {{ ajustes_form.acceso_vencido.label }}
+            </label>
+            {{ ajustes_form.acceso_vencido }}
+            <div class="pnl-campo-ayuda">
+              Dejarle las <strong>carátulas</strong> a la vista le recuerda qué se está
+              perdiendo y es lo que más invita a renovar. Esconderlo todo deja el Aula
+              vacía y parece que la plataforma se rompió.
+            </div>
+          </div>
+
+          <div class="col-md-7">
+            <div class="form-check form-switch mb-3">
+              {{ ajustes_form.reanudar_goteo }}
+              <label class="form-check-label ms-1" for="{{ ajustes_form.reanudar_goteo.id_for_label }}">
+                {{ ajustes_form.reanudar_goteo.label }}
+              </label>
+              <div class="pnl-campo-ayuda">
+                Al renovar se le abren de inmediato los primeros
+                <strong>{{ ajustes_form.instance.cursos_iniciales }}</strong> modelos contando
+                desde el último que terminó, y de ahí sigue uno por semana: igual que
+                cuando compró la primera vez. <strong>Si lo apagas</strong>, al renovar
+                recibe de golpe todos los modelos cuya fecha pasó mientras estuvo
+                vencido, y el ritmo semanal desaparece para él.
+              </div>
+            </div>
+
+            <div class="form-check form-switch">
+              {{ ajustes_form.diplomas_tras_vencer }}
+              <label class="form-check-label ms-1" for="{{ ajustes_form.diplomas_tras_vencer.id_for_label }}">
+                {{ ajustes_form.diplomas_tras_vencer.label }}
+              </label>
+              <div class="pnl-campo-ayuda">
+                Un diploma ya ganado se puede seguir descargando aunque la suscripción
+                esté caída. No se ganan diplomas nuevos hasta que renueve.
+              </div>
+            </div>
+          </div>
+        </div>
+
         <button type="submit" class="btn btn-brand btn-sm">
           <i class="bi bi-check-lg me-1"></i> Guardar ajustes
         </button>

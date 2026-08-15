@@ -540,10 +540,16 @@ class AjustesAulaForm(BootstrapFormMixin, forms.ModelForm):
 
     class Meta:
         model = AjustesAula
-        fields = ['cursos_iniciales', 'bloqueados_visibles']
+        fields = [
+            'cursos_iniciales', 'bloqueados_visibles',
+            'acceso_vencido', 'reanudar_goteo', 'diplomas_tras_vencer',
+        ]
         labels = {
             'cursos_iniciales': 'Modelos disponibles al comprar',
             'bloqueados_visibles': 'Modelos bloqueados a la vista',
+            'acceso_vencido': 'Qué ve cuando se le vence',
+            'reanudar_goteo': 'Al renovar, el goteo sigue desde donde quedó',
+            'diplomas_tras_vencer': 'Los diplomas ganados se siguen descargando',
         }
 
     def clean_cursos_iniciales(self):
