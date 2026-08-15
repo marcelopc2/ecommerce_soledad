@@ -1157,3 +1157,49 @@ body.login-body {
 .pnl-ojo.activo:hover { color: var(--purple-800); }
 .pnl-ojo:disabled { opacity: 0.35; cursor: not-allowed; }
 .pnl-ojo:disabled:hover { background: none; border-color: var(--line); color: var(--muted); }
+
+/* ---------- Categorías: fila desplegable dentro de Cursos y diplomas -------- */
+/* La fila entera es el disparador -no solo un iconito- porque el gesto natural
+   frente a "esta categoría tiene 8 modelos" es hacer clic en la categoría. */
+.cat-row { cursor: pointer; }
+.cat-row.is-off { opacity: 0.6; }
+.cat-caret {
+  font-size: 11px;
+  color: var(--purple-500);
+  margin-right: 4px;
+  transition: transform 0.18s ease;
+  display: inline-block;
+}
+.cat-row[aria-expanded="true"] { background: var(--purple-50); }
+.cat-row[aria-expanded="true"] .cat-caret { transform: rotate(90deg); }
+
+/* La fila de detalle no tiene padding propio: si la categoría está plegada, el
+   colapso mide 0 y la fila desaparece visualmente en vez de dejar una franja. */
+.cat-detail-row td { border-bottom: none !important; }
+/* Fondo y filete a la izquierda para que la lista se lea colgando de su
+   categoría: sin eso las filas de modelos parecían un segundo listado suelto. */
+.cat-detail {
+  padding: 10px 18px 14px 42px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--purple-50);
+  box-shadow: inset 3px 0 0 var(--purple-500);
+}
+.cat-course {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.1s ease;
+}
+.cat-course:hover { background: #fff; }
+.cat-course-name { color: var(--ink); font-weight: 500; font-size: 14px; }
+
+.cat-warning {
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  background: #fff7f7;
+}

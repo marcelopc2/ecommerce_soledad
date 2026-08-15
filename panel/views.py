@@ -1799,20 +1799,11 @@ def mi_clave(request):
 
 @staff_required
 def categories(request):
-    from lms.models import CourseCategory
-
-    return render(request, 'panel/categories.html', {
-        'section': 'categories',
-        'categorias': (
-            CourseCategory.objects.prefetch_related('cursos_en_categoria__curso').all()
-        ),
-        # Un curso sin categoría no lo puede ver NADIE. Es un error silencioso
-        # fácil de cometer -crear el modelo y olvidar etiquetarlo- que no se
-        # nota hasta que alguien reclama.
-        'cursos_sin_categoria': Course.objects.filter(
-            is_active=True, categorias_del_curso__isnull=True,
-        ),
-    })
+    """Las categorías se listan dentro de Cursos y diplomas, no en pantalla
+    aparte: agrupar modelos y ordenar la secuencia son la misma tarea, y tenerlas
+    separadas obligaba a saltar de una pantalla a otra. La ruta sobrevive solo
+    para no romper enlaces guardados."""
+    return redirect('panel:courses')
 
 
 @staff_required
@@ -1827,7 +1818,7 @@ def category_form(request, pk=None):
         return redirect('panel:category_edit', pk=obj.pk)
 
     return render(request, 'panel/category_form.html', {
-        'section': 'categories',
+        'section': 'courses',
         'form': form,
         'categoria': categoria,
         'cursos_en_categoria': (
@@ -1862,7 +1853,7 @@ def category_delete(request, pk):
     else:
         categoria.delete()
         messages.success(request, f'Categoría "{nombre}" eliminada.')
-    return redirect('panel:categories')
+    return redirect('panel:courses')
 
 
 @staff_required

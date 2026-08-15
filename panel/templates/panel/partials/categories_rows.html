@@ -1,0 +1,87 @@
+{% comment %}
+  Cada categoría es una fila que se despliega y muestra los modelos que agrupa.
+  Plegada por defecto: lo que se necesita saber de un vistazo es qué categorías
+  existen y a qué ritmo entregan; la lista de modelos se mira solo cuando se está
+  revisando una en particular, y desplegadas todas empujarían la secuencia de
+  cursos fuera de la pantalla.
+{% endcomment %}
+{% for cat in categorias %}
+  <tr class="cat-row{% if not cat.is_active %} is-off{% endif %}"
+      data-bs-toggle="collapse" data-bs-target="#cat-{{ cat.pk }}"
+      aria-expanded="false" aria-controls="cat-{{ cat.pk }}">
+    <td>
+      <div class="cell-title">
+        <i class="bi bi-chevron-right cat-caret"></i>
+        <i class="bi bi-collection-fill text-purple"></i> {{ cat.nombre }}
+      </div>
+      <div class="cell-sub">/{{ cat.slug }}</div>
+    </td>
+    <td>
+      {% if cat.abre_todo %}
+        <span class="badge-soft teal">Todo de una</span>
+      {% else %}
+        <span class="badge-soft purple">Goteo semanal</span>
+        <span class="cell-sub d-block mt-1">{{ cat.cursos_iniciales }} al comprar</span>
+      {% endif %}
+    </td>
+    <td class="text-center">
+      <span class="badge-soft gray">{{ cat.cursos_en_categoria.count }}</span>
+    </td>
+    <td>
+      {% if cat.is_active %}
+        <span class="badge-soft green">Activa</span>
+      {% else %}
+        <span class="badge-soft gray">Inactiva</span>
+      {% endif %}
+    </td>
+    {% comment %}
+      El clic en los botones no debe desplegar la fila: son acciones sobre la
+      categoría, no sobre ver su contenido.
+    {% endcomment %}
+    <td class="text-end" onclick="event.stopPropagation()">
+      <div class="d-inline-flex gap-2">
+        <a href="{% url 'panel:category_edit' cat.pk %}" class="btn-icon" title="Editar y reordenar">
+          <i class="bi bi-pencil"></i>
+        </a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:category_delete' cat.pk %}"
+                hx-confirm="¿Eliminar la categoría «{{ cat.nombre }}»?">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+
+  <tr class="cat-detail-row no-hover">
+    <td colspan="5" class="p-0 border-0">
+      <div class="collapse" id="cat-{{ cat.pk }}">
+        <div class="cat-detail">
+          {% comment %}
+            Numerados porque ese número ES el orden de entrega del goteo: el 1 se
+            abre el día de la compra y de ahí uno por semana.
+          {% endcomment %}
+          {% for cc in cat.cursos_en_categoria.all %}
+            <a href="{% url 'panel:course_edit' cc.curso.pk %}" class="cat-course">
+              <span class="drag-pos">{{ forloop.counter }}</span>
+              <span class="cat-course-name">{{ cc.curso.title }}</span>
+              {% if not cc.curso.is_active %}<span class="badge-soft gray">Oculto</span>{% endif %}
+            </a>
+          {% empty %}
+            <p class="mdetail-note mb-0">
+              <i class="bi bi-info-circle"></i>
+              Todavía no agrupa ningún modelo. Se agregan marcando esta categoría
+              en la ficha del modelo.
+            </p>
+          {% endfor %}
+        </div>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="5" class="empty-cell">
+      Aún no hay categorías.
+      <a href="{% url 'panel:category_new' %}">Crear la primera</a>.
+    </td>
+  </tr>
+{% endfor %}
