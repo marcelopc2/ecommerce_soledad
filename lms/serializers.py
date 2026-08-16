@@ -1,5 +1,6 @@
+from django import forms
 from rest_framework import serializers
-from .models import Course, Lesson
+from .models import Course, Lesson, PerfilUsuario
 
 
 # ---------- LMS (alumno) ----------
@@ -74,3 +75,16 @@ class ProfileSerializer(serializers.Serializer):
             return ''
         from payments.serializers import validar_nombre
         return validar_nombre(v, 'nombre del apoderado')
+
+
+class AvatarForm(forms.ModelForm):
+    """Valida la foto de perfil con las mismas reglas del modelo (extensión).
+
+    Se usa un ModelForm y no un serializer de DRF porque el validador de
+    extensión ya vive en el campo del modelo: repetirlo en un serializer sería
+    dos fuentes de verdad para la misma regla.
+    """
+
+    class Meta:
+        model = PerfilUsuario
+        fields = ['avatar']

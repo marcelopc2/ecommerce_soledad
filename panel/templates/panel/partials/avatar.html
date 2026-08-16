@@ -1,0 +1,19 @@
+{% comment %}
+  La foto de la cuenta, o su inicial si todavía no subió ninguna.
+
+  Un partial y no HTML repetido porque el avatar sale en la barra lateral y en
+  la pantalla de Mi cuenta, y las dos tienen que caerse igual cuando no hay foto:
+  una silueta gris genérica no distingue a la clienta de su ayudante, la inicial
+  sí.
+
+  `perfil` puede venir vacío: los usuarios existen desde antes que el modelo de
+  perfil, así que se crea recién cuando entran a Mi cuenta.
+{% endcomment %}
+{% if perfil and perfil.avatar %}
+  <img src="{{ perfil.avatar.url }}" alt="" class="pnl-avatar-img"
+       style="width:{{ size }}px;height:{{ size }}px">
+{% else %}
+  <span class="pnl-avatar" style="width:{{ size }}px;height:{{ size }}px;font-size:{{ size|add:-18 }}px">
+    {{ user.first_name|default:user.email|first|upper }}
+  </span>
+{% endif %}

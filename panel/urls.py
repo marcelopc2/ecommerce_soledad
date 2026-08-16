@@ -57,7 +57,8 @@ urlpatterns = [
 
     path('visitas/', views.visitas, name='visitas'),
     path('accesos/', views.accesos, name='accesos'),
-    path('mi-clave/', views.mi_clave, name='mi_clave'),
+    path('mi-cuenta/', views.mi_cuenta, name='mi_cuenta'),
+    path('mi-cuenta/quitar-foto/', views.mi_cuenta_quitar_foto, name='mi_cuenta_quitar_foto'),
 
     # Contenido del sitio público: una entrada de menú por sección, en vez de
     # seis pestañas dentro de un cajón llamado "Configuración". Todas apuntan a

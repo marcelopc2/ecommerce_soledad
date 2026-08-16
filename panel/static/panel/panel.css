@@ -1210,3 +1210,65 @@ body.login-body {
 /* Con la columna de categorías la tabla se apretó y la fecha se partía en dos
    líneas, que estiraba todas las filas sin ganar nada. */
 .pnl-table td.cell-nowrap { white-space: nowrap; }
+
+/* ---------- Menú de la cuenta (pie de la barra lateral) ---------- */
+/* Toda la fila es el disparador: la foto, el nombre y el correo. Apuntar a un
+   iconito de 12px en la esquina es innecesariamente difícil, y el gesto natural
+   frente a "esta es tu cuenta" es hacer clic en la cuenta. */
+.pnl-cuenta-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  transition: background 0.12s ease;
+}
+.pnl-cuenta-btn:hover,
+.pnl-cuenta-btn[aria-expanded="true"] { background: rgba(255, 255, 255, 0.09); }
+.pnl-cuenta-btn > .bi-chevron-expand { color: #9d87bd; font-size: 13px; flex-shrink: 0; }
+
+.pnl-side-footer .pnl-side-user { display: flex; flex-direction: column; min-width: 0; }
+.pnl-side-user .nombre {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pnl-avatar-img {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+}
+/* En Mi cuenta el avatar va sobre fondo claro: ahí el borde blanco desaparece. */
+.pnl-main .pnl-avatar-img { border-color: var(--line); }
+.pnl-main .pnl-avatar { border: 2px solid var(--purple-100); }
+
+.pnl-cuenta-menu {
+  width: calc(100% - 20px);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(47, 0, 83, 0.22);
+  padding: 6px;
+}
+.pnl-cuenta-menu .dropdown-item {
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pnl-cuenta-menu .dropdown-item:hover { background: var(--purple-50); color: var(--purple-600); }
+.pnl-cuenta-menu .dropdown-item.danger { color: #c03434; }
+.pnl-cuenta-menu .dropdown-item.danger:hover { background: #fdf0f0; color: #a82a2a; }

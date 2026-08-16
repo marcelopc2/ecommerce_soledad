@@ -50,7 +50,12 @@ export default function LmsHeader() {
             <>
               {/* El chip lleva al perfil: es donde la gente busca sus datos. */}
               <Link to="/mi-cuenta" className="lms-user-chip" title="Mi cuenta">
-                <span className="avatar">{user.email[0].toUpperCase()}</span>
+                {/* La inicial cuando no hay foto, y no una silueta genérica: en
+                    un computador familiar es lo que distingue una cuenta de
+                    otra de un vistazo. */}
+                {user.avatar_url
+                  ? <img src={user.avatar_url} alt="" className="avatar avatar-foto" />
+                  : <span className="avatar">{user.email[0].toUpperCase()}</span>}
                 <span className="mail">{user.email}</span>
               </Link>
               <button className="lms-logout" onClick={handleLogout}>Salir</button>

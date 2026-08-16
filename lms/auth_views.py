@@ -8,16 +8,31 @@ from django.utils.http import urlsafe_base64_decode
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import ProfileSerializer
+from .serializers import AvatarForm, ProfileSerializer
 from .services import send_reset_email
 
 User = get_user_model()
+
+
+def _avatar_absoluto(request, perfil):
+    """La foto como URL completa (https://…), no como '/media/…'.
+
+    El Aula es una app aparte servida en otro origen: una ruta relativa la
+    resolvería contra el servidor del frontend y la imagen saldría rota. En
+    producción los dos van bajo el mismo dominio y no se nota, así que el error
+    solo aparecería en desarrollo... o el día que se separen.
+    """
+    url = perfil.avatar_url if perfil else ''
+    if not url:
+        return ''
+    return request.build_absolute_uri(url) if request else url
 
 
 def _validate_new_password(password, user=None):
@@ -129,9 +144,16 @@ class MeView(APIView):
     def get(self, request):
         user = request.user
         membership = getattr(user, 'membership', None)
+        perfil = getattr(user, 'perfil', None)
         return Response({
             'email': user.email,
             'is_staff': user.is_staff,
+            # Para el chip del encabezado, que se pinta en cada pantalla del
+            # Aula: si viniera solo del perfil, habría que pedirlo aparte en
+            # todas. Absoluta y no '/media/...': el Aula corre en otro origen
+            # que Django (en desarrollo son puertos distintos), así que una ruta
+            # relativa la resolvería contra sí misma y la foto saldría rota.
+            'avatar_url': _avatar_absoluto(request, perfil),
             'membership': {
                 'active': membership.is_active,
                 'expires_at': membership.expires_at,
@@ -150,36 +172,68 @@ class ProfileView(APIView):
     de un id que venga en la petición.
     """
     permission_classes = [IsAuthenticated]
+    # MultiPart además de JSON: la foto de perfil se sube por este mismo
+    # endpoint, y un archivo no cabe en un cuerpo JSON.
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get(self, request):
-        return Response(self._datos(request.user))
+        return Response(self._datos(request.user, request))
 
     def patch(self, request):
+        from .models import PerfilUsuario
+
+        # La foto va aparte de los nombres: es del USUARIO y no de la membresía,
+        # así que se puede subir aunque la cuenta todavía no haya comprado nada
+        # -o sea una cuenta de gestión, que nunca tiene membresía-.
+        if 'avatar' in request.FILES:
+            perfil = PerfilUsuario.de(request.user)
+            form = AvatarForm({}, request.FILES, instance=perfil)
+            if not form.is_valid():
+                return Response({'error': ' '.join(form.errors.get('avatar', ['Imagen no válida.']))},
+                                status=status.HTTP_400_BAD_REQUEST)
+            form.save()
+
         membership = getattr(request.user, 'membership', None)
-        if membership is None:
-            return Response({'error': 'Tu cuenta todavía no tiene una membresía activa.'},
-                            status=status.HTTP_400_BAD_REQUEST)
+        nombres = {k: v for k, v in request.data.items()
+                   if k in ('student_name', 'parent_name')}
+        if nombres:
+            if membership is None:
+                return Response({'error': 'Tu cuenta todavía no tiene una membresía activa.'},
+                                status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = ProfileSerializer(data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        datos = serializer.validated_data
+            serializer = ProfileSerializer(data=nombres, partial=True)
+            serializer.is_valid(raise_exception=True)
+            datos = serializer.validated_data
 
-        if 'student_name' in datos:
-            membership.student_name = datos['student_name']
-        if 'parent_name' in datos:
-            membership.parent_name = datos['parent_name']
-        membership.save()
+            if 'student_name' in datos:
+                membership.student_name = datos['student_name']
+            if 'parent_name' in datos:
+                membership.parent_name = datos['parent_name']
+            membership.save()
 
-        return Response(self._datos(request.user))
+        return Response(self._datos(request.user, request))
 
-    def _datos(self, user):
+    def delete(self, request):
+        """Quitar la foto de perfil."""
+        from .models import PerfilUsuario
+
+        perfil = PerfilUsuario.de(request.user)
+        if perfil.avatar:
+            perfil.avatar.delete(save=True)
+        return Response(self._datos(request.user, request))
+
+    def _datos(self, user, request=None):
+        from .models import PerfilUsuario
+
         m = getattr(user, 'membership', None)
+        perfil = getattr(user, 'perfil', None)
         return {
             # El correo NO se edita acá: es la identidad de la cuenta (el
             # username) y cambiarlo rompería el acceso y el historial de compras.
             'email': user.email,
             'student_name': m.student_name if m else '',
             'parent_name': m.parent_name if m else '',
+            'avatar_url': _avatar_absoluto(request, perfil),
             'membership': {
                 'active': m.is_active,
                 'expires_at': m.expires_at,

@@ -7,6 +7,7 @@ from catalog.models import (
 )
 from lms.models import (
     AjustesAula, CategoryCourse, Course, CourseCategory, Lesson, Membership, Diploma,
+    PerfilUsuario,
 )
 
 
@@ -658,3 +659,16 @@ class CourseCategoryForm(BootstrapFormMixin, forms.ModelForm):
         if commit:
             obj.save()
         return obj
+
+
+class MiCuentaForm(BootstrapFormMixin, forms.ModelForm):
+    """La foto de perfil de la propia cuenta."""
+
+    class Meta:
+        model = PerfilUsuario
+        fields = ['avatar']
+        labels = {'avatar': 'Foto de perfil'}
+        # FileInput y no el ClearableFileInput por omisión: aquel agrega su
+        # propia casilla "Limpiar" junto a la ruta del archivo guardado, que
+        # duplica al botón "Quitar la foto" y encima se lee peor.
+        widgets = {'avatar': forms.FileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'})}

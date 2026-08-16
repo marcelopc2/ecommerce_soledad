@@ -1,0 +1,113 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Mi cuenta{% endblock %}
+{% block crumb %}Panel · Cuenta{% endblock %}
+{% block heading %}Mi cuenta{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  {# ---------- Foto y nombre ---------- #}
+  <div class="col-lg-6">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-person-circle"></i> Tus datos</div>
+
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="form" value="datos">
+
+        <div class="d-flex align-items-center gap-3 mb-4">
+          {% include 'panel/partials/avatar.html' with perfil=perfil user=request.user size=84 %}
+          <div class="flex-grow-1">
+            <label class="form-label" for="{{ form.avatar.id_for_label }}">Foto de perfil</label>
+            {{ form.avatar }}
+            {% for e in form.avatar.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            <div class="pnl-campo-ayuda">{{ form.avatar.help_text }}</div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="first_name">Cómo te llamas</label>
+          <input type="text" name="first_name" id="first_name" class="form-control"
+                 value="{{ request.user.first_name }}" placeholder="Tu nombre" maxlength="150">
+          <div class="pnl-campo-ayuda">
+            Es lo que se muestra abajo en la barra, en vez de tu correo.
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-brand">
+          <i class="bi bi-check-lg me-1"></i> Guardar datos
+        </button>
+      </form>
+
+      {% comment %}
+        Quitar la foto va en su propio formulario y no como casilla del de
+        arriba: el widget de archivo de Django trae su propia casilla "limpiar",
+        que en la práctica nadie ve porque está mezclada con el nombre del
+        archivo. Un botón aparte se entiende sin explicación.
+      {% endcomment %}
+      {% if perfil.avatar %}
+        <form method="post" action="{% url 'panel:mi_cuenta_quitar_foto' %}" class="mt-3">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger-soft btn-sm">
+            <i class="bi bi-trash me-1"></i> Quitar la foto
+          </button>
+        </form>
+      {% endif %}
+    </div></div>
+  </div>
+
+  {# ---------- Contraseña ---------- #}
+  <div class="col-lg-6">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-key"></i> Cambiar contraseña</div>
+
+      <form method="post" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" name="form" value="clave">
+
+        <div class="mb-3">
+          <label class="form-label" for="actual">Tu contraseña actual</label>
+          <input type="password" name="actual" id="actual" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="nueva">Contraseña nueva</label>
+          <input type="password" name="nueva" id="nueva" class="form-control" required>
+          <div class="pnl-campo-ayuda">
+            Al menos 8 caracteres. Evita tu nombre, el del sitio o secuencias como 12345678.
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label" for="repetir">Repite la contraseña nueva</label>
+          <input type="password" name="repetir" id="repetir" class="form-control" required>
+        </div>
+
+        <button type="submit" class="btn btn-brand">
+          <i class="bi bi-key me-1"></i> Guardar contraseña
+        </button>
+      </form>
+    </div></div>
+
+    <div class="pnl-card mt-4"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-person-badge"></i> Tu cuenta</div>
+      <div class="mdetail-kv"><span>Correo</span><strong>{{ request.user.email }}</strong></div>
+      <div class="mdetail-kv">
+        <span>Tipo</span>
+        <strong>{% if request.user.is_superuser %}Cuenta principal{% else %}Cuenta de gestión{% endif %}</strong>
+      </div>
+      <div class="mdetail-kv">
+        <span>Última entrada</span>
+        <strong>{{ request.user.last_login|date:'d M Y H:i'|default:'—' }}</strong>
+      </div>
+      <p class="mdetail-note mt-3 mb-0">
+        <i class="bi bi-shield-lock"></i>
+        Al cambiar la contraseña no se cierra tu sesión, pero sí tendrás que usar
+        la nueva la próxima vez que entres. Nadie más puede verla, ni siquiera la
+        cuenta principal.
+      </p>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

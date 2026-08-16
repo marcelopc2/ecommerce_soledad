@@ -90,14 +90,15 @@
     </a>
 
     {% comment %}
-      "Cuenta" ya no es solo para superusuarios: cambiar la propia contraseña y
-      ver el registro de accesos le sirve a cualquier cuenta de gestión. Lo que
-      sigue reservado es administrar OTRAS cuentas.
+      "Mi cuenta" ya no está acá: los datos propios no son una sección del sitio
+      que se administra, son de quien lo administra. Se llega desde el avatar de
+      abajo, que es donde todo el mundo los busca.
+
+      El registro de accesos sí es una pantalla de administración, y le sirve a
+      cualquier cuenta de gestión; lo que sigue reservado a la cuenta principal
+      es administrar OTRAS cuentas.
     {% endcomment %}
     <div class="pnl-nav-label">Cuenta</div>
-    <a href="{% url 'panel:mi_clave' %}" class="{% if section == 'mi_clave' %}active{% endif %}">
-      <i class="bi bi-key-fill"></i> Mi contraseña
-    </a>
     <a href="{% url 'panel:accesos' %}" class="{% if section == 'accesos' %}active{% endif %}">
       <i class="bi bi-clock-history"></i> Registro de accesos
     </a>
@@ -122,12 +123,39 @@
     </a>
   </nav>
 
-  <div class="pnl-side-footer">
-    <div class="pnl-avatar">{{ request.user.email|first|upper }}</div>
-    <div class="pnl-side-user">
-      <div class="mail" title="{{ request.user.email }}">{{ request.user.email }}</div>
-      <a href="{% url 'panel:logout' %}"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
-    </div>
+  {% comment %}
+    El pie de la barra es el menú de la cuenta: se hace clic en la foto o el
+    nombre y se despliega. Es el patrón que la gente ya conoce de Gmail, Notion o
+    cualquier panel, así que nadie tiene que aprenderlo. Antes "Cerrar sesión"
+    estaba suelto acá y cambiar la clave vivía en el menú de secciones, que es
+    para administrar el SITIO y no la cuenta propia.
+  {% endcomment %}
+  <div class="pnl-side-footer dropup">
+    <button class="pnl-cuenta-btn" type="button" data-bs-toggle="dropdown"
+            data-bs-display="static" aria-expanded="false">
+      {% include 'panel/partials/avatar.html' with perfil=request.user.perfil user=request.user size=36 %}
+      <span class="pnl-side-user">
+        {# Sin nombre puesto, el correo solo: repetirlo arriba y abajo no aporta. #}
+        {% if request.user.first_name %}
+          <span class="nombre">{{ request.user.first_name }}</span>
+        {% endif %}
+        <span class="mail" title="{{ request.user.email }}">{{ request.user.email }}</span>
+      </span>
+      <i class="bi bi-chevron-expand"></i>
+    </button>
+    <ul class="dropdown-menu pnl-cuenta-menu">
+      <li>
+        <a class="dropdown-item" href="{% url 'panel:mi_cuenta' %}">
+          <i class="bi bi-person-circle"></i> Mi cuenta
+        </a>
+      </li>
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <a class="dropdown-item danger" href="{% url 'panel:logout' %}">
+          <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+        </a>
+      </li>
+    </ul>
   </div>
 </aside>
 

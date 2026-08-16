@@ -137,3 +137,40 @@
 @media (max-width: 560px) {
   .pf-card { padding: 22px 20px; }
 }
+
+/* ---------- Foto de perfil ---------- */
+.pf-avatar-fila { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.pf-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 3px solid var(--lms-purple-100, #f1e8fc);
+}
+.pf-avatar-inicial {
+  display: grid;
+  place-items: center;
+  background: var(--lms-purple, #8200db);
+  color: #fff;
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 34px;
+}
+.pf-avatar-acciones { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+
+/* El <input type=file> nativo no se puede estilar: se esconde y la etiqueta
+   hace de botón, que es la forma estándar de tener uno que combine. */
+.pf-btn-file { cursor: pointer; display: inline-block; }
+
+.pf-link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--lms-muted, #8a8095);
+  font-size: 13.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.pf-link-btn:hover { color: #c03434; }
+.pf-link-btn:disabled { opacity: 0.5; cursor: not-allowed; }

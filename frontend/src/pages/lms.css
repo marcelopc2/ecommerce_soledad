@@ -889,3 +889,6 @@
   /* En el celular, mantener apretado abre "Guardar imagen". Esto lo desactiva. */
   -webkit-touch-callout: none;
 }
+
+/* La foto reemplaza a la inicial en el chip de la cuenta del encabezado. */
+.lms-user-chip .avatar-foto { object-fit: cover; padding: 0; }

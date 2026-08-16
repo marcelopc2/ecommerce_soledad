@@ -31,6 +31,7 @@ from .forms import (
     LoginForm, ProductForm, CourseForm, CourseCategoryForm, LessonForm, MembershipForm,
     DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm,
     StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
+    MiCuentaForm,
 )
 
 log = logging.getLogger('ingenioblocks.pagos')
@@ -1759,14 +1760,34 @@ def accesos(request):
 
 
 @staff_required
-def mi_clave(request):
-    """Cada cuenta de gestión cambia SU propia contraseña.
+def mi_cuenta(request):
+    """Los datos de la propia cuenta: foto, nombre y contraseña.
 
     Existe aparte de la pantalla de cuentas porque aquella es solo para
     superusuarios y, a propósito, no deja tocarse a uno mismo. Sin esto, un
     ayudante no tenía forma de cambiar la clave que le dictaron.
+
+    Se llega desde el avatar de la barra lateral y no desde una entrada del
+    menú: los datos propios no son una sección del sitio que se administra, son
+    de quien lo administra. Es el mismo lugar donde todo el mundo los busca.
     """
-    if request.method == 'POST':
+    from lms.models import PerfilUsuario
+
+    perfil = PerfilUsuario.de(request.user)
+    formulario = request.POST.get('form')
+
+    if request.method == 'POST' and formulario == 'datos':
+        form = MiCuentaForm(request.POST, request.FILES, instance=perfil)
+        if form.is_valid():
+            form.save()
+            request.user.first_name = (request.POST.get('first_name') or '').strip()
+            request.user.save(update_fields=['first_name'])
+            messages.success(request, 'Listo, guardamos tus datos.')
+            return redirect('panel:mi_cuenta')
+    else:
+        form = MiCuentaForm(instance=perfil)
+
+    if request.method == 'POST' and formulario == 'clave':
         actual = request.POST.get('actual') or ''
         nueva = (request.POST.get('nueva') or '').strip()
         repetir = (request.POST.get('repetir') or '').strip()
@@ -1787,9 +1808,25 @@ def mi_clave(request):
                 # acaba de cambiarla queda deslogueado sin entender por qué.
                 update_session_auth_hash(request, request.user)
                 messages.success(request, 'Tu contraseña quedó actualizada.')
-                return redirect('panel:mi_clave')
+                return redirect('panel:mi_cuenta')
 
-    return render(request, 'panel/mi_clave.html', {'section': 'mi_clave'})
+    return render(request, 'panel/mi_cuenta.html', {
+        'section': 'mi_cuenta',
+        'form': form,
+        'perfil': perfil,
+    })
+
+
+@staff_required
+@require_POST
+def mi_cuenta_quitar_foto(request):
+    from lms.models import PerfilUsuario
+
+    perfil = PerfilUsuario.de(request.user)
+    if perfil.avatar:
+        perfil.avatar.delete(save=True)
+        messages.success(request, 'Se quitó tu foto de perfil.')
+    return redirect('panel:mi_cuenta')
 
 
 # ---------------------------------------------------------------------------

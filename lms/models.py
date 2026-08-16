@@ -500,3 +500,53 @@ class MembershipCategory(models.Model):
 
     def __str__(self):
         return f'{self.membership.user.email} · {self.categoria.nombre}'
+
+
+class PerfilUsuario(models.Model):
+    """Datos de la cuenta que no dependen de haber comprado nada.
+
+    Vive aparte de `Membership` a propósito: la membresía es de quien compró un
+    kit, y las cuentas de gestión no tienen ninguna. Si el avatar viviera ahí, la
+    clienta y su ayudante no podrían tener foto. Acá los dos mundos —el panel y
+    el Aula— comparten una sola cuenta y un solo perfil.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, related_name='perfil', on_delete=models.CASCADE,
+    )
+    # FileField y no ImageField: ImageField exige Pillow, que no es dependencia
+    # del proyecto. Es el mismo criterio del resto de las imágenes.
+    avatar = models.FileField(
+        upload_to='avatares/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Foto de perfil',
+        help_text='JPG, PNG o WEBP. Cuadrada, mínimo 200×200 px. Se muestra recortada en círculo.',
+    )
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'perfil de usuario'
+        verbose_name_plural = 'perfiles de usuario'
+
+    @property
+    def avatar_url(self):
+        """La dirección de la foto, o '' si no subió ninguna.
+
+        Devuelve '' y no None para que las plantillas puedan hacer
+        `{% if %}` sin preocuparse, y el JSON de la API sea siempre del mismo
+        tipo.
+        """
+        return self.avatar.url if self.avatar else ''
+
+    @classmethod
+    def de(cls, user):
+        """El perfil de este usuario, creándolo si es la primera vez.
+
+        Los usuarios existen desde antes que este modelo, y los crea el flujo de
+        compra sin pasar por acá; por eso se crea al vuelo en vez de depender de
+        una señal que solo cubriría a los nuevos.
+        """
+        perfil, _ = cls.objects.get_or_create(user=user)
+        return perfil
+
+    def __str__(self):
+        return f'Perfil de {self.user.email or self.user.username}'

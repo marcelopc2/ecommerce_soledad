@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import { useAuth } from '../auth'
 import LmsHeader, { LmsLoader } from '../components/LmsHeader'
 import './lms.css'
 import './profile.css'
@@ -15,6 +16,7 @@ function errorNombre(v, que, obligatorio = true) {
 }
 
 export default function Profile() {
+  const { refreshMe } = useAuth()
   const [datos, setDatos] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [form, setForm] = useState({ student_name: '', parent_name: '' })
@@ -22,6 +24,10 @@ export default function Profile() {
   const [guardando, setGuardando] = useState(false)
   const [aviso, setAviso] = useState('')       // mensaje de éxito
   const [errorApi, setErrorApi] = useState('')
+
+  // Foto de perfil
+  const [subiendo, setSubiendo] = useState(false)
+  const [errorFoto, setErrorFoto] = useState('')
 
   // Cambio de contraseña (endpoint aparte: pide la actual)
   const [claves, setClaves] = useState({ actual: '', nueva: '', repetir: '' })
@@ -76,6 +82,30 @@ export default function Profile() {
       .finally(() => setGuardando(false))
   }
 
+  // El avatar sale también en el encabezado de todas las pantallas del Aula, y
+  // ese dato lo tiene el contexto de sesión: sin refreshMe() la foto cambiaría
+  // acá pero el chip de arriba seguiría con la vieja hasta recargar.
+  const subirFoto = (e) => {
+    const archivo = e.target.files?.[0]
+    e.target.value = ''            // permite volver a elegir el mismo archivo
+    if (!archivo) return
+    setErrorFoto(''); setSubiendo(true)
+    const fd = new FormData()
+    fd.append('avatar', archivo)
+    api.patch('/auth/profile/', fd)
+      .then(r => { setDatos(r.data); return refreshMe() })
+      .catch(err => setErrorFoto(err.response?.data?.error || 'No pudimos subir la foto.'))
+      .finally(() => setSubiendo(false))
+  }
+
+  const quitarFoto = () => {
+    setErrorFoto(''); setSubiendo(true)
+    api.delete('/auth/profile/')
+      .then(r => { setDatos(r.data); return refreshMe() })
+      .catch(() => setErrorFoto('No pudimos quitar la foto.'))
+      .finally(() => setSubiendo(false))
+  }
+
   const cambiarClave = (e) => {
     e.preventDefault()
     setAvisoClave(''); setErrorClave('')
@@ -113,8 +143,34 @@ export default function Profile() {
       </section>
 
       <div className="pf-body">
+        {/* ---------- Foto ---------- */}
+        <div className="pf-card">
+          <h2>Tu foto</h2>
+          <div className="pf-avatar-fila">
+            {datos?.avatar_url
+              ? <img src={datos.avatar_url} alt="" className="pf-avatar" />
+              : <span className="pf-avatar pf-avatar-inicial">
+                  {(datos?.email || '?')[0].toUpperCase()}
+                </span>}
+            <div className="pf-avatar-acciones">
+              <label className="pf-btn pf-btn-file">
+                {subiendo ? 'Subiendo…' : 'Cambiar foto'}
+                <input type="file" accept="image/jpeg,image/png,image/webp"
+                       onChange={subirFoto} disabled={subiendo} hidden />
+              </label>
+              {datos?.avatar_url && (
+                <button type="button" className="pf-link-btn" onClick={quitarFoto} disabled={subiendo}>
+                  Quitar foto
+                </button>
+              )}
+              <p className="pf-ayuda">JPG, PNG o WEBP. Cuadrada se ve mejor.</p>
+              {errorFoto && <p className="pf-msg pf-msg-error">{errorFoto}</p>}
+            </div>
+          </div>
+        </div>
+
         {/* ---------- Datos ---------- */}
-        <form className="pf-card" onSubmit={guardar}>
+        <form className="pf-card pf-card-sec" onSubmit={guardar}>
           <h2>Datos</h2>
 
           <div className="pf-campo">

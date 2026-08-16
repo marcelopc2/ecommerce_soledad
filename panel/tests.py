@@ -268,7 +268,10 @@ class MiClaveTests(TestCase):
         self.client.force_login(self.user)
 
     def _cambiar(self, actual, nueva, repetir):
-        return self.client.post(reverse('panel:mi_clave'), {
+        # `form` distingue cuál de los dos formularios de la pantalla se envió:
+        # los datos personales y la contraseña conviven en Mi cuenta.
+        return self.client.post(reverse('panel:mi_cuenta'), {
+            'form': 'clave',
             'actual': actual, 'nueva': nueva, 'repetir': repetir,
         })
 
