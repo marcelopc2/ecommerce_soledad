@@ -10,7 +10,7 @@
 
 {% block content %}
 <div class="row g-4">
-  <div class="col-lg-8">
+  <div class="col-lg-8 col-xl-6">
     {# enctype multipart: sin esto el archivo de la foto no llega al servidor #}
     <form method="post" enctype="multipart/form-data" novalidate>
       {% csrf_token %}
@@ -59,18 +59,6 @@
         </button>
       </div></div>
     </form>
-  </div>
-
-  <div class="col-lg-4">
-    <div class="pnl-card"><div class="card-pad">
-      <p class="mdetail-note mb-0">
-        <i class="bi bi-info-circle"></i>
-        Esta lista es la <strong>vitrina pública</strong>: lo que ve cualquiera que
-        entre a la página de Modelos, sin haber comprado. No tiene relación con los
-        modelos del Aula Virtual, así que acá puedes anunciar uno que todavía no
-        está armado, o dejar fuera alguno que sí.
-      </p>
-    </div></div>
   </div>
 </div>
 {% endblock %}

@@ -66,6 +66,23 @@
 
     <div class="tab-pane fade{% if tab == 'modelos' %} show active{% endif %}" id="tab-modelos" role="tabpanel">
       {% comment %}
+        La nota va PRIMERO, antes de tocar nada: quien entra acá tiene que saber
+        que esta lista es la vitrina pública y no tiene relación con el Aula
+        Virtual, antes de decidir si publica algo o lo deja fuera. Antes vivía
+        dentro de "Nuevo modelo", donde solo la veía quien ya había decidido
+        agregar uno.
+      {% endcomment %}
+      <div class="card-pad border-bottom">
+        <p class="mdetail-note mb-0">
+          <i class="bi bi-info-circle"></i>
+          Esta lista es la <strong>vitrina pública</strong>: lo que ve cualquiera que
+          entre a la página de Modelos, sin haber comprado. No tiene relación con los
+          modelos del Aula Virtual, así que acá puedes anunciar uno que todavía no
+          está armado, o dejar fuera alguno que sí.
+        </p>
+      </div>
+
+      {% comment %}
         Los ajustes de la página van ARRIBA de la lista: lo primero que hay que
         decidir es si la página se muestra o no, y recién después qué contiene.
       {% endcomment %}
