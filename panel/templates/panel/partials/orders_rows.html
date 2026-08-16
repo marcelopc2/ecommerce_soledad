@@ -31,6 +31,19 @@
           </button>
         {% endif %}
         <a href="{% url 'panel:order_detail' o.pk %}" class="btn-icon" title="Ver detalle"><i class="bi bi-eye"></i></a>
+        {% comment %}
+          Solo la cuenta principal: borrar una venta destruye el respaldo
+          contable de esa operación y no tiene deshacer. En esta lista una
+          compra de prueba y una real se ven idénticas, así que el riesgo de
+          equivocarse de fila es alto.
+        {% endcomment %}
+        {% if request.user.is_superuser %}
+          <button class="btn-icon danger" title="Eliminar esta compra"
+                  hx-post="{% url 'panel:order_delete' o.pk %}"
+                  hx-confirm="Vas a ELIMINAR la compra de {{ o.customer_email }} por ${{ o.total_amount|floatformat:0 }}, con su boleta y su envío.{% if o.memberships.exists %} También se borra la cuenta de alumno que creó, con su avance.{% endif %} Esto no se puede deshacer.">
+            <i class="bi bi-trash"></i>
+          </button>
+        {% endif %}
       </div>
     </td>
   </tr>

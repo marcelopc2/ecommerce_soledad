@@ -6,7 +6,21 @@
 {% block heading %}Pedido #{{ order.order_id|stringformat:'s'|slice:':8' }}{% endblock %}
 
 {% block actions %}
-<a href="{% url 'panel:orders' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+<div class="d-flex gap-2">
+  <a href="{% url 'panel:orders' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+  {% comment %}
+    Solo la cuenta principal, y acá además del listado: es la pantalla donde se
+    ve TODO lo que se va a borrar -el cliente, el monto, la boleta, el envío-
+    antes de apretar. En la lista la fila es una línea y es más fácil errarle.
+  {% endcomment %}
+  {% if request.user.is_superuser %}
+    <button class="btn btn-danger-soft"
+            hx-post="{% url 'panel:order_delete' order.pk %}"
+            hx-confirm="Vas a ELIMINAR la compra de {{ order.customer_email }} por ${{ order.total_amount|floatformat:0 }}, con su boleta y su envío.{% if order.memberships.exists %} También se borra la cuenta de alumno que creó, con su avance.{% endif %} Esto no se puede deshacer.">
+      <i class="bi bi-trash me-1"></i> Eliminar esta compra
+    </button>
+  {% endif %}
+</div>
 {% endblock %}
 
 {% block content %}

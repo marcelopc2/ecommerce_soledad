@@ -19,6 +19,7 @@ urlpatterns = [
     path('pedidos/<int:pk>/detalle/', views.order_detail, name='order_detail'),
     path('pedidos/<int:pk>/emitir-boleta/', views.order_invoice_issue, name='order_invoice_issue'),
     path('pedidos/<int:pk>/despachar/', views.order_shipment_dispatch, name='order_shipment_dispatch'),
+    path('pedidos/<int:pk>/eliminar/', views.order_delete, name='order_delete'),
 
     path('categorias/', views.categories, name='categories'),
     path('categorias/nueva/', views.category_form, name='category_new'),

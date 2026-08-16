@@ -2000,3 +2000,50 @@ def modelos_reorder(request):
     return render(request, 'panel/partials/modelos_rows.html', {
         'modelos': ModeloArmable.objects.all(),
     })
+
+
+@superuser_required
+@require_POST
+def order_delete(request, pk):
+    """Borra una compra por completo. Pensado para las de PRUEBA.
+
+    Solo la cuenta principal: borrar una venta destruye el respaldo contable de
+    esa operación y no tiene deshacer. Un ayudante puede equivocarse de fila en
+    una lista donde las compras reales y las de prueba se ven idénticas.
+
+    Se lleva por delante, en cascada, los ítems de la orden, su envío y su
+    boleta. Y además, si la compra creó una cuenta de alumno que NO tiene otras
+    compras, borra también esa cuenta: si no, cada prueba deja un alumno
+    fantasma en la lista con acceso a un Aula que nunca pagó.
+    """
+    order = get_object_or_404(Order, pk=pk)
+
+    arrastrados = []
+    for membership in list(order.memberships.all()):
+        otras = membership.orders.exclude(pk=order.pk).count()
+        if otras:
+            # Compró más veces: se desvincula esta compra y se conserva la
+            # cuenta con lo demás que sí pagó.
+            membership.orders.remove(order)
+            continue
+        usuario = membership.user
+        if usuario.is_staff:
+            # Nunca borrar una cuenta de gestión desde acá: quedaría alguien
+            # fuera del panel por haber comprado un kit para probar.
+            membership.delete()
+            arrastrados.append(f'la membresía de {usuario.email} (la cuenta se conserva, es de gestión)')
+        else:
+            correo = usuario.email
+            usuario.delete()      # arrastra membresía, avance y diplomas
+            arrastrados.append(f'la cuenta de alumno {correo}')
+
+    identificador = str(order.order_id)[:8]
+    correo = order.customer_email
+    order.delete()
+
+    detalle = f' Se borró también {" y ".join(arrastrados)}.' if arrastrados else ''
+    messages.success(
+        request,
+        f'Compra {identificador} de {correo} eliminada, con su boleta y su envío.{detalle}',
+    )
+    return redirect('panel:orders')

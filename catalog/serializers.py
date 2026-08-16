@@ -23,9 +23,13 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
+        # Sin 'stock' ni 'is_active': el frontend no los usa y esta API la ve
+        # cualquiera. `stock` es información de negocio que no tiene por qué ser
+        # pública, y `is_active` siempre viene en True porque el queryset ya
+        # filtra los inactivos: publicarlo solo confunde.
         fields = [
             'id', 'category', 'name', 'slug', 'description',
-            'price', 'stock', 'is_digital', 'is_active', 'images',
+            'price', 'is_digital', 'images',
             # oferta / próximamente / compra restringida
             'is_on_sale', 'sale_price', 'effective_price', 'is_coming_soon',
             'requires_login',
