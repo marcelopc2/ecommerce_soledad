@@ -6,7 +6,7 @@ import { useAuth } from '../auth'
 import { ocultarPreloader } from '../preloader'
 import {
   Contacto, LandingFooter, LandingHeader, PlusDeco, Sparkle, useScrollReveal,
-  IconInstagram, IconFacebook, IconYoutube,
+  usePaginaModelos, IconInstagram, IconFacebook, IconYoutube,
 } from '../components/LandingSections'
 import './landing.css'
 
@@ -286,6 +286,10 @@ function VideoModal({ video, onClose }) {
 function Beneficios() {
   const [videos, setVideos] = useState([])
   const [activeVideo, setActiveVideo] = useState(null)
+  // El link a la vitrina respeta el mismo interruptor que el del menú: si la
+  // clienta apaga la página desde el panel, acá tampoco debe quedar un link
+  // que lleve a una página que redirige de vuelta a la portada.
+  const modelos = usePaginaModelos()
 
   useEffect(() => {
     api.get('/catalog/landing-videos/')
@@ -334,6 +338,11 @@ function Beneficios() {
             espiral. Esto significa que podrán avanzar a su propio{' '}ritmo.
           </p>
         </div>
+        {modelos?.visible && (
+          <Link to="/modelos" className="lp-beneficios-ver-mas">
+            ver más modelos →
+          </Link>
+        )}
       </div>
       <div className="lp-beneficios-box">
         <div className="lp-studs" aria-hidden="true">

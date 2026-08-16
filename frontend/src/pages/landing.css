@@ -557,7 +557,24 @@
 .lp-beneficios-col .lp-chip { margin-bottom: 4px; }
 .lp-beneficios-col .lp-h2 { text-align: left; }
 .lp-beneficios-col .lp-underline { margin-left: 0; }
-.lp-beneficios-texto p { font-size: clamp(14px, 0.807vw, 15.5px); line-height: 1.75; margin: 0 0 18px; }
+/* Antes era clamp(14px, 0.807vw, 15.5px): en las anchuras de pantalla más
+   comunes (hasta ~1735px) el clamp se quedaba pegado en el piso de 14px, un
+   px más chico que el resto de los párrafos del sitio -y que la caja amarilla
+   de al lado (.lp-beneficios-box-intro), que sí está fija en 15px-. Ahora los
+   dos quedan al mismo tamaño. */
+.lp-beneficios-texto p { font-size: 15px; line-height: 1.75; margin: 0 0 18px; }
+
+.lp-beneficios-ver-mas {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lp-accent);
+  text-decoration: none;
+  transition: gap 0.15s ease, color 0.15s ease;
+}
+.lp-beneficios-ver-mas:hover { color: var(--lp-purple-mid); gap: 10px; }
 
 .lp-beneficios-box {
   position: relative;
@@ -892,7 +909,7 @@
   color: var(--lp-ink);
   margin: 4px 0 18px;
 }
-.lp-card-desc { font-size: 14px; line-height: 1.65; margin: 0 0 26px; }
+.lp-card-desc { font-size: 15px; line-height: 1.65; margin: 0 0 26px; }
 .lp-checks {
   list-style: none;
   padding: 0;
@@ -1141,10 +1158,11 @@
 }
 
 .lp-quienes-texto p {
-  /* Figma: 15.5px → 0.807vw. El piso es más alto en proporción que el del
-     título: un texto de párrafo por debajo de 14px cuesta leerlo, y encoger el
-     cuerpo tanto como un titular no se gana nada. */
-  font-size: clamp(14px, 0.807vw, 15.5px);
+  /* Mismo tamaño fijo que el resto de los párrafos del sitio (15px). Antes era
+     un clamp que en la mayoría de las pantallas se quedaba pegado en su piso
+     de 14px -un px más chico que todo lo demás- y solo llegaba a 15.5px en
+     monitores muy anchos. */
+  font-size: 15px;
   line-height: 1.8;
   margin: 0 0 20px;
 }
@@ -1327,9 +1345,11 @@
   to   { transform: none; opacity: 1; }
 }
 
-/* Sin recorte acá: de eso se trata el hover. */
+/* Sin recorte acá: de eso se trata el hover. Mismo tamaño que el mismo texto
+   en .lp-testi-modal (el mismo testimonio, en su otra presentación): antes
+   quedaba un px más chico acá que en el modal. */
 .lp-testi-hover p {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.65;
   color: var(--lp-body-c);
   margin: 0 0 18px;
@@ -1374,7 +1394,7 @@
   50%      { transform: translateY(-5px) rotate(-6deg); }
 }
 .lp-testimonio p {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.65;
   color: var(--lp-body-c);
   margin: 0 0 18px;
@@ -1562,7 +1582,7 @@
   height: 4px;
 }
 .lp-club-intro {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.7;
   margin: 0 0 22px;
 }

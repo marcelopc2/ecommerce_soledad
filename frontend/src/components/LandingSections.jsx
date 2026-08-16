@@ -238,21 +238,34 @@ export function LandingHeader({ active }) {
     }
   }, [menuAbierto])
 
-  const entradaModelos = modelos?.visible ? (
-    <Link to="/modelos" className={cls('modelos')} onClick={() => setMenuAbierto(false)}>
-      Modelos
-    </Link>
-  ) : null
+  // Se arma UNA lista y se intercala "Modelos" antes de "Contacto", en vez de
+  // agregarla siempre al final: es donde el cliente la quiere ver. Si la
+  // página está apagada (modelos?.visible es false) el link simplemente no
+  // entra al arreglo -no hay un hueco vacío que rellenar, .lp-nav es flex sin
+  // anchos fijos, así que Contacto ocupa solo el lugar que corresponde-.
+  function itemsDeNav(alClick) {
+    const items = []
+    for (const { id, texto, href } of enlaces) {
+      if (id === 'contacto' && modelos?.visible) {
+        items.push(
+          <Link key="modelos" to="/modelos" className={cls('modelos')} onClick={alClick}>
+            Modelos
+          </Link>,
+        )
+      }
+      items.push(
+        <a key={id} href={href} className={cls(id)} onClick={alClick}>{texto}</a>,
+      )
+    }
+    return items
+  }
 
   return (
     <header className="lp-header">
       <Link to="/" className="lp-logo"><img src={logo} alt="Ingenio Blocks" /></Link>
 
       <nav className="lp-nav">
-        {enlaces.map(({ id, texto, href }) => (
-          <a key={id} href={href} className={cls(id)}>{texto}</a>
-        ))}
-        {entradaModelos}
+        {itemsDeNav()}
       </nav>
 
       <div className="lp-header-right">
@@ -277,11 +290,7 @@ export function LandingHeader({ active }) {
       {menuAbierto && (
         <div className="lp-menu-movil" role="dialog" aria-modal="true" aria-label="Menú">
           <nav>
-            {enlaces.map(({ id, texto, href }) => (
-              <a key={id} href={href} className={cls(id)}
-                 onClick={() => setMenuAbierto(false)}>{texto}</a>
-            ))}
-            {entradaModelos}
+            {itemsDeNav(() => setMenuAbierto(false))}
           </nav>
           <Link
             to={user ? '/mis-cursos' : '/login'}
