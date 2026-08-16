@@ -294,7 +294,10 @@ h1, h2, h3, h4, h5, .font-heading {
 
 .btn-ghost {
   background: transparent;
-  border: 1.5px solid var(--purple-100);
+  /* --purple-100 es casi del mismo tono claro que el fondo de la página: el
+     borde se perdía. Con el morado principal a 35% de opacidad se sigue
+     leyendo "secundario" (no compite con btn-brand) pero el borde existe. */
+  border: 1.5px solid rgba(130, 0, 219, 0.35);
   color: var(--purple-600);
   font-weight: 600;
   border-radius: 999px;
