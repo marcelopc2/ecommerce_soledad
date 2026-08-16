@@ -672,6 +672,7 @@ def memberships(request):
         items = items.order_by('-updated_at')
     items = list(items)
 
+    today = timezone.localdate()
     rows = []
     for m in items:
         access = get_course_access(m)
@@ -683,6 +684,10 @@ def memberships(request):
             status_rank = 0
         else:
             status_rank = 2
+        # Con la membresía en pausa el conteo está congelado -no baja mientras
+        # dure la pausa-, así que un número ahí sería falso: se muestra "En
+        # pausa" en su lugar y no `dias_restantes`.
+        dias = (m.expires_at.date() - today).days
         rows.append({
             'm': m,
             'completed': completed,
@@ -690,6 +695,8 @@ def memberships(request):
             'pct': round(completed / len(access) * 100) if access else 0,
             'current_course': current['course'] if current else None,
             'status_rank': status_rank,
+            'dias_restantes': dias,
+            'dias_vencida': -dias,
         })
 
     if sort == 'progreso':

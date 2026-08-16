@@ -60,6 +60,16 @@
               Vencimiento{% if sort == 'vencimiento' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
             </a>
           </th>
+          {% comment %}
+            Sin su propio orden: ordena exactamente igual que Vencimiento (menos
+            días = fecha más próxima), así que reutiliza ese mismo enlace en vez
+            de duplicar la lógica de sort para un resultado idéntico.
+          {% endcomment %}
+          <th class="sortable-th">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=vencimiento&amp;dir={{ next_dir.vencimiento }}">
+              Días{% if sort == 'vencimiento' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
+            </a>
+          </th>
           <th class="sortable-th">
             <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=progreso&amp;dir={{ next_dir.progreso }}">
               Progreso{% if sort == 'progreso' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}

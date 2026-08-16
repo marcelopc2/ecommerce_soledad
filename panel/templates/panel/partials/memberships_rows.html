@@ -8,6 +8,24 @@
     <td class="cell-sub">{{ m.parent_name|default:"—" }}</td>
     <td class="cell-sub">{{ m.created_at|date:'d M Y' }}</td>
     <td class="cell-sub">{{ m.expires_at|date:'d M Y' }}</td>
+    {% comment %}
+      Colores solo para lo que necesita atención -vencida o por vencer-; el resto
+      queda en texto normal para no llenar la tabla de pastillas de colores
+      redundantes con la columna Estado.
+    {% endcomment %}
+    <td class="cell-sub">
+      {% if m.is_paused %}
+        <span class="text-muted">En pausa</span>
+      {% elif row.dias_restantes < 0 %}
+        <span style="color:var(--coral);font-weight:600">Vencida hace {{ row.dias_vencida }} día{{ row.dias_vencida|pluralize }}</span>
+      {% elif row.dias_restantes == 0 %}
+        <span style="color:var(--coral);font-weight:600">Vence hoy</span>
+      {% elif row.dias_restantes <= 7 %}
+        <span style="color:#b8860b;font-weight:600">{{ row.dias_restantes }} día{{ row.dias_restantes|pluralize }}</span>
+      {% else %}
+        {{ row.dias_restantes }} días
+      {% endif %}
+    </td>
     <td>
       <div class="mprogress-wrap" title="{% if row.current_course %}Curso actual: {{ row.current_course.title }}{% else %}Sin cursos pendientes{% endif %}">
         <div class="mprogress"><div class="mprogress-bar" style="width: {{ row.pct }}%"></div></div>
@@ -24,7 +42,7 @@
   {% endwith %}
 {% empty %}
   <tr class="no-hover">
-    <td colspan="7" class="empty-cell">
+    <td colspan="8" class="empty-cell">
       {% if q %}
         <i class="bi bi-search"></i> Sin resultados para «{{ q }}».
       {% else %}
