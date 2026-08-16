@@ -4,6 +4,7 @@ import './App.css'
 import { api } from './api'
 import { ocultarPreloader } from './preloader'
 import Landing from './pages/Landing'
+import Modelos from './pages/Modelos'
 import Checkout from './pages/Checkout'
 import CheckoutSuccess from './pages/CheckoutSuccess'
 import CheckoutFailed from './pages/CheckoutFailed'
@@ -94,6 +95,7 @@ function App() {
           visual de la marca y sin footer. Ya no se enlaza desde ninguna parte,
           pero la ruta se mantiene redirigiendo para que un marcador o un link
           antiguo no caiga en una página que parece de otro producto. */}
+      <Route path="/modelos" element={<Modelos />} />
       <Route path="/tienda" element={<Navigate to="/#kits" replace />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/checkout/success" element={<CheckoutSuccess />} />

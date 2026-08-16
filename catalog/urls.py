@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     CategoryViewSet, ProductViewSet, FAQViewSet, TestimonialViewSet,
-    LandingVideoViewSet, LandingStepViewSet, ContactView, ConcursoView,
+    LandingVideoViewSet, LandingStepViewSet, ContactView, ConcursoView, ModelosView,
 )
 
 router = DefaultRouter()
@@ -16,5 +16,6 @@ router.register(r'landing-steps', LandingStepViewSet, basename='landing-step')
 urlpatterns = [
     path('contacto/', ContactView.as_view(), name='contact'),
     path('concurso/', ConcursoView.as_view(), name='concurso'),
+    path('modelos/', ModelosView.as_view(), name='modelos'),
     path('', include(router.urls)),
 ]

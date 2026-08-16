@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import (
     Category, Product, ProductImage, FAQ, Testimonial, LandingVideo, LandingStep,
     SeccionConcurso, GanadorConcurso,
+    ModeloArmable, SeccionModelos,
 )
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -117,3 +118,30 @@ class ContactSerializer(serializers.Serializer):
     email = serializers.EmailField()
     telefono = serializers.CharField(max_length=30, required=False, allow_blank=True)
     comentarios = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+
+
+class ModeloArmableSerializer(serializers.ModelSerializer):
+    # youtube_id y no el link completo: el front solo necesita el ID para armar
+    # el embed, igual que en los videos de la portada.
+    youtube_id = serializers.CharField(read_only=True)
+    foto_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ModeloArmable
+        fields = ['id', 'nombre', 'descripcion', 'youtube_id', 'foto_url']
+
+    def get_foto_url(self, obj):
+        url = obj.portada_url        # foto subida o, si no hay, la de YouTube
+        if not url:
+            return None
+        request = self.context.get('request')
+        # Las de YouTube ya vienen absolutas; solo las subidas hay que completar.
+        if url.startswith('http'):
+            return url
+        return request.build_absolute_uri(url) if request else url
+
+
+class SeccionModelosSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SeccionModelos
+        fields = ['visible', 'titulo', 'intro']

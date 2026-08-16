@@ -8,11 +8,13 @@ from rest_framework.permissions import AllowAny
 from .models import (
     Category, Product, FAQ, Testimonial, LandingVideo, LandingStep,
     SeccionConcurso, GanadorConcurso,
+    ModeloArmable, SeccionModelos,
 )
 from .serializers import (
     CategorySerializer, ProductSerializer, FAQSerializer, TestimonialSerializer,
     ContactSerializer, LandingVideoSerializer, LandingStepSerializer,
     SeccionConcursoSerializer, GanadorConcursoSerializer,
+    ModeloArmableSerializer, SeccionModelosSerializer,
 )
 
 log = logging.getLogger(__name__)
@@ -130,3 +132,29 @@ class ContactView(APIView):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         return Response({'ok': True})
+
+
+class ModelosView(APIView):
+    """La vitrina de modelos: los ajustes de la página más su lista.
+
+    Un solo endpoint y no dos, por lo mismo que el concurso: el menú de la
+    landing necesita saber si la página está visible ANTES de decidir si muestra
+    el enlace, y así se resuelve con una sola llamada.
+
+    Con la página apagada NO se envían los modelos. Si se enviaran, apagarla
+    sería solo esconder el enlace: la lista seguiría a la vista de cualquiera
+    que mirara la respuesta de la API.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        seccion = SeccionModelos.obtener()
+        datos = SeccionModelosSerializer(seccion).data
+        datos['modelos'] = (
+            ModeloArmableSerializer(
+                ModeloArmable.objects.filter(is_active=True), many=True,
+                context={'request': request},
+            ).data
+            if seccion.visible else []
+        )
+        return Response(datos)

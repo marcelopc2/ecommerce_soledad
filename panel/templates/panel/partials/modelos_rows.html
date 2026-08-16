@@ -1,0 +1,77 @@
+{% comment %}
+  Solo filas <tr>: este trozo se inserta dentro de un <tbody> y el navegador
+  descarta cualquier otra etiqueta ahí. El aviso fuera de banda vive en
+  modelos_panel.html, que es un <div> y no tiene esa restricción.
+{% endcomment %}
+{% for m in modelos %}
+  <tr class="pnl-drag-row" data-id="{{ m.id }}">
+    <td class="order-cell">
+      <div class="order-cell-inner">
+        <span class="drag-handle" title="Arrastrar"><i class="bi bi-grip-vertical"></i></span>
+        <span class="drag-pos">{{ forloop.counter }}</span>
+      </div>
+    </td>
+    <td style="width:132px">
+      {% comment %}
+        portada_url ya resuelve "la foto subida o, si no hay, la del trailer",
+        así que acá se ve lo mismo que verá el visitante.
+      {% endcomment %}
+      {% if m.portada_url %}
+        <img src="{{ m.portada_url }}" alt="{{ m.nombre }}"
+             style="width:116px;height:66px;object-fit:cover;border-radius:8px;display:block">
+        {% if not m.foto %}
+          <span class="cell-sub" style="font-size:11px">de YouTube</span>
+        {% endif %}
+      {% else %}
+        <span class="badge-soft gray">Sin foto</span>
+      {% endif %}
+    </td>
+    <td>
+      <div class="cell-title">{{ m.nombre }}</div>
+      <div class="cell-sub text-truncate" style="max-width:420px">{{ m.descripcion }}</div>
+    </td>
+    <td>
+      {% if m.youtube_id %}
+        <a href="https://www.youtube.com/watch?v={{ m.youtube_id }}" target="_blank" rel="noreferrer"
+           class="cell-sub" title="Abrir en YouTube">
+          <i class="bi bi-youtube text-danger"></i> {{ m.youtube_id }}
+        </a>
+      {% else %}
+        <span class="cell-sub">Sin trailer</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if m.is_active %}
+        <span class="badge-soft green">Visible</span>
+      {% else %}
+        <span class="badge-soft gray">Oculto</span>
+      {% endif %}
+    </td>
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <button type="button" class="btn-icon pnl-ojo{% if m.is_active %} activo{% endif %}"
+                aria-label="Mostrar u ocultar el modelo «{{ m.nombre }}»"
+                title="{% if m.is_active %}Se muestra en la página. Haz clic para ocultarlo.{% else %}No se muestra. Haz clic para publicarlo.{% endif %}"
+                hx-post="{% url 'panel:modelo_toggle_active' m.pk %}"
+                hx-target="#pnl-modelos-panel"
+                hx-swap="innerHTML transition:false">
+          <i class="bi {% if m.is_active %}bi-eye-fill{% else %}bi-eye-slash{% endif %}"></i>
+        </button>
+        <a href="{% url 'panel:modelo_edit' m.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:modelo_delete' m.pk %}"
+                hx-confirm="¿Eliminar el modelo «{{ m.nombre }}»?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="6" class="empty-cell">
+      Todavía no hay modelos cargados.
+      <a href="{% url 'panel:modelo_new' %}">Agregar el primero</a>.
+    </td>
+  </tr>
+{% endfor %}

@@ -1,0 +1,155 @@
+/* Vitrina de modelos. Usa los tokens de landing.css (--lp-*), que se importa
+   antes que este archivo: la página tiene que verse parte del mismo sitio, no
+   una sección aparte. */
+
+.mdl-hero {
+  background:
+    radial-gradient(circle at 82% -20%, rgba(130, 0, 219, 0.55), transparent 45%),
+    linear-gradient(196deg, #3a0168 0%, var(--lp-purple-dark) 74%);
+  color: #fff;
+  padding: 0 0 72px;
+}
+.mdl-hero-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 24px 0;
+  text-align: center;
+}
+/* Explícito y no heredado: landing.css trae reglas de encabezado con color
+   oscuro que ganan por especificidad dentro de .lp. */
+.mdl-hero h1 {
+  color: #fff;
+  font-family: 'Quicksand', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(30px, 5vw, 46px);
+  line-height: 1.12;
+  margin: 0 0 14px;
+}
+.mdl-hero p {
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.55;
+  color: #d9cbe9;
+  margin: 0;
+}
+
+.mdl-body {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+.mdl-conteo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lp-body-c);
+  margin: 0 0 22px;
+}
+
+/* auto-fill y no auto-fit: con pocos modelos, auto-fit los estira hasta ocupar
+   toda la fila y una tarjeta sola queda del ancho de la pantalla. */
+.mdl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+  gap: 26px;
+}
+
+.mdl-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #ece5f4;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(47, 0, 83, 0.07);
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.mdl-card.con-trailer { cursor: pointer; }
+.mdl-card.con-trailer:hover,
+.mdl-card.con-trailer:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 34px rgba(47, 0, 83, 0.16);
+}
+.mdl-card.con-trailer:hover .mdl-play { transform: scale(1.08); background: var(--lp-yellow); }
+
+.mdl-foto {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  /* Sin esto, en una tarjeta con descripción larga el flex comprime la foto
+     para que quepa el texto, y esa queda con la imagen más baja que las demás
+     de su fila. */
+  flex: 0 0 auto;
+  background: var(--lp-gray-bg);
+  display: grid;
+  place-items: center;
+}
+.mdl-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mdl-sin-foto { font-size: 42px; opacity: 0.35; }
+
+.mdl-play {
+  position: absolute;
+  inset: auto auto 12px 12px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--lp-yellow-soft);
+  color: var(--lp-purple-dark);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.mdl-texto { padding: 18px 20px 22px; }
+.mdl-texto h3 {
+  font-family: 'Quicksand', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--lp-ink);
+  margin: 0 0 6px;
+}
+.mdl-texto p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lp-body-c);
+  margin: 0;
+}
+
+.mdl-cierre {
+  margin-top: 64px;
+  text-align: center;
+  background: var(--lp-gray-bg);
+  border-radius: 22px;
+  padding: 44px 24px;
+}
+.mdl-cierre h2 {
+  font-family: 'Quicksand', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(22px, 3vw, 30px);
+  color: var(--lp-ink);
+  margin: 0 0 8px;
+}
+.mdl-cierre p { color: var(--lp-body-c); margin: 0 0 22px; }
+
+.mdl-vacio {
+  text-align: center;
+  padding: 60px 20px 40px;
+}
+.mdl-vacio span { font-size: 54px; display: block; margin-bottom: 12px; }
+.mdl-vacio h2 {
+  font-family: 'Quicksand', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--lp-ink);
+  margin: 0 0 8px;
+}
+.mdl-vacio p { color: var(--lp-body-c); margin: 0 0 22px; }
+
+@media (max-width: 560px) {
+  .mdl-hero { padding: 0 0 52px; }
+  .mdl-hero-inner { padding: 34px 18px 0; }
+  .mdl-body { padding: 34px 18px 60px; }
+  .mdl-grid { gap: 18px; }
+}

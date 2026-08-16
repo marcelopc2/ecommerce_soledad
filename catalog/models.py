@@ -617,3 +617,106 @@ class GanadorConcurso(models.Model):
 
     def __str__(self):
         return f'{self.nombre} ({self.categoria})'
+
+
+class SeccionModelos(models.Model):
+    """Ajustes de la página "Modelos", la vitrina de todo lo que se puede armar.
+
+    Fila única, como AjustesAula y SeccionConcurso. Existe sobre todo por
+    `visible`: la página duplica lo que ya muestran los trailers de Beneficios,
+    así que se dejó la forma de apagarla y sacarla del menú sin borrar el
+    contenido cargado, por si más adelante se decide que no aportaba.
+    """
+    visible = models.BooleanField(
+        default=True,
+        verbose_name='Mostrar la página de modelos',
+        help_text='Si lo apagas, la página deja de aparecer en el menú y de '
+                  'abrirse. Los modelos que hayas cargado se conservan.',
+    )
+    titulo = models.CharField(
+        max_length=140, default='Todo lo que se puede armar',
+        verbose_name='Título de la página',
+    )
+    intro = models.TextField(
+        blank=True,
+        default='Cada semana se abre un modelo nuevo en el Aula Virtual. '
+                'Estos son todos los que vienen.',
+        verbose_name='Texto de entrada',
+    )
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Página de modelos'
+        verbose_name_plural = 'Página de modelos'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return 'Página de modelos'
+
+
+class ModeloArmable(models.Model):
+    """Un modelo de la vitrina pública: nombre, foto y trailer de YouTube.
+
+    Vive aparte de `lms.Course` a propósito. El curso es el contenido que recibe
+    quien pagó -con sus PDFs, su goteo y su orden de entrega-; esto es una pieza
+    de marketing, y se necesita poder mostrar acá modelos que todavía no existen
+    en el Aula, o esconder alguno que sí existe.
+
+    El costo de esa separación es cargar los datos dos veces cuando el modelo es
+    el mismo. Si eso llegara a pesar, lo razonable sería agregar un botón de
+    "traer desde el Aula" que copie nombre y foto, no fusionar los dos modelos.
+    """
+    nombre = models.CharField(max_length=140, verbose_name='Nombre del modelo')
+    descripcion = models.TextField(
+        blank=True, verbose_name='Descripción',
+        help_text='Una o dos líneas sobre qué hace o qué se aprende. Opcional.',
+    )
+    youtube_url = models.CharField(
+        max_length=300, blank=True,
+        verbose_name='Trailer de YouTube',
+        help_text='Pega el link tal cual (youtube.com/watch?v=…, youtu.be/… o el ID). '
+                  'Si lo dejas vacío, la tarjeta muestra solo la foto.',
+    )
+    foto = models.FileField(
+        upload_to='modelos/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Foto del modelo',
+        help_text='JPG, PNG o WEBP. Horizontal 16:9, mínimo 800×450 px. Si no '
+                  'subes ninguna, se usa la miniatura del trailer.',
+    )
+    order = models.PositiveIntegerField(
+        default=0, help_text='Posición en la página. Se arrastra en el panel.')
+    is_active = models.BooleanField(default=True, help_text='Se muestra en la página')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Modelo de la vitrina'
+        verbose_name_plural = 'Modelos de la vitrina'
+
+    @property
+    def youtube_id(self):
+        return extract_youtube_id(self.youtube_url)
+
+    @property
+    def portada_url(self):
+        """La foto subida o, si no hay, la miniatura del trailer.
+
+        Mismo criterio que LandingVideo: con pegar el link ya se ve algo, y quien
+        quiera una foto propia la sube y esa manda.
+        """
+        if self.foto:
+            return self.foto.url
+        return youtube_thumbnail(self.youtube_url)
+
+    def __str__(self):
+        return self.nombre

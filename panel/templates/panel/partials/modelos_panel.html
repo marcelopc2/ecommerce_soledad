@@ -1,0 +1,32 @@
+{% if oob %}
+  <div id="pnl-avisos" class="pnl-avisos" hx-swap-oob="true">
+    {% include 'panel/partials/avisos.html' %}
+  </div>
+{% endif %}
+
+<div class="pnl-toolbar">
+  <span class="pnl-hint">
+    <i class="bi bi-grip-vertical"></i> Arrastra para ordenar cómo se ven en la página.
+  </span>
+  <span class="pnl-hint">
+    El trailer es opcional: sin él la tarjeta muestra solo la foto.
+  </span>
+</div>
+<div class="table-responsive">
+  <table class="table pnl-table" id="modelos-tabla"
+         data-reorder-url="{% url 'panel:modelos_reorder' %}">
+    <thead>
+      <tr>
+        <th class="order-col">Orden</th>
+        <th>Foto</th>
+        <th>Modelo</th>
+        <th>Trailer</th>
+        <th>Estado</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="modelos-tbody">
+      {% include 'panel/partials/modelos_rows.html' %}
+    </tbody>
+  </table>
+</div>

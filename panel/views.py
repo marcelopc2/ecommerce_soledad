@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 
 from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep,
-    SeccionConcurso, GanadorConcurso,
+    SeccionConcurso, GanadorConcurso, ModeloArmable, SeccionModelos,
 )
 from invoicing.models import Invoice
 from invoicing.services import issue_invoice_for_order
@@ -31,7 +31,7 @@ from .forms import (
     LoginForm, ProductForm, CourseForm, CourseCategoryForm, LessonForm, MembershipForm,
     DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm,
     StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
-    MiCuentaForm,
+    MiCuentaForm, ModeloArmableForm, SeccionModelosForm,
 )
 
 log = logging.getLogger('ingenioblocks.pagos')
@@ -1039,6 +1039,10 @@ SECCIONES_CONTENIDO = {
         'ediciones que hayas hecho, y las PORTADAS habrá que volver a subirlas. '
         'Esta acción no se puede deshacer.',
     ),
+    'modelos': (
+        'Modelos', 'Portada', 'panel:modelo_new', 'Nuevo modelo',
+        None, None,
+    ),
     'testimonios': (
         'Testimonios', 'Portada', 'panel:testimonial_new', 'Nuevo testimonio',
         'panel:testimonial_restore_defaults',
@@ -1070,6 +1074,7 @@ def configuracion_legacy(request):
     destino = {
         'pasos': 'panel:cfg_pasos', 'videos': 'panel:cfg_videos',
         'testimonios': 'panel:cfg_testimonios', 'faqs': 'panel:cfg_faqs',
+        'modelos': 'panel:cfg_modelos',
         'concurso': 'panel:cfg_concurso', 'aula': 'panel:cfg_aula',
     }.get(tab, 'panel:cfg_faqs')
     return redirect(destino)
@@ -1103,6 +1108,18 @@ def configuracion(request, tab='faqs'):
     else:
         concurso_form = SeccionConcursoForm(instance=concurso)
 
+    # La página de modelos también es fila única: mismo patrón que el concurso.
+    seccion_modelos = SeccionModelos.obtener()
+    if request.method == 'POST' and request.POST.get('form') == 'modelos':
+        modelos_form = SeccionModelosForm(request.POST, instance=seccion_modelos)
+        if modelos_form.is_valid():
+            modelos_form.save()
+            messages.success(request, 'Página de modelos guardada.')
+            return redirect('panel:cfg_modelos')
+        tab = 'modelos'   # que la página con el error quede a la vista
+    else:
+        modelos_form = SeccionModelosForm(instance=seccion_modelos)
+
     titulo, grupo, nuevo_url, nuevo_label, restaurar_url, restaurar_confirm = \
         SECCIONES_CONTENIDO.get(tab, SECCIONES_CONTENIDO['faqs'])
 
@@ -1114,6 +1131,8 @@ def configuracion(request, tab='faqs'):
         'ajustes_form': ajustes_form,
         'concurso_form': concurso_form,
         'ganadores': GanadorConcurso.objects.all(),
+        'modelos_form': modelos_form,
+        'modelos': ModeloArmable.objects.all(),
         'total_cursos': Course.objects.filter(is_active=True).count(),
         'tab': tab if tab in SECCIONES_CONTENIDO else 'faqs',
         # el menú marca la entrada concreta, no un "config" genérico
@@ -1923,4 +1942,61 @@ def category_courses_reorder(request, pk):
     return render(request, 'panel/partials/category_courses_rows.html', {
         'categoria': categoria,
         'cursos_en_categoria': categoria.cursos_en_categoria.select_related('curso').all(),
+    })
+
+
+# ---------- Modelos de la vitrina (página pública "Modelos") ----------
+
+@staff_required
+def modelo_form(request, pk=None):
+    modelo = get_object_or_404(ModeloArmable, pk=pk) if pk else None
+    # request.FILES: el formulario sube la foto, así que va multipart.
+    form = ModeloArmableForm(request.POST or None, request.FILES or None, instance=modelo)
+    if request.method == 'POST' and form.is_valid():
+        obj = form.save(commit=False)
+        if obj.order == 0:
+            # Al final de la lista: el orden se arrastra después, y un modelo
+            # nuevo que se cuela al principio desordena una página que ya estaba
+            # revisada.
+            obj.order = (ModeloArmable.objects.aggregate(m=Max('order'))['m'] or 0) + 1
+        obj.save()
+        messages.success(request, f'Modelo "{obj.nombre}" guardado.')
+        return redirect(reverse('panel:cfg_modelos'))
+    return render(request, 'panel/modelo_form.html', {
+        'form': form, 'modelo': modelo, 'section': 'cfg-modelos',
+    })
+
+
+@staff_required
+@require_POST
+def modelo_toggle_active(request, pk):
+    m = get_object_or_404(ModeloArmable, pk=pk)
+    m.is_active = not m.is_active
+    m.save(update_fields=['is_active'])
+    verbo = 'se muestra' if m.is_active else 'ya no se muestra'
+    messages.success(request, f'El modelo "{m.nombre}" {verbo} en la página.')
+    return render(request, 'panel/partials/modelos_panel.html', {
+        'modelos': ModeloArmable.objects.all(), 'oob': True,
+    })
+
+
+@staff_required
+@require_POST
+def modelo_delete(request, pk):
+    m = get_object_or_404(ModeloArmable, pk=pk)
+    nombre = m.nombre
+    m.delete()
+    messages.success(request, f'Modelo "{nombre}" eliminado.')
+    return HttpResponse('')
+
+
+@staff_required
+@require_POST
+def modelos_reorder(request):
+    """Guarda el orden en que se arrastraron los modelos."""
+    ids = [int(i) for i in request.POST.getlist('order') if str(i).isdigit()]
+    for posicion, mid in enumerate(ids, start=1):
+        ModeloArmable.objects.filter(pk=mid).update(order=posicion)
+    return render(request, 'panel/partials/modelos_rows.html', {
+        'modelos': ModeloArmable.objects.all(),
     })

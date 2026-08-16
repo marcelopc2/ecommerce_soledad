@@ -6,13 +6,15 @@
  * Los estilos son los de landing.css; quien las use tiene que envolverlas en un
  * contenedor con la clase `lp` (varias reglas están scopeadas como `.lp .lp-h2`).
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
+import { useAuth } from '../auth'
 import { api } from '../api'
 // Variante oficial en blanco (entregada aparte del SVG reconstruido de Figma),
 // pensada para fondos oscuros. Solo el footer, que fue el pedido explícito: el
 // header (en Landing.jsx) sigue con el SVG de siempre y no hay razón para tocarlo.
 import logoBlanco from '../assets/brand/logo-ingenioblocks-blanco.png'
+import logo from '../assets/landing/logo-ingenioblocks.svg'
 
 const IconMail = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffcb00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -155,5 +157,141 @@ export function LandingFooter() {
         <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube"><IconYoutube /></a>
       </div>
     </footer>
+  )
+}
+
+
+/* ---------- Encabezado ----------
+   Vive acá y no en Landing.jsx porque ahora lo usan dos páginas: la portada y
+   la vitrina de modelos. Tenerlo duplicado significaba que agregar una entrada
+   al menú había que hacerlo en dos lados y uno se iba a olvidar.
+*/
+
+const SECCIONES_NAV = [
+  ['como-funciona', 'Cómo funciona'],
+  ['beneficios', 'Beneficios'],
+  ['kits', 'Kits'],
+  ['quienes-somos', 'Quiénes somos'],
+  ['contacto', 'Contacto'],
+]
+
+const IconUser = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+  </svg>
+)
+
+const IconMenu = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round">
+    <path d="M3 6h18M3 12h18M3 18h18" />
+  </svg>
+)
+
+const IconClose = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
+
+/** Los ajustes de la página de modelos. Se piden acá y no en cada pantalla
+ *  porque el encabezado necesita saber si mostrar la entrada del menú, y la
+ *  página necesita lo mismo más la lista: una sola llamada sirve a las dos. */
+export function usePaginaModelos() {
+  const [datos, setDatos] = useState(null)
+  useEffect(() => {
+    let vivo = true
+    api.get('/catalog/modelos/')
+      .then(r => vivo && setDatos(r.data))
+      // Si falla, la entrada del menú simplemente no aparece: es contenido
+      // opcional y no vale romper la portada entera por él.
+      .catch(() => vivo && setDatos({ visible: false, modelos: [] }))
+    return () => { vivo = false }
+  }, [])
+  return datos
+}
+
+export function LandingHeader({ active }) {
+  const { user } = useAuth()
+  const location = useLocation()
+  const modelos = usePaginaModelos()
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const cls = (id) => (active === id ? 'active' : undefined)
+
+  // Fuera de la portada los anclas no existen en la página: hay que volver a "/"
+  // y recién ahí saltar. Landing.jsx se encarga del scroll al llegar con hash.
+  const enPortada = location.pathname === '/'
+  const enlaces = SECCIONES_NAV.map(([id, texto]) => ({
+    id, texto, href: enPortada ? `#${id}` : `/#${id}`,
+  }))
+
+  useEffect(() => {
+    if (!menuAbierto) return
+    const alTeclear = (e) => { if (e.key === 'Escape') setMenuAbierto(false) }
+    const overflowPrevio = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', alTeclear)
+    return () => {
+      document.body.style.overflow = overflowPrevio
+      window.removeEventListener('keydown', alTeclear)
+    }
+  }, [menuAbierto])
+
+  const entradaModelos = modelos?.visible ? (
+    <Link to="/modelos" className={cls('modelos')} onClick={() => setMenuAbierto(false)}>
+      Modelos
+    </Link>
+  ) : null
+
+  return (
+    <header className="lp-header">
+      <Link to="/" className="lp-logo"><img src={logo} alt="Ingenio Blocks" /></Link>
+
+      <nav className="lp-nav">
+        {enlaces.map(({ id, texto, href }) => (
+          <a key={id} href={href} className={cls(id)}>{texto}</a>
+        ))}
+        {entradaModelos}
+      </nav>
+
+      <div className="lp-header-right">
+        {user ? (
+          <Link to="/mis-cursos" className="lp-login-btn">mis cursos <IconUser /></Link>
+        ) : (
+          <Link to="/login" className="lp-login-btn">iniciar sesión <IconUser /></Link>
+        )}
+        {/* Bajo 1200px la nav horizontal no cabe y se oculta; sin este botón la
+            portada quedaba SIN navegación en celular, tablet y notebooks de 13". */}
+        <button
+          type="button"
+          className="lp-menu-btn"
+          aria-label={menuAbierto ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={menuAbierto}
+          onClick={() => setMenuAbierto((v) => !v)}
+        >
+          {menuAbierto ? <IconClose /> : <IconMenu />}
+        </button>
+      </div>
+
+      {menuAbierto && (
+        <div className="lp-menu-movil" role="dialog" aria-modal="true" aria-label="Menú">
+          <nav>
+            {enlaces.map(({ id, texto, href }) => (
+              <a key={id} href={href} className={cls(id)}
+                 onClick={() => setMenuAbierto(false)}>{texto}</a>
+            ))}
+            {entradaModelos}
+          </nav>
+          <Link
+            to={user ? '/mis-cursos' : '/login'}
+            className="lp-menu-movil-cta"
+            onClick={() => setMenuAbierto(false)}
+          >
+            {user ? 'mis cursos' : 'iniciar sesión'} <IconUser />
+          </Link>
+        </div>
+      )}
+    </header>
   )
 }

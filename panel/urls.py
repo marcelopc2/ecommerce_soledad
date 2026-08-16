@@ -68,6 +68,13 @@ urlpatterns = [
     path('portada/testimonios/', views.configuracion, {'tab': 'testimonios'}, name='cfg_testimonios'),
     path('portada/preguntas-frecuentes/', views.configuracion, {'tab': 'faqs'}, name='cfg_faqs'),
     path('portada/concurso/', views.configuracion, {'tab': 'concurso'}, name='cfg_concurso'),
+    path('portada/modelos/', views.configuracion, {'tab': 'modelos'}, name='cfg_modelos'),
+
+    path('modelos/nuevo/', views.modelo_form, name='modelo_new'),
+    path('modelos/<int:pk>/editar/', views.modelo_form, name='modelo_edit'),
+    path('modelos/<int:pk>/estado/', views.modelo_toggle_active, name='modelo_toggle_active'),
+    path('modelos/<int:pk>/eliminar/', views.modelo_delete, name='modelo_delete'),
+    path('modelos/reordenar/', views.modelos_reorder, name='modelos_reorder'),
     # El ritmo de entrega es del Aula, no de la portada: vive bajo Academia.
     path('academia/ritmo-de-entrega/', views.configuracion, {'tab': 'aula'}, name='cfg_aula'),
 
