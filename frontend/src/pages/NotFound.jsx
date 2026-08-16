@@ -21,14 +21,17 @@ export default function NotFound() {
     const previo = document.title
     document.title = 'Página no encontrada · Ingenio Blocks'
 
-    const meta = document.createElement('meta')
-    meta.name = 'robots'
-    meta.content = 'noindex, follow'   // follow: los enlaces de salida sí sirven
-    document.head.appendChild(meta)
+    // Se MODIFICA la etiqueta que ya trae index.html (content="index, follow")
+    // en vez de agregar una segunda: con dos, el rastreador lee la primera y la
+    // nuestra quedaba ignorada. Al salir se repone, porque el index.html se
+    // carga una sola vez y esa etiqueta la comparten todas las pantallas.
+    const meta = document.querySelector('meta[name="robots"]')
+    const contenidoPrevio = meta?.content
+    if (meta) meta.content = 'noindex, follow'   // follow: los enlaces de salida sí sirven
 
     return () => {
       document.title = previo
-      meta.remove()
+      if (meta && contenidoPrevio) meta.content = contenidoPrevio
     }
   }, [])
 
