@@ -5,7 +5,8 @@ import { api } from '../api'
 import { useAuth } from '../auth'
 import { ocultarPreloader } from '../preloader'
 import {
-  Contacto, LandingFooter, LandingHeader, IconInstagram, IconFacebook, IconYoutube,
+  Contacto, LandingFooter, LandingHeader, PlusDeco, Sparkle, useScrollReveal,
+  IconInstagram, IconFacebook, IconYoutube,
 } from '../components/LandingSections'
 import './landing.css'
 
@@ -107,18 +108,6 @@ const IconStar = () => (
 
 
 
-
-const Sparkle = ({ size = 20, color = '#ffcb00', style }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={style} className="lp-deco" aria-hidden="true">
-    <path d="M12 0c.6 6.5 5.5 11.4 12 12-6.5.6-11.4 5.5-12 12-.6-6.5-5.5-11.4-12-12C6.5 11.4 11.4 6.5 12 0z" />
-  </svg>
-)
-
-const PlusDeco = ({ style, color = 'rgba(255,255,255,0.5)' }) => (
-  <svg width="16" height="16" viewBox="0 0 16 16" style={style} className="lp-deco" aria-hidden="true">
-    <path d="M8 1v14M1 8h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-  </svg>
-)
 
 const ChevronsRight = () => (
   <svg width="66" height="52" viewBox="0 0 33 26" fill="none" stroke="#dfe3ea" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -1169,87 +1158,6 @@ function Faq() {
   )
 }
 
-const REVEAL_SELECTOR = [
-  '.lp-chip', '.lp-h2', '.lp-underline',
-  '.lp-paso',
-  '.lp-beneficios-col', '.lp-beneficios-box',
-  '.lp-video-card',
-  '.lp-kits-intro', '.lp-pagos', '.lp-card', '.lp-oferta',
-  '.lp-quienes-foto', '.lp-quienes-texto',
-  '.lp-testimonio',
-  '.lp-club-visual', '.lp-club-texto',
-  '.lp-ganador', '.lp-convocatoria-texto', '.lp-convocatoria-visual',
-  '.lp-faq-item',
-  '.lp-contacto-info', '.lp-contacto-form',
-].join(',')
-
-function useScrollReveal(rootRef, deps = []) {
-  useLayoutEffect(() => {
-    const root = rootRef.current
-    if (!root) return
-
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const noIO = typeof IntersectionObserver === 'undefined'
-
-    // Elementos aún no revelados; se ignoran los que están dentro de otro a
-    // revelar (basta animar el contenedor). `revealDone` = ya visible;
-    // `revealArmed` = ya se le puso opacity:0 (no re-armar en cada corrida).
-    const all = Array.from(root.querySelectorAll(REVEAL_SELECTOR))
-    const pending = all.filter(el =>
-      !el.dataset.revealDone &&
-      !all.some(other => other !== el && other.contains(el))
-    )
-
-    // Sin animación posible (reduced-motion o sin IntersectionObserver):
-    // mostrar todo de inmediato. NUNCA dejar contenido oculto.
-    if (reduce || noIO) {
-      pending.forEach(el => { el.classList.add('lp-in'); el.dataset.revealDone = '1' })
-      return
-    }
-
-    // Ocultar una sola vez y preparar el stagger entre hermanos.
-    const perParent = new Map()
-    pending.forEach(el => {
-      if (el.dataset.revealArmed) return
-      const i = perParent.get(el.parentElement) || 0
-      perParent.set(el.parentElement, i + 1)
-      el.style.transitionDelay = `${Math.min(i, 6) * 80}ms`
-      el.classList.add('lp-reveal')
-      el.dataset.revealArmed = '1'
-    })
-
-    // Observer NUEVO en cada corrida, desconectado en su propio cleanup: así el
-    // doble montaje de StrictMode (montar→desmontar→montar) vuelve a observar y
-    // el contenido nunca queda atascado en opacity:0.
-    const io = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('lp-in')
-          entry.target.dataset.revealDone = '1'
-          io.unobserve(entry.target)
-        }
-      }
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
-
-    pending.forEach(el => io.observe(el))
-
-    // Red de seguridad: si el observer no revela algo que YA debería verse
-    // (arriba del borde inferior del viewport), se muestra igual. Lo de más
-    // abajo sigue entrando con animación al hacer scroll.
-    const failSafe = window.setTimeout(() => {
-      const vh = window.innerHeight
-      root.querySelectorAll('.lp-reveal:not(.lp-in)').forEach(el => {
-        if (el.getBoundingClientRect().top < vh) {
-          el.classList.add('lp-in')
-          el.dataset.revealDone = '1'
-          io.unobserve(el)
-        }
-      })
-    }, 1200)
-
-    return () => { window.clearTimeout(failSafe); io.disconnect() }
-  }, deps) // eslint-disable-line react-hooks/exhaustive-deps
-}
 
 export default function Landing() {
   const [activeSection, setActiveSection] = useState('')

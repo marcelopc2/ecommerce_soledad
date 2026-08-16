@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, Navigate } from 'react-router-dom'
-import { LandingFooter, LandingHeader, usePaginaModelos } from '../components/LandingSections'
+import {
+  LandingFooter, LandingHeader, PlusDeco, Sparkle, usePaginaModelos, useScrollReveal,
+} from '../components/LandingSections'
 import { ocultarPreloader } from '../preloader'
 import './landing.css'
 import './modelos.css'
@@ -67,7 +69,7 @@ function Tarjeta({ modelo, onVerTrailer }) {
     : {}
 
   return (
-    <Contenedor className={'mdl-card' + (tieneTrailer ? ' con-trailer' : '')} {...props}>
+    <Contenedor className={'mdl-card lp-anim' + (tieneTrailer ? ' con-trailer' : '')} {...props}>
       <div className="mdl-foto">
         {modelo.foto_url
           ? <img src={modelo.foto_url} alt={modelo.nombre} loading="lazy" />
@@ -85,6 +87,12 @@ function Tarjeta({ modelo, onVerTrailer }) {
 export default function Modelos() {
   const datos = usePaginaModelos()
   const [trailer, setTrailer] = useState(null)
+  const rootRef = useRef(null)
+
+  // Las tarjetas entran al hacer scroll, escalonadas, igual que las secciones de
+  // la portada. Depende de cuántos modelos llegaron: hasta entonces no existen
+  // en el DOM y no habría nada que observar.
+  useScrollReveal(rootRef, [datos?.modelos?.length])
 
   useEffect(() => { if (datos) ocultarPreloader() }, [datos])
 
@@ -95,14 +103,31 @@ export default function Modelos() {
   const modelos = datos.modelos || []
 
   return (
-    <div className="lp">
+    <div className="lp" ref={rootRef}>
       {/* El encabezado va DENTRO de la franja morada, igual que en la portada:
           sus enlaces son blancos por diseño (.lp-nav a en landing.css) y sobre
           fondo claro desaparecían. */}
       <section className="mdl-hero">
+        {/* Misma trama de cuadrícula y mismas figuras flotantes que el hero de
+            la portada: son lo que hace que se lean como el mismo sitio. */}
+        <div className="mdl-hero-grid" aria-hidden="true" />
+
+        <Sparkle size={26} style={{ top: '22%', right: '5%', '--dur': '5s' }} />
+        <Sparkle size={18} color="rgba(255,255,255,0.6)" style={{ top: '62%', left: '10%', '--dur': '7s', '--delay': '1.2s' }} />
+        <Sparkle size={15} style={{ top: '74%', right: '22%', '--dur': '6s', '--delay': '0.5s' }} />
+        <PlusDeco style={{ top: '30%', left: '6%', '--dur': '9s' }} />
+        <PlusDeco style={{ top: '20%', left: '27%', '--dur': '8.5s', '--delay': '2.4s' }} color="rgba(255,203,0,0.6)" />
+        <PlusDeco style={{ top: '68%', right: '8%', '--dur': '6.5s', '--delay': '1.8s' }} />
+        <span className="lp-deco lp-deco-dot" style={{ top: '38%', left: '18%', '--dur': '6s' }} aria-hidden="true" />
+        <span className="lp-deco lp-deco-dot lp-deco-dot-yellow" style={{ top: '52%', right: '15%', '--dur': '7s', '--delay': '2.2s' }} aria-hidden="true" />
+
         <LandingHeader active="modelos" />
         <div className="mdl-hero-inner">
-          <h1>{datos.titulo}</h1>
+          {/* lp-h2 + lp-h2-white + lp-underline: las mismas clases de los
+              títulos de sección de la portada, para que la tipografía y el
+              subrayado amarillo sean exactamente los mismos. */}
+          <h1 className="lp-h2 lp-h2-white">{datos.titulo}</h1>
+          <span className="lp-underline" aria-hidden="true" />
           {datos.intro && <p>{datos.intro}</p>}
         </div>
       </section>
@@ -126,7 +151,7 @@ export default function Modelos() {
               ))}
             </div>
 
-            <div className="mdl-cierre">
+            <div className="mdl-cierre lp-anim">
               <h2>¿Te gustaron?</h2>
               <p>Todos se arman con el mismo kit, y cada semana se abre uno nuevo.</p>
               <Link to="/#kits" className="lp-btn-yellow">quiero mi kit</Link>
