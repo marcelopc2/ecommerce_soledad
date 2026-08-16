@@ -142,10 +142,15 @@ export default function Profile() {
         </div>
       </section>
 
+      {/* Dos columnas, igual que Mi cuenta del panel: a la izquierda lo que se
+          edita seguido (foto y nombres), a la derecha lo que se toca de vez en
+          cuando. En una sola columna la contraseña quedaba tan abajo que había
+          que buscarla. Bajo 900px se apilan solas. */}
       <div className="pf-body">
-        {/* ---------- Foto ---------- */}
-        <div className="pf-card">
-          <h2>Tu foto</h2>
+        <div className="pf-col">
+        {/* ---------- Foto y datos ---------- */}
+        <form className="pf-card" onSubmit={guardar}>
+          <h2>Tus datos</h2>
           <div className="pf-avatar-fila">
             {datos?.avatar_url
               ? <img src={datos.avatar_url} alt="" className="pf-avatar" />
@@ -167,11 +172,8 @@ export default function Profile() {
               {errorFoto && <p className="pf-msg pf-msg-error">{errorFoto}</p>}
             </div>
           </div>
-        </div>
 
-        {/* ---------- Datos ---------- */}
-        <form className="pf-card pf-card-sec" onSubmit={guardar}>
-          <h2>Datos</h2>
+          <hr className="pf-sep" />
 
           <div className="pf-campo">
             <label htmlFor="pf-alumno">Nombre del niño o niña</label>
@@ -216,7 +218,9 @@ export default function Profile() {
             {guardando ? 'Guardando…' : 'Guardar cambios'}
           </button>
         </form>
+        </div>
 
+        <div className="pf-col">
         {/* ---------- Membresía ---------- */}
         <div className="pf-card pf-card-sec">
           <h2>Tu acceso</h2>
@@ -268,6 +272,7 @@ export default function Profile() {
             {cambiando ? 'Cambiando…' : 'Cambiar contraseña'}
           </button>
         </form>
+        </div>
       </div>
     </div>
   )

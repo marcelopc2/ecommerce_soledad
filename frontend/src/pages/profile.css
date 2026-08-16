@@ -2,13 +2,20 @@
    layout de las tarjetas del formulario. */
 
 .pf-body {
-  width: min(760px, 100% - 40px);
+  width: min(1080px, 100% - 40px);
   margin: -28px auto 70px;
   position: relative;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
   gap: 18px;
+}
+/* Cada columna apila sus tarjetas; el grid de arriba solo reparte el ancho. */
+.pf-col { display: flex; flex-direction: column; gap: 18px; }
+
+@media (max-width: 900px) {
+  .pf-body { grid-template-columns: 1fr; width: min(760px, 100% - 40px); }
 }
 
 .pf-card {
@@ -174,3 +181,11 @@
 }
 .pf-link-btn:hover { color: #c03434; }
 .pf-link-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Separa la foto de los campos dentro de la misma tarjeta: son dos cosas
+   distintas, pero se guardan con el mismo botón. */
+.pf-sep {
+  border: 0;
+  border-top: 1px solid #ece5f4;
+  margin: 22px 0;
+}
