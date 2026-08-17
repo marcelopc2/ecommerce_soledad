@@ -5,10 +5,24 @@ Qué trae
 - Los 44 modelos publicados (`stm-courses`), con sus pasos.
 - Cada paso es una imagen: en WordPress cada "lección" era una foto suelta.
 - Las 357 cuentas, con su clave intacta (ver core/hashers.py).
-- Las membresías activas según Paid Memberships Pro, que es el sistema que de
-  verdad manda: las 139 suscripciones activas de WooCommerce están todas dentro
-  de las 144 de PMPro, más 5 accesos que se dieron a mano.
-- El progreso: qué modelo terminó cada alumno y en qué paso iba.
+- TODAS las membresías con historial en Paid Memberships Pro, que es el sistema
+  que de verdad manda: las 139 suscripciones activas de WooCommerce están todas
+  dentro de las 144 de PMPro, más 5 accesos que se dieron a mano. Quien ya no
+  está activo entra igual, con su fecha real de vencimiento (queda "Vencida" en
+  el panel, no desaparece).
+- El nombre del niño/a, para quien lo tenía cargado (un formulario más nuevo lo
+  pedía; no todos lo tienen).
+- El progreso: qué modelo terminó cada alumno y en qué paso iba, también para
+  quien ya no está activo.
+- Cada membresía creada por este comando queda marcada `es_legado=True`, para
+  distinguirla en el panel de lo que se venda desde el sitio nuevo.
+
+Quién NO entra
+---------------
+Las cuentas sin ningún registro en PMPro (71 de 357) no reciben membresía: no
+hay con qué fecha anclarlas, y case por case, casi ninguna tiene inscripciones
+ni pedidos reales. Es la misma regla del sitio nuevo: la membresía se crea
+cuando hay algo que respalde el acceso.
 
 Qué NO trae, a propósito
 ------------------------
@@ -30,6 +44,7 @@ hay que agregar `--aplicar`.
 import os
 import re
 import unicodedata
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 from django.core.files.base import ContentFile
@@ -125,12 +140,16 @@ class Command(BaseCommand):
         def meta(f):
             k = f.get('meta_key')
             if k in ('first_name', 'last_name', 'billing_phone',
-                     'billing_first_name', 'billing_last_name'):
+                     'billing_first_name', 'billing_last_name',
+                     'alumno_nombre', 'alumno_apellido'):
                 d['usermeta'].setdefault(f.get('user_id'), {})[k] = f.get('meta_value')
 
         def pmpro(f):
-            if f.get('status') == 'active':
-                d['pmpro'].append(f)
+            # Se juntan TODOS los estados, no solo 'active': un alumno que ya
+            # no paga igual tiene que aparecer en el panel como "Vencida", no
+            # desaparecer. El filtrado por estado se hace después, agrupando
+            # por usuario.
+            d['pmpro'].append(f)
 
         def inscripcion(f):
             d['insc'].append(f)
@@ -209,19 +228,41 @@ class Command(BaseCommand):
             v.sort()
 
         # --- 3. Las cuentas y sus membresías ---------------------------
-        # Si alguien aparece más de una vez en PMPro (renovó, cambió de plan),
-        # vale la más antigua: es cuando empezó a recibir modelos, y es lo que
-        # ancla su calendario semanal.
-        membresias = {}
+        # PMPro deja una fila por cada suscripción/cambio de plan, así que un
+        # alumno con varias renovaciones aparece varias veces. Se agrupan por
+        # usuario para quedarse con UNA membresía por persona:
+        #   - inicio  = la fecha más antigua entre TODAS sus filas (activa o
+        #     no), porque es cuándo empezó a recibir modelos y es lo que ancla
+        #     el goteo semanal, incluso si hoy está vencida y algún día se
+        #     reactiva a mano.
+        #   - activa  = si tiene AL MENOS una fila con estado 'active' hoy.
+        #   - fin     = el vencimiento de esa fila activa: o si no tiene
+        #     ninguna activa, el más reciente entre sus vencimientos pasados.
+        por_usuario = defaultdict(list)
         for m in d['pmpro']:
-            uid = m.get('user_id')
-            previo = membresias.get(uid)
-            inicio = _fecha(m.get('startdate'))
-            if previo is None or (inicio and _fecha(previo.get('startdate')) and
-                                  inicio < _fecha(previo.get('startdate'))):
-                membresias[uid] = m
+            por_usuario[m.get('user_id')].append(m)
 
-        self._informe(d, ordenados, pasos_de, membresias, medios)
+        membresias = {}
+        for uid, filas_pmpro in por_usuario.items():
+            inicios = [f for f in (_fecha(r.get('startdate')) for r in filas_pmpro) if f]
+            if not inicios:
+                continue
+            activa = next((r for r in filas_pmpro if r.get('status') == 'active'), None)
+            if activa:
+                fin = _fecha(activa.get('enddate'))
+            else:
+                fines = [f for f in (_fecha(r.get('enddate')) for r in filas_pmpro) if f]
+                fin = max(fines) if fines else None
+            membresias[uid] = {'inicio': min(inicios), 'fin': fin, 'activa': bool(activa)}
+
+        # Algunas filas de PMPro apuntan a un user_id que ya no existe en
+        # wp_users (cuentas de prueba que la clienta borró en su momento, pero
+        # cuya membresía quedó huérfana). No hay a quién asignárselas.
+        huerfanas = [uid for uid in membresias if uid not in d['usuarios']]
+        for uid in huerfanas:
+            del membresias[uid]
+
+        self._informe(d, ordenados, pasos_de, membresias, medios, len(huerfanas))
 
         if not de_verdad:
             self.stdout.write(self.style.WARNING(
@@ -233,7 +274,7 @@ class Command(BaseCommand):
 
     # -- informe -----------------------------------------------------------
 
-    def _informe(self, d, ordenados, pasos_de, membresias, medios):
+    def _informe(self, d, ordenados, pasos_de, membresias, medios, n_huerfanas):
         faltan = 0
         total_pasos = 0
         for cid, _p in ordenados:
@@ -250,8 +291,13 @@ class Command(BaseCommand):
         self.stdout.write('  Pasos (con su foto)  : %d' % total_pasos)
         if faltan:
             self.stdout.write(self.style.WARNING('  Pasos SIN foto local : %d' % faltan))
+        activas = sum(1 for m in membresias.values() if m['activa'])
         self.stdout.write('  Cuentas              : %d' % len(d['usuarios']))
-        self.stdout.write('  Membresías activas   : %d' % len(membresias))
+        self.stdout.write('  Membresías a crear   : %d  (%d activas, %d vencidas)' % (
+            len(membresias), activas, len(membresias) - activas))
+        if n_huerfanas:
+            self.stdout.write(self.style.WARNING(
+                '  %d membresía(s) de PMPro apuntan a una cuenta ya borrada, se omiten' % n_huerfanas))
         self.stdout.write('  Inscripciones        : %d' % len(d['insc']))
         self.stdout.write('  Pasos ya vistos      : %d' % len(d['lecc_vistas']))
 
@@ -374,16 +420,27 @@ class Command(BaseCommand):
                 len(reusadas), ', '.join(reusadas[:5])))
 
         # --- membresías ---
-        creadas = 0
-        for uid, m in membresias.items():
+        creadas = activas = vencidas = 0
+        for uid, info in membresias.items():
             usuario = user_de_wp.get(uid)
             if not usuario:
                 continue
-            inicio = _fecha(m.get('startdate')) or ahora
-            # Quien pagaba mes a mes no tiene fecha de término en PMPro: se le
-            # da la vigencia por omisión y su próximo pago la extiende, igual
-            # que a cualquier cliente nuevo.
-            fin = _fecha(m.get('enddate')) or (ahora + timedelta(days=op['dias_vigencia']))
+            inicio = info['inicio'] or ahora
+            if info['activa']:
+                # Quien pagaba mes a mes no tiene fecha de término en PMPro: se
+                # le da la vigencia por omisión y su próximo pago la extiende,
+                # igual que a cualquier cliente nuevo.
+                fin = info['fin'] or (ahora + timedelta(days=op['dias_vigencia']))
+            else:
+                # Ya no paga: se respeta su fecha real de término (siempre la
+                # trae PMPro para estos casos), y por eso el panel la muestra
+                # "Vencida" en vez de ocultarla.
+                fin = info['fin'] or inicio
+
+            meta = d['usermeta'].get(uid, {})
+            nombre_alumno = ('%s %s' % (
+                meta.get('alumno_nombre') or '', meta.get('alumno_apellido') or '')).strip()
+
             # Membership es uno-a-uno: si la cuenta se reutilizó y ya tenía una,
             # se respeta la que hay en vez de reventar a mitad de la carga.
             membresia, nueva = Membership.objects.get_or_create(
@@ -391,18 +448,34 @@ class Command(BaseCommand):
                 defaults={
                     'expires_at': fin,
                     'parent_name': ('%s %s' % (usuario.first_name, usuario.last_name)).strip()[:200],
+                    'student_name': nombre_alumno[:200],
+                    'es_legado': True,
                 },
             )
             if not nueva:
                 continue
+            # `created_at` es `auto_now_add`: Django lo pisa con el instante en
+            # que se ejecuta este comando, no con la fecha real de alta. Sin
+            # este ajuste, el panel mostraría "Inicio: hoy" para 286 familias
+            # que en realidad llevan meses. `.update()` no dispara ese
+            # auto_now_add (solo pasa en `.save()`), así que sirve para
+            # corregirlo después de crear la fila.
+            Membership.objects.filter(pk=membresia.pk).update(created_at=inicio)
             # `obtenida_en` es lo que ancla el goteo semanal. Va la fecha
             # original: si fuera la de hoy, una familia que lleva un año
             # pagando volvería a la semana 1 y perdería los modelos que ya tenía.
+            # Se guarda también para quien ya no está activo: si algún día se
+            # reactiva a mano, retoma donde iba en vez de partir de cero.
             MembershipCategory.objects.create(
                 membership=membresia, categoria=categoria, obtenida_en=inicio,
             )
             creadas += 1
-        self.stdout.write('  %d membresías creadas' % creadas)
+            if info['activa']:
+                activas += 1
+            else:
+                vencidas += 1
+        self.stdout.write('  %d membresías creadas  (%d activas, %d vencidas)' % (
+            creadas, activas, vencidas))
 
         # --- progreso ---
         membresia_de = {mm.user_id: mm for mm in Membership.objects.all()}

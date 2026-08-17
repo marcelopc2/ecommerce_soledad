@@ -2,7 +2,12 @@
   {% with m=row.m %}
   <tr>
     <td>
-      <div class="cell-title">{{ m.student_name|default:"(sin nombre)" }}</div>
+      <div class="cell-title">
+        {{ m.student_name|default:"(sin nombre)" }}
+        {% if m.es_legado %}
+          <span class="badge-soft purple mleg-badge" title="Cuenta migrada del sitio anterior">Legado</span>
+        {% endif %}
+      </div>
       <div class="cell-sub">{{ m.user.email }}</div>
     </td>
     <td class="cell-sub">{{ m.parent_name|default:"—" }}</td>

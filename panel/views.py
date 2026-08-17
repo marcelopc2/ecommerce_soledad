@@ -644,6 +644,10 @@ MEMBERSHIP_SORT_COLUMNS = ['alumno', 'apoderado', 'inicio', 'vencimiento', 'prog
 def memberships(request):
     q = request.GET.get('q', '').strip()
     estado = request.GET.get('estado', '').strip()
+    # Independiente de `estado`: un alumno migrado puede estar activo, pausado
+    # o vencido, así que va aparte en vez de sumarse a ese grupo mutuamente
+    # excluyente.
+    legado = request.GET.get('legado', '').strip() == '1'
     sort, direction, next_dir = _sort_params(request, MEMBERSHIP_SORT_COLUMNS)
 
     base = Membership.objects.select_related('user').prefetch_related('courses')
@@ -657,6 +661,7 @@ def memberships(request):
     active_count = base.filter(paused_at__isnull=True, expires_at__gt=now).count()
     paused_count = base.filter(paused_at__isnull=False).count()
     expired_count = base.filter(paused_at__isnull=True, expires_at__lte=now).count()
+    legado_count = base.filter(es_legado=True).count()
 
     items = base
     if estado == 'activa':
@@ -665,6 +670,8 @@ def memberships(request):
         items = items.filter(paused_at__isnull=False)
     elif estado == 'vencida':
         items = items.filter(paused_at__isnull=True, expires_at__lte=now)
+    if legado:
+        items = items.filter(es_legado=True)
 
     if sort in MEMBERSHIP_DB_SORT_FIELDS:
         field = MEMBERSHIP_DB_SORT_FIELDS[sort]
@@ -705,15 +712,27 @@ def memberships(request):
     elif sort == 'estado':
         rows.sort(key=lambda r: r['status_rank'], reverse=(direction == 'desc'))
 
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+    TAMANO_PAGINA = 30
+    paginador = Paginator(rows, TAMANO_PAGINA)
+    try:
+        pagina = paginador.page(int(request.GET.get('page', 1)))
+    except (ValueError, EmptyPage, PageNotAnInteger):
+        pagina = paginador.page(1)
+
     ctx = {
-        'rows': rows,
+        'rows': pagina.object_list,
+        'pagina': pagina,
         'total_count': total_count,
         'active_count': active_count,
         'paused_count': paused_count,
         'expired_count': expired_count,
+        'legado_count': legado_count,
         'section': 'memberships',
         'q': q,
         'estado': estado,
+        'legado': legado,
         'sort': sort,
         'dir': direction,
         'next_dir': next_dir,

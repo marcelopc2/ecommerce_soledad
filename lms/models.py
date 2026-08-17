@@ -209,6 +209,13 @@ class Membership(models.Model):
     parent_name = models.CharField(max_length=200, blank=True, help_text="Nombre del padre/apoderado")
     student_name = models.CharField(max_length=200, blank=True, help_text="Nombre del alumno (niño/a)")
 
+    # Marca las cuentas traídas por `importar_wordpress`, activas o no. Sirve
+    # para distinguirlas en el listado (badge y filtro) mientras convive la
+    # base vieja con las suscripciones nuevas del sitio.
+    es_legado = models.BooleanField(
+        default=False, help_text="Cuenta migrada del WordPress viejo",
+    )
+
     # --- Pausa de suscripción: congela el acceso y el calendario semanal de
     # cursos sin cerrar la cuenta. Al reanudar, se le devuelven los días
     # pausados (tanto al vencimiento como al desbloqueo de cursos). ---

@@ -7,13 +7,22 @@
 {% block actions %}
 <div class="d-flex gap-2 mfilter-group">
   <a class="mfilter-pill{% if not estado %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=">Todas ({{ total_count }})</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=&amp;legado={% if legado %}1{% endif %}">Todas ({{ total_count }})</a>
   <a class="mfilter-pill green{% if estado == 'activa' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=activa">{{ active_count }} activas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=activa&amp;legado={% if legado %}1{% endif %}">{{ active_count }} activas</a>
   <a class="mfilter-pill yellow{% if estado == 'pausada' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pausada">{{ paused_count }} pausadas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pausada&amp;legado={% if legado %}1{% endif %}">{{ paused_count }} pausadas</a>
   <a class="mfilter-pill gray{% if estado == 'vencida' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=vencida">{{ expired_count }} vencidas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=vencida&amp;legado={% if legado %}1{% endif %}">{{ expired_count }} vencidas</a>
+  {% comment %}
+    Aparte del grupo de arriba a propósito: "legado" no es un estado, es el
+    origen de la cuenta, y puede combinarse con cualquiera de los otros (un
+    migrado también puede estar activo, pausado o vencido).
+  {% endcomment %}
+  <a class="mfilter-pill purple{% if legado %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}{% else %}1{% endif %}">
+    <i class="bi bi-archive"></i> {{ legado_count }} legado
+  </a>
 </div>
 {% endblock %}
 
@@ -28,35 +37,36 @@
              hx-trigger="input changed delay:300ms, search"
              hx-target="#memberships-tbody"
              hx-swap="innerHTML"
-             hx-include="[name='estado'], [name='sort'], [name='dir']"
+             hx-include="[name='estado'], [name='sort'], [name='dir'], [name='legado']"
              hx-indicator="#memberships-spin">
       <span id="memberships-spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
     </div>
     <input type="hidden" name="estado" value="{{ estado }}">
     <input type="hidden" name="sort" value="{{ sort }}">
     <input type="hidden" name="dir" value="{{ dir }}">
+    <input type="hidden" name="legado" value="{% if legado %}1{% endif %}">
   </div>
   <div class="table-responsive">
     <table class="table pnl-table">
       <thead>
         <tr>
           <th class="sortable-th">
-            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=alumno&amp;dir={{ next_dir.alumno }}">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sort=alumno&amp;dir={{ next_dir.alumno }}">
               Alumno{% if sort == 'alumno' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
             </a>
           </th>
           <th class="sortable-th">
-            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=apoderado&amp;dir={{ next_dir.apoderado }}">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sort=apoderado&amp;dir={{ next_dir.apoderado }}">
               Apoderado{% if sort == 'apoderado' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
             </a>
           </th>
           <th class="sortable-th">
-            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=inicio&amp;dir={{ next_dir.inicio }}">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sort=inicio&amp;dir={{ next_dir.inicio }}">
               Inicio{% if sort == 'inicio' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
             </a>
           </th>
           <th class="sortable-th">
-            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=vencimiento&amp;dir={{ next_dir.vencimiento }}">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sort=vencimiento&amp;dir={{ next_dir.vencimiento }}">
               Vencimiento{% if sort == 'vencimiento' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
             </a>
           </th>
@@ -66,17 +76,17 @@
             de duplicar la lógica de sort para un resultado idéntico.
           {% endcomment %}
           <th class="sortable-th">
-            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=vencimiento&amp;dir={{ next_dir.vencimiento }}">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sort=vencimiento&amp;dir={{ next_dir.vencimiento }}">
               Días{% if sort == 'vencimiento' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
             </a>
           </th>
           <th class="sortable-th">
-            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=progreso&amp;dir={{ next_dir.progreso }}">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sort=progreso&amp;dir={{ next_dir.progreso }}">
               Progreso{% if sort == 'progreso' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
             </a>
           </th>
           <th class="sortable-th">
-            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;sort=estado&amp;dir={{ next_dir.estado }}">
+            <a href="?q={{ q|urlencode }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sort=estado&amp;dir={{ next_dir.estado }}">
               Estado{% if sort == 'estado' %}<i class="bi bi-chevron-{% if dir == 'asc' %}up{% else %}down{% endif %}"></i>{% endif %}
             </a>
           </th>
@@ -88,5 +98,6 @@
       </tbody>
     </table>
   </div>
+  {% include 'panel/partials/memberships_pagination.html' %}
 </div>
 {% endblock %}
