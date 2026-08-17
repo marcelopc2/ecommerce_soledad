@@ -336,10 +336,22 @@ class Command(BaseCommand):
         # --- cuentas ---
         ahora = timezone.now()
         user_de_wp = {}
+        reusadas = []
+        ya_estaban = {u.username.lower(): u for u in User.objects.all()}
         for uid, u in d['usuarios'].items():
             correo = (u.get('user_email') or '').strip().lower()
             if not correo:
                 continue
+
+            # La clienta y su equipo ya tienen cuenta acá, y también aparecen en
+            # el WordPress viejo. Se reutiliza la que existe y NO se le toca
+            # nada: pisarle la clave o los permisos la dejaría fuera del panel.
+            existente = ya_estaban.get(correo[:150].lower())
+            if existente:
+                user_de_wp[uid] = existente
+                reusadas.append(correo)
+                continue
+
             meta = d['usermeta'].get(uid, {})
             nombre = meta.get('first_name') or meta.get('billing_first_name') or ''
             apellido = meta.get('last_name') or meta.get('billing_last_name') or ''
@@ -354,8 +366,12 @@ class Command(BaseCommand):
                 # PBKDF2 la primera vez que la persona entra bien.
                 password='wordpress$' + (u.get('user_pass') or ''),
             )
+            ya_estaban[correo[:150].lower()] = django_user
             user_de_wp[uid] = django_user
-        self.stdout.write('  %d cuentas creadas' % len(user_de_wp))
+        self.stdout.write('  %d cuentas creadas' % (len(user_de_wp) - len(reusadas)))
+        if reusadas:
+            self.stdout.write('  %d ya existían y se dejaron intactas: %s' % (
+                len(reusadas), ', '.join(reusadas[:5])))
 
         # --- membresías ---
         creadas = 0
@@ -368,11 +384,17 @@ class Command(BaseCommand):
             # da la vigencia por omisión y su próximo pago la extiende, igual
             # que a cualquier cliente nuevo.
             fin = _fecha(m.get('enddate')) or (ahora + timedelta(days=op['dias_vigencia']))
-            membresia = Membership.objects.create(
+            # Membership es uno-a-uno: si la cuenta se reutilizó y ya tenía una,
+            # se respeta la que hay en vez de reventar a mitad de la carga.
+            membresia, nueva = Membership.objects.get_or_create(
                 user=usuario,
-                expires_at=fin,
-                parent_name=('%s %s' % (usuario.first_name, usuario.last_name)).strip()[:200],
+                defaults={
+                    'expires_at': fin,
+                    'parent_name': ('%s %s' % (usuario.first_name, usuario.last_name)).strip()[:200],
+                },
             )
+            if not nueva:
+                continue
             # `obtenida_en` es lo que ancla el goteo semanal. Va la fecha
             # original: si fuera la de hoy, una familia que lleva un año
             # pagando volvería a la semana 1 y perdería los modelos que ya tenía.
