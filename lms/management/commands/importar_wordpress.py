@@ -53,6 +53,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
+from catalog.models import extract_youtube_id
 from lms.models import (
     CategoryCourse, Course, CourseCategory, CourseProgress, Lesson,
     LessonProgress, Membership, MembershipCategory,
@@ -116,7 +117,7 @@ class Command(BaseCommand):
         d = {
             'posts': {}, 'secciones': {}, 'materiales': [], 'usuarios': {},
             'usermeta': {}, 'pmpro': [], 'insc': [], 'lecc_vistas': [],
-            'adjuntos': {}, 'portada_de': {},
+            'adjuntos': {}, 'portada_de': {}, 'video_de': {},
         }
 
         def post(f):
@@ -158,8 +159,15 @@ class Command(BaseCommand):
             d['lecc_vistas'].append(f)
 
         def postmeta(f):
-            if f.get('meta_key') == '_thumbnail_id':
+            k = f.get('meta_key')
+            if k == '_thumbnail_id':
                 d['portada_de'][f.get('post_id')] = f.get('meta_value')
+            # Casi todas las lecciones son un paso con foto, pero un puñado (el
+            # curso "Bienvenida") son video en vez de imagen. Sin esto se
+            # importaban como paso-imagen sin ninguna foto: el alumno entraba
+            # a su primera lección y encontraba "no se pudo cargar la imagen".
+            elif k in ('video_type', 'lesson_video', 'lesson_youtube_url'):
+                d['video_de'].setdefault(f.get('post_id'), {})[k] = f.get('meta_value')
 
         una_pasada(ruta, {
             'wp_posts': post,
@@ -330,6 +338,7 @@ class Command(BaseCommand):
         curso_de_wp = {}
         leccion_de_wp = {}
         sin_foto = 0
+        videos_wp_temporales = 0
 
         for pos, (cid, p) in enumerate(ordenados, 1):
             m = RE_NUMERO.match((p.get('post_title') or '').strip())
@@ -358,26 +367,54 @@ class Command(BaseCommand):
                 post = d['posts'].get(lid)
                 if not post:
                     continue
-                urls = RE_IMG.findall(post.get('post_content') or '')
-                local = self._ruta_local(urls[0], medios) if urls else None
+                video = d['video_de'].get(lid)
                 leccion = Lesson(
                     course=curso,
                     title=(post.get('post_title') or 'Paso')[:200],
                     order=orden or 1,
-                    lesson_type='IMAGE',
                 )
-                if local and os.path.exists(local):
-                    with open(local, 'rb') as f:
-                        leccion.image_file.save(
-                            os.path.basename(local), ContentFile(f.read()), save=False)
+                if video:
+                    # El curso "Bienvenida" no trae pasos con foto: son 6 video
+                    # (2 de YouTube, 4 subidos directo a WordPress). Sin este
+                    # caso especial se importaban como paso-imagen sin ninguna
+                    # foto, y el alumno abría su primera lección y encontraba
+                    # "no se pudo cargar la imagen".
+                    leccion.lesson_type = 'VIDEO'
+                    if video.get('video_type') == 'youtube':
+                        yt_id = extract_youtube_id(video.get('lesson_youtube_url') or '')
+                        if yt_id:
+                            leccion.video_embed_url = 'https://www.youtube.com/embed/%s' % yt_id
+                    else:
+                        # video_type='html': un mp4 subido a WordPress, referenciado
+                        # como adjunto. Igual que las fotos: mientras el dominio
+                        # viejo siga en pie el link funciona, pero muere con el
+                        # cambio de DNS. Bandera aparte para avisarlo al final.
+                        adj = d['adjuntos'].get(video.get('lesson_video'))
+                        if adj:
+                            leccion.video_embed_url = adj
+                            videos_wp_temporales += 1
+                    if not leccion.video_embed_url:
+                        sin_foto += 1
                 else:
-                    sin_foto += 1
+                    leccion.lesson_type = 'IMAGE'
+                    urls = RE_IMG.findall(post.get('post_content') or '')
+                    local = self._ruta_local(urls[0], medios) if urls else None
+                    if local and os.path.exists(local):
+                        with open(local, 'rb') as f:
+                            leccion.image_file.save(
+                                os.path.basename(local), ContentFile(f.read()), save=False)
+                    else:
+                        sin_foto += 1
                 leccion.save()
                 leccion_de_wp[lid] = leccion
 
         self.stdout.write('  %d modelos y %d pasos creados%s' % (
             len(curso_de_wp), len(leccion_de_wp),
             (' (%d sin foto)' % sin_foto) if sin_foto else ''))
+        if videos_wp_temporales:
+            self.stdout.write(self.style.WARNING(
+                '  %d video(s) apuntan todavía al WordPress viejo (curso Bienvenida): '
+                'hay que bajarlos y volver a subirlos antes de cambiar el DNS' % videos_wp_temporales))
 
         # --- cuentas ---
         ahora = timezone.now()

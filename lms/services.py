@@ -69,7 +69,12 @@ def _completion_map(membership, courses):
     Un curso se da por terminado cuando todos sus recursos están vistos (o si
     tiene un CourseProgress heredado del sistema anterior / cursos sin recursos)."""
     course_ids = [c.id for c in courses]
-    totals = {c.id: c.lessons.count() for c in courses}
+    # `len(...all())` y no `.count()`: si `courses` viene con `lessons`
+    # precargado (ver `cursos_de`), esto reutiliza esa carga en vez de disparar
+    # una consulta nueva por curso. Con 44 cursos y cientos de alumnos, esa
+    # diferencia es la que hacía que la lista de Alumnos del panel se
+    # demorara más de 10 segundos en cargar.
+    totals = {c.id: len(c.lessons.all()) for c in courses}
     done = {}
     for lp in LessonProgress.objects.filter(membership=membership, lesson__course_id__in=course_ids).values('lesson__course_id'):
         cid = lp['lesson__course_id']
@@ -125,7 +130,11 @@ def cursos_de(membership):
             if cc.curso.is_active:
                 ids.add(cc.curso.id)
     ids.update(membership.courses.filter(is_active=True).values_list('id', flat=True))
-    return Course.objects.filter(id__in=ids).order_by('order', 'id')
+    # prefetch_related y no dejarlo a `_completion_map`: ese método necesita
+    # cuántos recursos tiene cada curso, y `.count()` golpea la base SIEMPRE,
+    # incluso con prefetch. Precargar acá deja que use `len(c.lessons.all())`
+    # en su lugar, que sí reutiliza este prefetch.
+    return Course.objects.filter(id__in=ids).order_by('order', 'id').prefetch_related('lessons')
 
 
 def _estado_en_categoria(mc, comp, today):
