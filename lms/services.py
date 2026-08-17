@@ -114,7 +114,7 @@ def _categorias_del_alumno(membership):
     )
 
 
-def cursos_de(membership):
+def cursos_de(membership, categorias=None):
     """Todos los cursos activos a los que el alumno tiene derecho.
 
     Se DERIVAN de sus categorías, no de una lista copiada al comprar: por eso
@@ -123,9 +123,15 @@ def cursos_de(membership):
 
     `membership.courses` se sigue considerando para no dejar afuera lo otorgado
     antes de que existieran las categorías (y cualquier asignación manual).
+
+    `categorias`: para cuando quien llama ya evaluó `_categorias_del_alumno` y
+    no quiere pagarla dos veces (ver `get_course_access`, que la necesita acá
+    Y para el estado de cada curso -abierto o no-). Sin este atajo, cada
+    carga de la lista de Alumnos del panel volvía a traer y precargar las
+    categorías de cada alumno por segunda vez.
     """
     ids = set()
-    for mc in _categorias_del_alumno(membership):
+    for mc in (categorias if categorias is not None else _categorias_del_alumno(membership)):
         for cc in mc.categoria.cursos_en_categoria.all():
             if cc.curso.is_active:
                 ids.add(cc.curso.id)
@@ -208,13 +214,14 @@ def get_course_access(membership):
     serviría de nada cuando el mismo curso vive también en una categoría con
     goteo.
     """
-    courses = list(cursos_de(membership))
+    categorias = list(_categorias_del_alumno(membership))
+    courses = list(cursos_de(membership, categorias=categorias))
     comp = _completion_map(membership, courses)
     today = timezone.localdate()
 
     por_categoria = [
         _estado_en_categoria(mc, comp, today)
-        for mc in _categorias_del_alumno(membership)
+        for mc in categorias
     ]
 
     # Respaldo para lo otorgado antes de las categorías (o a mano): sin esto,
