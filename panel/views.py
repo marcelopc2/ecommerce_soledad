@@ -684,9 +684,12 @@ def memberships(request):
     # (todas las columnas salvo Progreso y Estado, que no existen como campo:
     # se calculan), se pagina ANTES de tocar el acceso, así que ese cálculo
     # corre solo para los 30 alumnos que de verdad se van a mostrar.
-    ordenable_en_bd = sort in MEMBERSHIP_DB_SORT_FIELDS
-    if ordenable_en_bd:
-        field = MEMBERSHIP_DB_SORT_FIELDS[sort]
+    # `sort` viene vacío cuando nadie hizo clic en ninguna columna (la carga
+    # normal de la pantalla, con el orden por omisión `-updated_at`), y ese
+    # caso también lo resuelve la base de datos. Solo progreso/estado no.
+    ordenable_en_bd = sort not in ('progreso', 'estado')
+    field = MEMBERSHIP_DB_SORT_FIELDS.get(sort)
+    if field:
         items = items.order_by(field if direction == 'asc' else f'-{field}')
     else:
         items = items.order_by('-updated_at')
