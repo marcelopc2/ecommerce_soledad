@@ -16,22 +16,29 @@ ahí no hay nada. Por eso el importador lo guarda con un prefijo propio:
 
 Formatos que entiende
 ---------------------
-- `$P$` y `$H$` — phpass, el formato clásico de WordPress y el que tiene la
-  inmensa mayoría de las cuentas. MD5 iterado miles de veces.
+- `$wp$2y$` — bcrypt, el formato de WordPress 6.8 en adelante. Es el que trae
+  el export de IngenioBlocks: las 357 cuentas están en este formato, ninguna en
+  phpass.
+- `$P$` y `$H$` — phpass, el formato clásico de WordPress. No aparece en este
+  export, pero se conserva por si alguna cuenta vieja reaparece.
 - MD5 pelado (32 caracteres hex) — cuentas muy viejas, de antes de phpass.
 
-WordPress 6.8 empezó a usar bcrypt (`$wp$2y$...`) para claves NUEVAS, pero las
-cuentas existentes conservan su hash phpass hasta que cambian la clave. Si en el
-export aparecen hashes que empiezan con `$wp$`, hay que agregar esa variante acá
-(necesita el paquete `bcrypt`).
+El detalle del formato `$wp$`
+-----------------------------
+WordPress no le pasa la contraseña directamente a bcrypt, porque bcrypt corta a
+los 72 bytes y una clave larga quedaría truncada. Primero la resume con
+HMAC-SHA384 y codifica ese resumen en base64 (64 caracteres, bajo el límite), y
+recién eso va a bcrypt. Al hash resultante le pega el prefijo `$wp` adelante.
+Para verificar hay que repetir los mismos pasos.
 
 Seguridad
 ---------
-MD5 iterado es débil para los estándares de hoy. Por eso importa que el
-reemplazo por PBKDF2 sea automático en el primer login, y que las cuentas que
-nunca vuelvan a entrar terminen con la clave expirada en vez de quedar para
-siempre con un hash malo.
+bcrypt es sólido, pero phpass (MD5 iterado) es débil para los estándares de hoy.
+Por eso importa que el reemplazo por PBKDF2 sea automático en el primer login, y
+que las cuentas que nunca vuelvan a entrar terminen con la clave expirada en vez
+de quedar para siempre con un hash malo.
 """
+import base64
 import hashlib
 import hmac
 
@@ -91,6 +98,18 @@ def _phpass(password, ajuste):
     return ajuste[:12] + _encode64(resumen, 16)
 
 
+def _resumen_para_bcrypt(password):
+    """El paso previo de WordPress 6.8: HMAC-SHA384 en base64.
+
+    Se hace para que las claves largas no queden truncadas por el límite de 72
+    bytes de bcrypt. El `strip()` no es un capricho nuestro: WordPress aplica
+    `trim()` antes de cifrar, así que una clave con espacios al borde tiene que
+    tratarse igual acá o el cliente no podría entrar.
+    """
+    digest = hmac.new(b'wp-sha384', password.strip().encode('utf-8'), hashlib.sha384).digest()
+    return base64.b64encode(digest)
+
+
 class WordPressPasswordHasher(BasePasswordHasher):
     """Deja entrar con la clave que el cliente ya usaba en WordPress."""
 
@@ -116,6 +135,17 @@ class WordPressPasswordHasher(BasePasswordHasher):
             return False
         if algoritmo != self.algorithm or not wp_hash:
             return False
+
+        # WordPress 6.8+: bcrypt sobre el resumen, con `$wp` pegado adelante.
+        if wp_hash.startswith('$wp$'):
+            import bcrypt
+
+            try:
+                return bcrypt.checkpw(_resumen_para_bcrypt(password), wp_hash[3:].encode('ascii'))
+            except (ValueError, TypeError):
+                # Hash mal formado: es una credencial inválida, no un error del
+                # sistema. No debe tumbar el login de nadie más.
+                return False
 
         if wp_hash.startswith(('$P$', '$H$')):
             calculado = _phpass(password, wp_hash)
