@@ -43,13 +43,22 @@ class Command(BaseCommand):
 
         self.stdout.write('Leyendo el volcado para juntar las direcciones...')
         posts, secciones, materiales = {}, {}, []
+        adjuntos, portada_de = {}, {}
 
         def post(f):
-            if f.get('post_type') in ('stm-courses', 'stm-lessons'):
+            t = f.get('post_type')
+            if t in ('stm-courses', 'stm-lessons'):
                 posts[f['ID']] = f
+            elif t == 'attachment':
+                adjuntos[f['ID']] = f.get('guid') or ''
+
+        def postmeta(f):
+            if f.get('meta_key') == '_thumbnail_id':
+                portada_de[f.get('post_id')] = f.get('meta_value')
 
         una_pasada(ruta, {
             'wp_posts': post,
+            'wp_postmeta': postmeta,
             'wp_stm_lms_curriculum_sections': lambda f: secciones.__setitem__(
                 f.get('id'), f.get('course_id')),
             'wp_stm_lms_curriculum_materials': materiales.append,
@@ -63,6 +72,11 @@ class Command(BaseCommand):
         urls = set()
         for lid in lecciones:
             urls.update(RE_IMG.findall((posts.get(lid) or {}).get('post_content') or ''))
+        # Las portadas de los modelos, que no van en el cuerpo sino como adjunto.
+        for cid in cursos:
+            guid = adjuntos.get(portada_de.get(cid))
+            if guid and '/wp-content/uploads/' in guid:
+                urls.add(guid)
 
         os.makedirs(destino, exist_ok=True)
         self.stdout.write('%d archivos que bajar' % len(urls))

@@ -101,12 +101,17 @@ class Command(BaseCommand):
         d = {
             'posts': {}, 'secciones': {}, 'materiales': [], 'usuarios': {},
             'usermeta': {}, 'pmpro': [], 'insc': [], 'lecc_vistas': [],
+            'adjuntos': {}, 'portada_de': {},
         }
 
         def post(f):
             t = f.get('post_type')
             if t in ('stm-courses', 'stm-lessons'):
                 d['posts'][f['ID']] = f
+            elif t == 'attachment':
+                # La portada del curso se guarda aparte, como adjunto: el curso
+                # solo apunta a su id con el meta `_thumbnail_id`.
+                d['adjuntos'][f['ID']] = f.get('guid') or ''
 
         def seccion(f):
             d['secciones'][f.get('id')] = f.get('course_id')
@@ -133,8 +138,13 @@ class Command(BaseCommand):
         def leccion_vista(f):
             d['lecc_vistas'].append(f)
 
+        def postmeta(f):
+            if f.get('meta_key') == '_thumbnail_id':
+                d['portada_de'][f.get('post_id')] = f.get('meta_value')
+
         una_pasada(ruta, {
             'wp_posts': post,
+            'wp_postmeta': postmeta,
             'wp_stm_lms_curriculum_sections': seccion,
             'wp_stm_lms_curriculum_materials': material,
             'wp_users': usuario,
@@ -278,13 +288,21 @@ class Command(BaseCommand):
         for pos, (cid, p) in enumerate(ordenados, 1):
             m = RE_NUMERO.match((p.get('post_title') or '').strip())
             titulo = (m.group(2) if m else p.get('post_title') or 'Modelo').strip()
-            curso = Course.objects.create(
+            curso = Course(
                 title=titulo[:200],
                 slug=_slug_unico(titulo, usados),
                 description='',
                 order=pos,
                 is_active=True,
             )
+            portada = d['adjuntos'].get(d['portada_de'].get(cid))
+            if portada:
+                local = self._ruta_local(portada, medios)
+                if os.path.exists(local):
+                    with open(local, 'rb') as f:
+                        curso.image_file.save(
+                            os.path.basename(local), ContentFile(f.read()), save=False)
+            curso.save()
             curso_de_wp[cid] = curso
             # Sin esta fila el modelo existe pero no se lo entrega a nadie: el
             # acceso del alumno se calcula desde la categoría, no desde Course.
