@@ -673,16 +673,40 @@ def memberships(request):
     if legado:
         items = items.filter(es_legado=True)
 
-    if sort in MEMBERSHIP_DB_SORT_FIELDS:
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+    TAMANO_PAGINA = 30
+
+    # `get_course_access` no es gratis: calcula el goteo semanal recorriendo
+    # las categorías y cursos del alumno. Hacerlo para las 286 membresías en
+    # cada carga de esta pantalla (para mostrar solo 30) era exactamente lo
+    # que la hacía lenta. Cuando el orden lo puede resolver la base de datos
+    # (todas las columnas salvo Progreso y Estado, que no existen como campo:
+    # se calculan), se pagina ANTES de tocar el acceso, así que ese cálculo
+    # corre solo para los 30 alumnos que de verdad se van a mostrar.
+    ordenable_en_bd = sort in MEMBERSHIP_DB_SORT_FIELDS
+    if ordenable_en_bd:
         field = MEMBERSHIP_DB_SORT_FIELDS[sort]
         items = items.order_by(field if direction == 'asc' else f'-{field}')
     else:
         items = items.order_by('-updated_at')
-    items = list(items)
+
+    if ordenable_en_bd:
+        paginador = Paginator(items, TAMANO_PAGINA)
+        try:
+            pagina = paginador.page(int(request.GET.get('page', 1)))
+        except (ValueError, EmptyPage, PageNotAnInteger):
+            pagina = paginador.page(1)
+        a_calcular = list(pagina.object_list)
+    else:
+        # Progreso y Estado sí necesitan el cálculo completo: para ordenar de
+        # verdad (no solo dentro de cada página) hay que conocer el valor de
+        # las 286 antes de poder decidir cuáles 30 van primero.
+        a_calcular = list(items)
 
     today = timezone.localdate()
     rows = []
-    for m in items:
+    for m in a_calcular:
         access = get_course_access(m)
         completed = sum(1 for a in access if a['completed'])
         current = next((a for a in access if a['unlocked'] and not a['completed']), None)
@@ -707,22 +731,20 @@ def memberships(request):
             'dias_vencida': -dias,
         })
 
-    if sort == 'progreso':
-        rows.sort(key=lambda r: r['pct'], reverse=(direction == 'desc'))
-    elif sort == 'estado':
-        rows.sort(key=lambda r: r['status_rank'], reverse=(direction == 'desc'))
-
-    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-
-    TAMANO_PAGINA = 30
-    paginador = Paginator(rows, TAMANO_PAGINA)
-    try:
-        pagina = paginador.page(int(request.GET.get('page', 1)))
-    except (ValueError, EmptyPage, PageNotAnInteger):
-        pagina = paginador.page(1)
+    if not ordenable_en_bd:
+        if sort == 'progreso':
+            rows.sort(key=lambda r: r['pct'], reverse=(direction == 'desc'))
+        elif sort == 'estado':
+            rows.sort(key=lambda r: r['status_rank'], reverse=(direction == 'desc'))
+        paginador = Paginator(rows, TAMANO_PAGINA)
+        try:
+            pagina = paginador.page(int(request.GET.get('page', 1)))
+        except (ValueError, EmptyPage, PageNotAnInteger):
+            pagina = paginador.page(1)
+        rows = pagina.object_list
 
     ctx = {
-        'rows': pagina.object_list,
+        'rows': rows,
         'pagina': pagina,
         'total_count': total_count,
         'active_count': active_count,
