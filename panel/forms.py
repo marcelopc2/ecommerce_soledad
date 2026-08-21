@@ -258,7 +258,18 @@ class LessonForm(BootstrapFormMixin, forms.ModelForm):
                                'navegador de YouTube. Nosotros lo convertimos.',
         }
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Instrucciones o paso a paso que acompañan a este recurso…'}),
+            # ids explícitos en 'title', 'description' e 'image_file': la misma
+            # página trae el formulario del CURSO (CourseForm, más arriba) y el
+            # del PASO nuevo (este form), y comparten esos tres nombres de
+            # campo. Sin esto, el HTML terminaba con dos elementos con el mismo
+            # id -inválido-, y el autocompletado y el foco de <label for> se
+            # vuelven impredecibles cuando eso pasa: justo el tipo de falla que
+            # se ve como "el botón no hace nada" sin ningún error en la consola.
+            'title': forms.TextInput(attrs={'id': 'id_lesson_title'}),
+            'description': forms.Textarea(attrs={
+                'id': 'id_lesson_description', 'rows': 3,
+                'placeholder': 'Instrucciones o paso a paso que acompañan a este recurso…'}),
+            'image_file': forms.ClearableFileInput(attrs={'id': 'id_lesson_image_file'}),
             'video_embed_url': forms.TextInput(
                 attrs={'placeholder': 'https://www.youtube.com/watch?v=...'}),
         }
