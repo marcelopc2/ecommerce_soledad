@@ -1087,7 +1087,7 @@ SECCIONES_CONTENIDO = {
         'Esta acción no se puede deshacer.',
     ),
     'modelos': (
-        'Modelos', 'Portada', 'panel:modelo_new', 'Nuevo modelo',
+        'Lista Modelos', 'Portada', 'panel:modelo_new', 'Nuevo modelo',
         None, None,
     ),
     'testimonios': (
