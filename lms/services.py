@@ -11,12 +11,14 @@ from django.contrib.auth.tokens import default_token_generator
 from core.emails import enviar_email
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
 from .models import (
-    AjustesAula, Course, Membership, CourseProgress, LessonProgress, Diploma, DiplomaAward,
+    AjustesAula, Course, Lesson, Membership, CourseProgress, LessonProgress,
+    Diploma, DiplomaAward,
 )
 
 User = get_user_model()
@@ -64,25 +66,97 @@ def _unlock_date(start_date, index, iniciales=1):
     return start_date + timedelta(weeks=max(0, index - (iniciales - 1)))
 
 
-def _completion_map(membership, courses):
+def precargar_listado(memberships):
+    """Trae de una sola vez lo que `get_course_access` repetiría por alumno.
+
+    Para UN alumno da lo mismo, pero una pantalla que muestra 30 vuelve a pedir
+    los mismos 44 cursos, los mismos 1.282 pasos y los mismos ajustes 30 veces:
+    ~9 consultas por fila. Precargando eso queda en un puñado fijo, sin importar
+    cuántas filas se muestren.
+
+    NO duplica las reglas del goteo: `get_course_access` sigue siendo el único
+    lugar donde se decide qué está abierto. Esto solo le pasa los datos ya
+    leídos para que no vuelva a buscarlos.
+    """
+    from .models import MembershipCategory
+
+    ids = [m.pk for m in memberships]
+
+    categorias = {}
+    for mc in (MembershipCategory.objects
+               .filter(membership_id__in=ids, categoria__is_active=True)
+               .select_related('categoria')
+               .prefetch_related('categoria__cursos_en_categoria__curso')):
+        categorias.setdefault(mc.membership_id, []).append(mc)
+
+    # Los pasos de cada curso: el mismo número para todos los alumnos.
+    totales = {
+        fila['course']: fila['n']
+        for fila in Lesson.objects.values('course').annotate(n=Count('id'))
+    }
+
+    # Cuántos pasos vio cada alumno en cada curso, en una sola consulta en vez
+    # de una por alumno.
+    vistos = {}
+    for fila in (LessonProgress.objects
+                 .filter(membership_id__in=ids)
+                 .values('membership_id', 'lesson__course_id')
+                 .annotate(n=Count('id'))):
+        vistos[(fila['membership_id'], fila['lesson__course_id'])] = fila['n']
+
+    terminados = {}
+    for mid, cid in (CourseProgress.objects
+                     .filter(membership_id__in=ids)
+                     .values_list('membership_id', 'course_id')):
+        terminados.setdefault(mid, set()).add(cid)
+
+    return {
+        'categorias': categorias,
+        'totales': totales,
+        'vistos': vistos,
+        'terminados': terminados,
+        'ajustes': AjustesAula.obtener(),
+        'cursos_sueltos': {
+            mid: list(cursos) for mid, cursos in _cursos_sueltos_por_alumno(ids).items()
+        },
+    }
+
+
+def _cursos_sueltos_por_alumno(ids):
+    """Los cursos otorgados a mano (Membership.courses), por alumno."""
+    from .models import Membership as _M
+
+    salida = {}
+    for mid, cid in (_M.courses.through.objects
+                     .filter(membership_id__in=ids, course__is_active=True)
+                     .values_list('membership_id', 'course_id')):
+        salida.setdefault(mid, []).append(cid)
+    return salida
+
+
+def _completion_map(membership, courses, precarga=None):
     """Por cada curso: recursos totales, completados, % y si está terminado.
     Un curso se da por terminado cuando todos sus recursos están vistos (o si
     tiene un CourseProgress heredado del sistema anterior / cursos sin recursos)."""
     course_ids = [c.id for c in courses]
-    # `len(...all())` y no `.count()`: si `courses` viene con `lessons`
-    # precargado (ver `cursos_de`), esto reutiliza esa carga en vez de disparar
-    # una consulta nueva por curso. Con 44 cursos y cientos de alumnos, esa
-    # diferencia es la que hacía que la lista de Alumnos del panel se
-    # demorara más de 10 segundos en cargar.
-    totals = {c.id: len(c.lessons.all()) for c in courses}
-    done = {}
-    for lp in LessonProgress.objects.filter(membership=membership, lesson__course_id__in=course_ids).values('lesson__course_id'):
-        cid = lp['lesson__course_id']
-        done[cid] = done.get(cid, 0) + 1
-    legacy_completed = set(
-        CourseProgress.objects.filter(membership=membership, course_id__in=course_ids)
-        .values_list('course_id', flat=True)
-    )
+
+    if precarga is not None:
+        totals = {c.id: precarga['totales'].get(c.id, 0) for c in courses}
+        done = {c.id: precarga['vistos'].get((membership.pk, c.id), 0) for c in courses}
+        legacy_completed = precarga['terminados'].get(membership.pk, set())
+    else:
+        # `len(...all())` y no `.count()`: si `courses` viene con `lessons`
+        # precargado (ver `cursos_de`), esto reutiliza esa carga en vez de
+        # disparar una consulta nueva por curso.
+        totals = {c.id: len(c.lessons.all()) for c in courses}
+        done = {}
+        for lp in LessonProgress.objects.filter(membership=membership, lesson__course_id__in=course_ids).values('lesson__course_id'):
+            cid = lp['lesson__course_id']
+            done[cid] = done.get(cid, 0) + 1
+        legacy_completed = set(
+            CourseProgress.objects.filter(membership=membership, course_id__in=course_ids)
+            .values_list('course_id', flat=True)
+        )
     out = {}
     for c in courses:
         total = totals[c.id]
@@ -97,7 +171,7 @@ def _completion_map(membership, courses):
     return out
 
 
-def _categorias_del_alumno(membership):
+def _categorias_del_alumno(membership, precarga=None):
     """Categorías que obtuvo, con sus cursos ya precargados.
 
     Se traen los cursos de una sola vez (prefetch) porque el cálculo recorre
@@ -105,6 +179,9 @@ def _categorias_del_alumno(membership):
     dispararía una consulta por cada una en cada carga del Aula.
     """
     from .models import MembershipCategory
+
+    if precarga is not None:
+        return precarga['categorias'].get(membership.pk, [])
 
     return (
         MembershipCategory.objects
@@ -114,7 +191,7 @@ def _categorias_del_alumno(membership):
     )
 
 
-def cursos_de(membership, categorias=None):
+def cursos_de(membership, categorias=None, precarga=None):
     """Todos los cursos activos a los que el alumno tiene derecho.
 
     Se DERIVAN de sus categorías, no de una lista copiada al comprar: por eso
@@ -131,10 +208,22 @@ def cursos_de(membership, categorias=None):
     categorías de cada alumno por segunda vez.
     """
     ids = set()
-    for mc in (categorias if categorias is not None else _categorias_del_alumno(membership)):
+    origen = categorias if categorias is not None else _categorias_del_alumno(membership, precarga)
+    cursos_por_id = {}
+    for mc in origen:
         for cc in mc.categoria.cursos_en_categoria.all():
             if cc.curso.is_active:
                 ids.add(cc.curso.id)
+                cursos_por_id[cc.curso.id] = cc.curso
+
+    if precarga is not None:
+        # Los objetos Course ya vinieron con las categorías precargadas, así que
+        # se arma la lista en memoria en vez de volver a la base por ellos.
+        ids.update(precarga['cursos_sueltos'].get(membership.pk, []))
+        salida = [c for cid, c in cursos_por_id.items() if cid in ids]
+        salida.sort(key=lambda c: (c.order, c.id))
+        return salida
+
     ids.update(membership.courses.filter(is_active=True).values_list('id', flat=True))
     # prefetch_related y no dejarlo a `_completion_map`: ese método necesita
     # cuántos recursos tiene cada curso, y `.count()` golpea la base SIEMPRE,
@@ -203,7 +292,7 @@ def _estado_en_categoria(mc, comp, today):
     return estados
 
 
-def get_course_access(membership):
+def get_course_access(membership, precarga=None):
     """
     Devuelve la lista de cursos de la membresía (en orden), cada uno con:
     - course, unlocked, completed, pct, done, total, unlock_date.
@@ -214,9 +303,9 @@ def get_course_access(membership):
     serviría de nada cuando el mismo curso vive también en una categoría con
     goteo.
     """
-    categorias = list(_categorias_del_alumno(membership))
-    courses = list(cursos_de(membership, categorias=categorias))
-    comp = _completion_map(membership, courses)
+    categorias = list(_categorias_del_alumno(membership, precarga))
+    courses = list(cursos_de(membership, categorias=categorias, precarga=precarga))
+    comp = _completion_map(membership, courses, precarga)
     today = timezone.localdate()
 
     por_categoria = [
@@ -231,7 +320,8 @@ def get_course_access(membership):
     if sueltos:
         inicio = (timezone.localtime(membership.created_at).date()
                   + timedelta(days=membership.total_paused_days))
-        iniciales = AjustesAula.obtener().cursos_iniciales
+        ajustes = precarga['ajustes'] if precarga is not None else AjustesAula.obtener()
+        iniciales = ajustes.cursos_iniciales
         estados_sueltos = {}
         bloqueado = False
         previo = None
@@ -280,7 +370,7 @@ def get_course_access(membership):
             'required_course': requerido,        # el curso que falta completar
         })
 
-    return _aplicar_cierre(result, politica_de_cierre(membership))
+    return _aplicar_cierre(result, politica_de_cierre(membership, precarga))
 
 
 def _aplicar_cierre(result, politica):
@@ -473,7 +563,7 @@ def get_preview_sequence():
     return items
 
 
-def politica_de_cierre(membership):
+def politica_de_cierre(membership, precarga=None):
     """Qué se le muestra cuando su membresía no está dando acceso. None = normal.
 
     Pausa y vencimiento no son lo mismo, aunque los dos dejen `is_active` en
@@ -486,7 +576,8 @@ def politica_de_cierre(membership):
         return None
     if membership.is_paused:
         return AjustesAula.CARATULAS
-    return AjustesAula.obtener().acceso_vencido
+    ajustes = precarga['ajustes'] if precarga is not None else AjustesAula.obtener()
+    return ajustes.acceso_vencido
 
 
 def no_puede_avanzar(membership):

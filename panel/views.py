@@ -24,7 +24,7 @@ from catalog.models import (
 from invoicing.models import Invoice
 from invoicing.services import issue_invoice_for_order
 from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
-from lms.services import get_course_access, send_reset_email
+from lms.services import get_course_access, precargar_listado, send_reset_email
 from payments.models import Order
 from shipments.services import send_dispatch_email
 from .forms import (
@@ -708,9 +708,12 @@ def memberships(request):
         a_calcular = list(items)
 
     today = timezone.localdate()
+    # Los 44 cursos y sus pasos son los mismos para todos: se leen una vez para
+    # toda la página en vez de una vez por alumno (ver precargar_listado).
+    precarga = precargar_listado(a_calcular)
     rows = []
     for m in a_calcular:
-        access = get_course_access(m)
+        access = get_course_access(m, precarga)
         completed = sum(1 for a in access if a['completed'])
         current = next((a for a in access if a['unlocked'] and not a['completed']), None)
         if m.is_paused:
