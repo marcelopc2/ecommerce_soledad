@@ -674,7 +674,7 @@ def _grant(order):
         return membership
 
     # Se mira ANTES de extender: si estaba vencida, esta compra es una
-    # reactivación y el goteo tiene que volver a anclarse (ver _reanudar_goteo).
+    # reactivación y el goteo tiene que volver a anclarse (ver reanudar_goteo).
     venia_vencida = membership.expires_at <= timezone.now()
 
     base = membership.expires_at if membership.expires_at > timezone.now() else timezone.now()
@@ -694,7 +694,7 @@ def _grant(order):
         )
 
     if venia_vencida and AjustesAula.obtener().reanudar_goteo:
-        _reanudar_goteo(membership)
+        reanudar_goteo(membership)
 
     if user_created or not user.has_usable_password():
         _send_welcome_email(user, membership)
@@ -704,7 +704,7 @@ def _grant(order):
     return membership
 
 
-def _reanudar_goteo(membership):
+def reanudar_goteo(membership):
     """Vuelve a anclar el calendario de TODAS sus categorías al día de hoy,
     desde el último modelo que alcanzó a terminar en cada una.
 

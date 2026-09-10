@@ -80,6 +80,58 @@
       {% elif m.total_paused_days %}
         <p class="mdetail-note mt-2 mb-0">Estuvo pausada {{ m.total_paused_days }} día{{ m.total_paused_days|pluralize }} en total (ya descontados del calendario).</p>
       {% endif %}
+
+      {% comment %}
+        Cambiar el vencimiento a mano: para los pagos que no entran por el sitio
+        (transferencia, efectivo en un taller), un mes de regalo, o corregir una
+        fecha que llegó mal en la migración.
+      {% endcomment %}
+      <hr class="my-3">
+      <form hx-post="{% url 'panel:membership_expiry_update' m.pk %}"
+            hx-target="#mdetail-content" hx-swap="innerHTML">
+        {% csrf_token %}
+        <label class="form-label" for="{{ expiry_form.hasta.id_for_label }}">
+          {{ expiry_form.hasta.label }}
+        </label>
+        <div class="d-flex gap-2 align-items-start flex-wrap">
+          {{ expiry_form.hasta }}
+          <button type="submit" class="btn btn-brand btn-sm">
+            <i class="bi bi-check-lg me-1"></i> Guardar
+          </button>
+        </div>
+        {% for e in expiry_form.hasta.errors %}
+          <div class="invalid-feedback d-block">{{ e }}</div>
+        {% endfor %}
+        <div class="form-text">{{ expiry_form.hasta.help_text }}</div>
+
+        {% comment %}
+          El atajo escribe la fecha en el campo de arriba, no envía nada: así
+          la clienta ve qué día va a quedar ANTES de confirmar.
+        {% endcomment %}
+        <div class="d-flex gap-1 flex-wrap mt-2 mdetail-atajos"
+             data-target="#{{ expiry_form.hasta.id_for_label }}"
+             data-hoy="{{ hoy|date:'Y-m-d' }}"
+             data-vence="{{ m.expires_at|date:'Y-m-d' }}">
+          <button type="button" class="btn btn-ghost btn-sm" data-meses="1">+1 mes</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-meses="3">+3 meses</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-meses="6">+6 meses</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-meses="12">+1 año</button>
+        </div>
+
+        {% if not m.is_active and not m.is_paused %}
+          {% comment %}
+            Solo al revivir una cuenta vencida: en una que sigue vigente la
+            pregunta no cambia nada, porque su calendario nunca se detuvo.
+          {% endcomment %}
+          <div class="form-check mt-3">
+            {{ expiry_form.reanudar_goteo }}
+            <label class="form-check-label ms-1" for="{{ expiry_form.reanudar_goteo.id_for_label }}">
+              {{ expiry_form.reanudar_goteo.label }}
+            </label>
+            <div class="form-text">{{ expiry_form.reanudar_goteo.help_text }}</div>
+          </div>
+        {% endif %}
+      </form>
     </div></div>
   </div>
 
@@ -192,3 +244,40 @@
   </div>
 
 </div>
+
+{% comment %}
+  Los atajos "+N meses" solo escriben la fecha en el campo; guardar sigue siendo
+  un clic aparte. La delegación va en document.body y con bandera: este bloque se
+  vuelve a insertar en cada acción htmx, y sin la bandera se acumularía un
+  listener por recarga (un clic terminaría sumando los meses varias veces).
+{% endcomment %}
+<script>
+  if (!document.body.dataset.atajosVencimiento) {
+    document.body.dataset.atajosVencimiento = '1'
+    document.body.addEventListener('click', function (e) {
+      var boton = e.target.closest('.mdetail-atajos button[data-meses]')
+      if (!boton) return
+      var caja = boton.closest('.mdetail-atajos')
+      var campo = document.querySelector(caja.dataset.target)
+      if (!campo) return
+
+      // Se cuenta desde la fecha que venza más tarde, igual que una compra: si
+      // todavía le queda un mes, "+1 mes" tiene que sumarle, no reemplazárselo.
+      var hoy = caja.dataset.hoy
+      var vence = caja.dataset.vence
+      var base = new Date(((vence > hoy) ? vence : hoy) + 'T12:00:00')
+
+      var dia = base.getDate()
+      base.setDate(1)
+      base.setMonth(base.getMonth() + parseInt(boton.dataset.meses, 10))
+      // Un 31 sumado a un mes de 30 se desbordaría al mes siguiente: se recorta
+      // al último día del mes que corresponde.
+      var ultimo = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate()
+      base.setDate(Math.min(dia, ultimo))
+
+      var mm = String(base.getMonth() + 1).padStart(2, '0')
+      var dd = String(base.getDate()).padStart(2, '0')
+      campo.value = base.getFullYear() + '-' + mm + '-' + dd
+    })
+  }
+</script>

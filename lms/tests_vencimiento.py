@@ -15,7 +15,7 @@ from lms.models import (
     Membership, MembershipCategory,
 )
 from lms.services import (
-    _reanudar_goteo, get_course_access, get_sequence_access, mark_lesson_completed,
+    reanudar_goteo, get_course_access, get_sequence_access, mark_lesson_completed,
     no_puede_avanzar,
 )
 
@@ -64,7 +64,7 @@ class VencimientoYRenovacionTests(TestCase):
     def _renovar(self):
         self.membresia.expires_at = timezone.now() + timedelta(days=365)
         self.membresia.save(update_fields=['expires_at'])
-        _reanudar_goteo(self.membresia)
+        reanudar_goteo(self.membresia)
 
     def _terminar(self, n):
         for curso in self.cursos[:n]:
@@ -235,7 +235,7 @@ class VencimientoYRenovacionTests(TestCase):
 
     def test_una_compra_real_de_renovacion_reancla_el_goteo(self):
         """El camino de verdad: una orden pagada que entra por
-        grant_access_for_order. Los tests de arriba llaman a _reanudar_goteo a
+        grant_access_for_order. Los tests de arriba llaman a reanudar_goteo a
         mano; este verifica que además esté enchufado donde corresponde, que es
         donde se rompería sin que nadie se diera cuenta.
         """

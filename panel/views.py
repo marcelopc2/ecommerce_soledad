@@ -1,6 +1,6 @@
 import base64
 import logging
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from functools import wraps
 
 from django.conf import settings
@@ -24,13 +24,15 @@ from catalog.models import (
 from invoicing.models import Invoice
 from invoicing.services import issue_invoice_for_order
 from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
-from lms.services import get_course_access, precargar_listado, send_reset_email
+from lms.services import (
+    get_course_access, precargar_listado, reanudar_goteo, send_reset_email,
+)
 from payments.models import Order
 from shipments.services import send_dispatch_email
 from .forms import (
     LoginForm, ProductForm, CourseForm, CourseCategoryForm, LessonForm, MembershipForm,
     DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm,
-    StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
+    MembershipExpiryForm, StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
     MiCuentaForm, ModeloArmableForm, SeccionModelosForm,
 )
 
@@ -809,11 +811,24 @@ def _membership_context(m):
     }
 
 
-def _membership_detail_response(request, m, form=None):
+def _membership_detail_response(request, m, form=None, expiry_form=None):
     """Renderiza el detalle: la página completa (con sidebar) en una navegación
     normal O boosted, o solo el bloque de contenido cuando es una acción htmx
     con su propio hx-target (pausar, guardar nombres, etc.)."""
-    ctx = {'m': m, 'name_form': form or MembershipForm(instance=m), 'section': 'memberships'}
+    ctx = {
+        'm': m,
+        'name_form': form or MembershipForm(instance=m),
+        # Precargado con la fecha que ya tiene: cambiarla es lo habitual,
+        # escribirla de cero no.
+        'expiry_form': expiry_form or MembershipExpiryForm(initial={
+            'hasta': timezone.localtime(m.expires_at).date(),
+            'reanudar_goteo': AjustesAula.obtener().reanudar_goteo,
+        }),
+        # Del servidor y no del navegador: los atajos "+N meses" cuentan desde
+        # hoy, y el reloj del computador de quien administra puede estar corrido.
+        'hoy': timezone.localdate(),
+        'section': 'memberships',
+    }
     ctx.update(_membership_context(m))
     template = (
         'panel/partials/membership_detail_body.html'
@@ -840,6 +855,55 @@ def membership_names_update(request, pk):
         form.save()
         form = None
     return _membership_detail_response(request, m, form)
+
+
+@staff_required
+@require_POST
+def membership_expiry_update(request, pk):
+    """Cambia a mano hasta cuándo tiene acceso el alumno.
+
+    Se registra en el log igual que un pago: es la misma decisión (dar o quitar
+    acceso pagado), solo que tomada a mano, y si mañana alguien pregunta por qué
+    una cuenta cambió de fecha, esa línea es la única forma de saberlo.
+    """
+    m = get_object_or_404(Membership.objects.select_related('user'), pk=pk)
+    form = MembershipExpiryForm(request.POST)
+    if not form.is_valid():
+        return _membership_detail_response(request, m, expiry_form=form)
+
+    estaba_vencida = not m.is_active and not m.is_paused
+    antes = m.expires_at
+
+    # Fin del día elegido y no su comienzo: si guardáramos las 00:00, "vence el
+    # 10" dejaría a la familia sin acceso durante todo el día 10.
+    hasta = form.cleaned_data['hasta']
+    m.expires_at = timezone.make_aware(
+        datetime.combine(hasta, time(23, 59, 59)),
+        timezone.get_current_timezone(),
+    )
+    m.save(update_fields=['expires_at'])
+
+    # Reanclar el calendario semanal solo al revivir una cuenta vencida: si no,
+    # recibe de golpe todos los modelos cuya fecha pasó mientras no pagaba, y el
+    # ritmo semanal -que es el producto- se pierde justo al recuperarla. Es la
+    # misma decisión que toma una renovación comprada (ver lms.services).
+    reanudado = False
+    if estaba_vencida and m.is_active and form.cleaned_data['reanudar_goteo']:
+        reanudar_goteo(m)
+        reanudado = True
+
+    log.info(
+        'Vencimiento cambiado a mano por %s: %s pasa de %s a %s%s',
+        request.user.email, m.user.email,
+        timezone.localtime(antes).date(), timezone.localtime(m.expires_at).date(),
+        ' (calendario semanal reanudado)' if reanudado else '',
+    )
+    messages.success(
+        request,
+        'Acceso de %s actualizado hasta el %s.' % (
+            m.user.email, timezone.localtime(m.expires_at).strftime('%d-%m-%Y')),
+    )
+    return _membership_detail_response(request, m)
 
 
 @staff_required

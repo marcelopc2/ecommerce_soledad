@@ -48,6 +48,7 @@ urlpatterns = [
     path('membresias/', views.memberships, name='memberships'),
     path('membresias/<int:pk>/detalle/', views.membership_detail, name='membership_detail'),
     path('membresias/<int:pk>/nombres/', views.membership_names_update, name='membership_names_update'),
+    path('membresias/<int:pk>/vencimiento/', views.membership_expiry_update, name='membership_expiry_update'),
     path('membresias/<int:pk>/pausar/', views.membership_toggle_pause, name='membership_toggle_pause'),
     path('membresias/<int:pk>/usuario/', views.membership_toggle_user, name='membership_toggle_user'),
     path('membresias/<int:pk>/eliminar/', views.membership_delete, name='membership_delete'),

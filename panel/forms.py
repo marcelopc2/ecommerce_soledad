@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django import forms
 from django.db.models import Max
+from django.utils import timezone
 from django.utils.text import slugify
 from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
@@ -169,6 +172,48 @@ class MembershipForm(BootstrapFormMixin, forms.ModelForm):
             'parent_name': forms.TextInput(attrs={'placeholder': 'Nombre y apellido'}),
             'student_name': forms.TextInput(attrs={'placeholder': 'Nombre del niño o niña'}),
         }
+
+
+class MembershipExpiryForm(BootstrapFormMixin, forms.Form):
+    """Cambiar a mano hasta cuándo tiene acceso un alumno.
+
+    Existe porque no todo pago entra por el sitio: transferencias, efectivo en
+    un taller, un mes de regalo por un problema, o corregir una fecha que llegó
+    mal en la migración. Sin esto, la clienta no tiene forma de arreglarlo salvo
+    pedirle a la persona que compre de nuevo.
+
+    Es un Form y no un ModelForm porque el campo del modelo guarda fecha Y hora,
+    pero a quien administra solo le interesa el día: la hora la ponemos nosotros
+    al final de esa jornada (ver la vista), así "vence el 10" significa que el
+    10 todavía puede entrar.
+    """
+
+    hasta = forms.DateField(
+        label='Tiene acceso hasta el',
+        widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+        help_text='Ese día incluido: el acceso se corta a la medianoche siguiente.',
+    )
+    # Solo se muestra al reactivar una cuenta vencida (ver la plantilla), que es
+    # el único caso donde la decisión cambia algo.
+    reanudar_goteo = forms.BooleanField(
+        required=False,
+        label='Retomar la entrega semanal donde quedó',
+        help_text='Si no lo marcas, recibe de una vez todos los modelos cuya '
+                  'fecha pasó mientras estuvo vencida.',
+    )
+
+    def clean_hasta(self):
+        hasta = self.cleaned_data['hasta']
+        # Un año hacia atrás alcanza para corregir un error de tipeo; más que
+        # eso, con la cantidad de ceros que tiene una fecha, es casi seguro un
+        # dedazo (2025 por 2026) que dejaría a la familia sin acceso de golpe.
+        limite = timezone.localdate() - timedelta(days=365)
+        if hasta < limite:
+            raise forms.ValidationError(
+                'Esa fecha es de hace más de un año. Si de verdad quieres cortarle '
+                'el acceso, pon la fecha de hoy.'
+            )
+        return hasta
 
 
 class CourseForm(BootstrapFormMixin, forms.ModelForm):
