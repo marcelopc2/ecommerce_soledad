@@ -198,6 +198,11 @@ code {
    específicas o más. */
 .campo-clave .campo-clave-input { width: 100%; padding-right: 46px !important; }
 
+/* El margen inferior se le saca al input y pasa al envoltorio (ver login.css).
+   Si se queda en el input, el envoltorio mide input + margen y el ojo, centrado
+   respecto al envoltorio, baja la mitad de ese margen: se veía chueco. */
+.campo-clave .campo-clave-input { margin-bottom: 0 !important; }
+
 .campo-clave-ojo {
   position: absolute;
   top: 50%;

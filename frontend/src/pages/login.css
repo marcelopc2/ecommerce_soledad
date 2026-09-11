@@ -42,17 +42,28 @@
     linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 28px 28px;
 }
-/* La foto queda teñida del morado del panel: luminosity conserva las
-   luces y sombras del niño pero toma el color del fondo. */
-.lg-panel-foto {
+/* Mosaico con los modelos reales, en vez de la foto del niño que ya se usa en
+   el banner de la portada: repetirla hacía que el login pareciera la misma
+   pantalla, y como es un recorte sobre fondo BLANCO, ese blanco se veía como
+   una mancha clara sobre el morado.
+   Va a sangre (cover) y por debajo de una capa morada: los modelos se
+   reconocen, pero el formulario sigue siendo lo que se lee primero. */
+.lg-panel-mosaico {
   position: absolute;
-  right: 2%;
-  bottom: 0;
-  height: 88%;
-  width: auto;
-  object-fit: contain;
-  mix-blend-mode: luminosity;
-  opacity: 0.5;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.38;
+  pointer-events: none;
+}
+/* La capa morada va DESPUÉS del mosaico en el DOM-order del panel (::after),
+   así tiñe también la foto y no solo el degradado de abajo. */
+.lg-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(47, 0, 83, 0.9) 10%, rgba(89, 5, 153, 0.82) 75%);
   pointer-events: none;
 }
 
@@ -238,6 +249,12 @@
   outline: none;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
+/* La separación que traía .lg-input se mueve acá cuando el campo lleva el ojo:
+   así el envoltorio mide lo mismo que el input y el ícono queda centrado. Las
+   otras pantallas ya ponían el margen en su contenedor (.pf-campo, .lms-field),
+   por eso solo hace falta en esta. */
+.lg-card .campo-clave { margin-bottom: 18px; }
+
 .lg-input:focus {
   border-color: var(--lp-purple);
   box-shadow: 0 0 0 3px rgba(130, 0, 219, 0.16);
