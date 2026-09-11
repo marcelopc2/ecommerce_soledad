@@ -719,6 +719,19 @@
   cursor: pointer;
   transition: transform 0.15s ease;
 }
+/* El play va en la esquina y no al centro: las portadas traen el nombre del
+   modelo impreso a la izquierda, y centrado le caía justo encima. */
+.lp-gmodal-thumb .lp-video-play {
+  top: auto;
+  left: auto;
+  right: 10px;
+  bottom: 10px;
+  transform: none;
+  width: 38px;
+  height: 38px;
+}
+.lp-gmodal-card:not(figure):hover .lp-video-play { transform: scale(1.1); }
+
 /* Sin trailer no hay nada que abrir: se deja quieta para no prometer un clic. */
 figure.lp-gmodal-card { cursor: default; }
 .lp-gmodal-card:not(figure):hover { transform: translateY(-4px); }
