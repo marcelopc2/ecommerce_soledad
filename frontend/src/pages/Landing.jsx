@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../api'
@@ -46,6 +46,15 @@ function useJsonLd(id, data) {
 const IconPlayCircle = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+const IconGrilla = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
   </svg>
 )
 
@@ -262,37 +271,92 @@ function ComoFunciona() {
 }
 
 
-// Modal con el trailer de YouTube. Se monta en document.body (portal) para que
-// ningún transform/contexto de apilamiento de la portada lo afecte.
-function TrailerModal({ modelo, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'  // bloquea el scroll del fondo
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
-    }
-  }, [onClose])
+// Galería de TODOS los modelos, en un modal. Antes esto era un carrusel dentro
+// del recuadro: mostraba 3 de 44 y había que empujarlo de a poco, así que no
+// cumplía lo que la sección promete -mostrar todo lo que se puede armar-.
+//
+// Se monta en document.body (portal) para que ningún transform ni contexto de
+// apilamiento de la portada lo afecte.
+function GaleriaModelos({ modelos, onCerrar }) {
+  // El trailer se ve DENTRO de esta misma ventana, reemplazando la grilla, en
+  // vez de abrir un segundo modal encima: dos capas de modal se vuelven un
+  // laberinto para cerrar, sobre todo en el celular.
+  const [viendo, setViendo] = useState(null)
 
-  // El link llega ya normalizado a /embed/ desde el panel (ver CourseForm), así
-  // que acá solo se le agregan los parámetros del reproductor.
-  const separador = modelo.trailer.includes('?') ? '&' : '?'
+  useEffect(() => {
+    const alTeclear = (e) => {
+      if (e.key !== 'Escape') return
+      // Escape retrocede de a un paso: primero cierra el video, después la
+      // galería. Cerrar todo de una borraría el lugar donde iba mirando.
+      if (viendo) setViendo(null)
+      else onCerrar()
+    }
+    document.addEventListener('keydown', alTeclear)
+    const overflowPrevio = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', alTeclear)
+      document.body.style.overflow = overflowPrevio
+    }
+  }, [viendo, onCerrar])
+
+  const separador = viendo?.trailer?.includes('?') ? '&' : '?'
 
   return createPortal(
-    <div className="lp-vmodal" onClick={onClose}>
-      <div className="lp-vmodal-inner" onClick={(e) => e.stopPropagation()}>
-        <button className="lp-vmodal-close" onClick={onClose} aria-label="Cerrar video">×</button>
-        <div className="lp-vmodal-frame">
-          <iframe
-            src={`${modelo.trailer}${separador}autoplay=1&rel=0`}
-            title={modelo.titulo}
-            allow="autoplay; encrypted-media; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        </div>
+    <div className="lp-gmodal" onClick={onCerrar}>
+      <div className="lp-gmodal-inner" onClick={(e) => e.stopPropagation()}>
+        <header className="lp-gmodal-head">
+          {viendo ? (
+            <button type="button" className="lp-gmodal-volver" onClick={() => setViendo(null)}>
+              <IconChevron /> Volver a los modelos
+            </button>
+          ) : (
+            <h3>Todos nuestros modelos <span>({modelos.length})</span></h3>
+          )}
+          <button type="button" className="lp-gmodal-close" onClick={onCerrar}
+                  aria-label="Cerrar">×</button>
+        </header>
+
+        {viendo ? (
+          <div className="lp-gmodal-player">
+            <div className="lp-vmodal-frame">
+              <iframe
+                src={`${viendo.trailer}${separador}autoplay=1&rel=0`}
+                title={viendo.titulo}
+                allow="autoplay; encrypted-media; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            </div>
+            <p className="lp-gmodal-titulo">{viendo.titulo}</p>
+          </div>
+        ) : (
+          <div className="lp-gmodal-grid">
+            {modelos.map((m) => {
+              // Con trailer es un botón (se puede ver el video); sin trailer es
+              // una figura: un botón que no hace nada al pulsarlo promete algo
+              // que no existe.
+              const Tarjeta = m.trailer ? 'button' : 'figure'
+              return (
+                <Tarjeta
+                  key={m.id}
+                  className="lp-gmodal-card"
+                  {...(m.trailer ? {
+                    type: 'button',
+                    onClick: () => setViendo(m),
+                    'aria-label': `Ver el video de ${m.titulo}`,
+                  } : {})}
+                >
+                  <div className="lp-gmodal-thumb">
+                    <img src={m.imagen} alt={m.titulo} loading="lazy" />
+                    {m.trailer && <span className="lp-video-play"><IconPlaySolid /></span>}
+                  </div>
+                  <span className="lp-gmodal-nombre">{m.titulo}</span>
+                </Tarjeta>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>,
     document.body,
@@ -301,7 +365,7 @@ function TrailerModal({ modelo, onClose }) {
 
 function Beneficios() {
   const [modelos, setModelos] = useState([])
-  const [trailer, setTrailer] = useState(null)
+  const [galeria, setGaleria] = useState(false)
 
   useEffect(() => {
     api.get('/catalog/vitrina/')
@@ -312,7 +376,7 @@ function Beneficios() {
   // Barajados en el navegador y no en el servidor: cualquier caché intermedia
   // congelaría un orden y dejarían de salir distintos en cada recarga, que es
   // justamente lo que se busca. useMemo para que no se rebarajen solos en cada
-  // re-render (si no, al abrir el modal de un video saltaban de posición).
+  // re-render (si no, al abrir un trailer se reordenaban por detrás).
   const barajados = useMemo(() => {
     const copia = [...modelos]
     for (let i = copia.length - 1; i > 0; i--) {
@@ -321,14 +385,6 @@ function Beneficios() {
     }
     return copia
   }, [modelos])
-
-  // Rotación aleatoria por tarjeta, para que la fila no se vea como un catálogo
-  // de stock. useMemo la deja estable entre re-renders: si no, la tarjeta
-  // cambiaba de inclinación en cada hover.
-  const rotations = useMemo(
-    () => barajados.map(() => (Math.random() * 6 - 3).toFixed(2)),
-    [barajados],
-  )
 
   return (
     <section className="lp-beneficios" id="beneficios">
@@ -376,104 +432,21 @@ function Beneficios() {
           dirigen y hacen funcionar vehículos y artefactos motorizados.{' '}
           <strong>Algunos de nuestros modelos:</strong>
         </p>
-        <CarruselModelos
-          modelos={barajados} rotations={rotations} onAbrir={setTrailer}
-        />
+        {modelos.length > 0 && (
+          <button
+            type="button"
+            className="lp-ver-modelos"
+            onClick={() => setGaleria(true)}
+          >
+            <IconGrilla />
+            Ver los {modelos.length} modelos
+          </button>
+        )}
       </div>
-      {trailer && <TrailerModal modelo={trailer} onClose={() => setTrailer(null)} />}
+      {galeria && (
+        <GaleriaModelos modelos={barajados} onCerrar={() => setGaleria(false)} />
+      )}
     </section>
-  )
-}
-
-function CarruselModelos({ modelos, rotations, onAbrir }) {
-  const pista = useRef(null)
-  const [alInicio, setAlInicio] = useState(true)
-  const [alFinal, setAlFinal] = useState(false)
-  const [avance, setAvance] = useState(0)
-
-  // Se mira el scroll real y no un índice propio: la pista también se arrastra
-  // con el dedo y con la rueda, así que llevar la cuenta por separado se
-  // desincronizaba apenas el visitante deslizaba sin usar las flechas.
-  const revisarBordes = useCallback(() => {
-    const el = pista.current
-    if (!el) return
-    setAlInicio(el.scrollLeft <= 1)
-    setAlFinal(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
-    // Con 44 modelos, las flechas solas no dicen cuánto falta. La barra sí, y
-    // ocupa menos que 44 puntitos.
-    const recorrible = el.scrollWidth - el.clientWidth
-    setAvance(recorrible > 0 ? (el.scrollLeft / recorrible) * 100 : 0)
-  }, [])
-
-  useEffect(() => {
-    revisarBordes()
-    window.addEventListener('resize', revisarBordes)
-    return () => window.removeEventListener('resize', revisarBordes)
-  }, [revisarBordes, modelos])
-
-  const mover = (sentido) => {
-    const el = pista.current
-    if (!el) return
-    // Se avanza el ancho visible menos una tarjeta: así queda una a la vista
-    // como pista de que la fila sigue, en vez de saltar a un bloque sin
-    // relación con el anterior.
-    const tarjeta = el.firstElementChild?.offsetWidth || el.clientWidth / 3
-    el.scrollBy({ left: sentido * (el.clientWidth - tarjeta), behavior: 'smooth' })
-  }
-
-  if (!modelos.length) return null
-
-  return (
-    <div className="lp-carrusel">
-      <div className="lp-carrusel-pista" ref={pista} onScroll={revisarBordes}>
-        {modelos.map((m, i) => {
-          // Con trailer la tarjeta es un <button>: se hace clic para verlo, y
-          // así el teclado y los lectores de pantalla la tratan como lo que es.
-          // Sin trailer es un <article>: un botón que no hace nada al pulsarlo
-          // promete algo que no existe.
-          const Tarjeta = m.trailer ? 'button' : 'article'
-          return (
-            <Tarjeta
-              className="lp-video-card lp-carrusel-item"
-              key={m.id}
-              style={{ '--hover-rot': `${rotations[i] || 0}deg` }}
-              {...(m.trailer ? {
-                type: 'button',
-                onClick: () => onAbrir(m),
-                'aria-label': `Ver el video de ${m.titulo}`,
-              } : {})}
-            >
-              <div className="lp-video-thumb">
-                <img src={m.imagen} alt={m.titulo} loading="lazy" />
-                {m.trailer && <span className="lp-video-play"><IconPlaySolid /></span>}
-              </div>
-              <div className="lp-video-body">
-                <h4>{m.titulo}</h4>
-              </div>
-            </Tarjeta>
-          )
-        })}
-      </div>
-      <div className="lp-carrusel-pie">
-        <div className="lp-carrusel-barra" aria-hidden="true">
-          <span style={{ width: `${Math.max(avance, 6)}%` }} />
-        </div>
-        <div className="lp-carrusel-flechas">
-          <button
-            type="button" className="lp-carrusel-flecha" onClick={() => mover(-1)}
-            disabled={alInicio} aria-label="Ver modelos anteriores"
-          >
-            <IconChevron />
-          </button>
-          <button
-            type="button" className="lp-carrusel-flecha" onClick={() => mover(1)}
-            disabled={alFinal} aria-label="Ver más modelos"
-          >
-            <IconChevron derecha />
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
 

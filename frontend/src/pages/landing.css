@@ -610,111 +610,164 @@
   color: #4a3d00;
   margin: 0 0 30px;
 }
-/* ---------- Carrusel de modelos ----------
-   Reemplaza a la grilla fija de 3: los modelos salen del Aula, son ~44 y se
-   barajan en cada recarga, así que la fila tiene que poder correrse.
-   Es scroll nativo con scroll-snap y no un carrusel de JS: el dedo en el
-   celular y la rueda del trackpad ya funcionan solos, y las flechas solo
-   empujan ese mismo scroll. */
-.lp-carrusel { position: relative; }
-.lp-carrusel-pista {
-  display: flex;
-  /* Explícito y no por omisión: las tarjetas tienen que medir todas lo mismo
-     aunque un nombre ocupe dos líneas y el de al lado una. */
-  align-items: stretch;
-  gap: 30px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  /* Sitio para que la tarjeta crezca en el hover sin que el overflow se la
-     recorte por arriba ni por los lados. */
-  padding: 6px 6px 18px;
-  margin: -6px -6px 0;
-  scrollbar-width: none;
-}
-.lp-carrusel-pista::-webkit-scrollbar { display: none; }
-.lp-carrusel-item {
-  scroll-snap-align: start;
-  /* Tres a la vista descontando los dos huecos de 30px. `flex: 0 0` para que
-     no se encojan al no caber: si se encogieran, el carrusel dejaría de
-     desplazarse y entrarían las 44 apretadas. */
-  flex: 0 0 calc((100% - 60px) / 3);
-}
-/* Pie del carrusel: a la izquierda cuánto se lleva recorrido, a la derecha los
-   controles. Van juntos en una sola línea para no sumarle otro alto al bloque. */
-.lp-carrusel-pie {
-  display: flex;
+/* ---------- Botón "Ver los N modelos" ----------
+   Reemplaza al carrusel que vivía acá: mostraba 3 de 44 y había que empujarlo
+   de a poco, así que no cumplía lo que la sección promete. El botón abre una
+   galería con todos. */
+.lp-ver-modelos {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-top: 10px;
-}
-.lp-carrusel-barra {
-  flex: 1;
-  height: 5px;
-  border-radius: 999px;
-  /* Sobre el amarillo del recuadro, un gris se ve sucio: se usa el morado de
-     la marca muy rebajado, que se lee como "riel" sin ensuciar el color. */
-  background: rgba(47, 0, 83, 0.13);
-  overflow: hidden;
-  max-width: 320px;
-}
-.lp-carrusel-barra span {
-  display: block;
-  height: 100%;
+  gap: 10px;
+  padding: 15px 28px;
+  border: none;
   border-radius: 999px;
   background: var(--lp-purple-dark);
-  transition: width 0.25s ease;
+  color: #fff;
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(47, 0, 83, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
-.lp-carrusel-flechas {
-  display: flex;
-  gap: 10px;
-  flex-shrink: 0;
+.lp-ver-modelos:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(47, 0, 83, 0.36);
 }
-/* Blancas y no moradas macizas: el recuadro ya es un bloque de color fuerte, y
-   dos círculos oscuros encima competían con las tarjetas. En blanco se leen
-   como controles y dejan el protagonismo a los modelos. */
-.lp-carrusel-flecha {
-  width: 42px;
-  height: 42px;
+.lp-ver-modelos:active { transform: translateY(0); }
+.lp-ver-modelos:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* ---------- Galería de modelos (modal) ---------- */
+.lp-gmodal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  border: none;
+  padding: 24px;
+  background: rgba(15, 0, 30, 0.82);
+}
+.lp-gmodal-inner {
+  width: min(1040px, 100%);
+  /* Alto acotado y la grilla scrollea por dentro: con 44 tarjetas, dejar
+     crecer la ventana obligaba a desplazar la página por detrás del modal. */
+  max-height: min(86vh, 820px);
+  display: flex;
+  flex-direction: column;
   background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+}
+.lp-gmodal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f0ebf5;
+  flex-shrink: 0;
+}
+.lp-gmodal-head h3 {
+  font-family: var(--lp-heading);
+  font-size: 19px;
+  color: var(--lp-purple-dark);
+  margin: 0;
+}
+.lp-gmodal-head h3 span { color: #9a8fb0; font-weight: 500; }
+.lp-gmodal-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 15px;
   color: var(--lp-purple-dark);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(47, 0, 83, 0.18);
-  transition: transform 0.15s ease, box-shadow 0.15s ease,
-              background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
-.lp-carrusel-flecha:hover:not(:disabled) {
-  background: var(--lp-purple-dark);
-  color: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(47, 0, 83, 0.28);
+.lp-gmodal-volver:hover { opacity: 0.7; }
+.lp-gmodal-close {
+  border: none;
+  background: none;
+  font-size: 30px;
+  line-height: 1;
+  color: #9a8fb0;
+  cursor: pointer;
+  padding: 0 4px;
 }
-.lp-carrusel-flecha:active:not(:disabled) { transform: translateY(0); }
-.lp-carrusel-flecha:focus-visible {
+.lp-gmodal-close:hover { color: var(--lp-purple-dark); }
+
+.lp-gmodal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 18px;
+  padding: 22px;
+  overflow-y: auto;
+}
+.lp-gmodal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+/* Sin trailer no hay nada que abrir: se deja quieta para no prometer un clic. */
+figure.lp-gmodal-card { cursor: default; }
+.lp-gmodal-card:not(figure):hover { transform: translateY(-4px); }
+.lp-gmodal-card:focus-visible {
   outline: 3px solid var(--lp-purple-dark);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: 14px;
 }
-/* Se dejan a la vista en vez de esconderlas: si aparecieran y desaparecieran,
-   el bloque cambiaría de alto y el contenido de abajo daría saltos. */
-.lp-carrusel-flecha:disabled {
-  opacity: 0.45;
-  cursor: default;
-  box-shadow: none;
+.lp-gmodal-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9.2;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f4f0f8;
+}
+.lp-gmodal-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.lp-gmodal-nombre {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--lp-purple-dark);
+  line-height: 1.3;
 }
 
-@media (max-width: 900px) {
-  .lp-carrusel-item { flex: 0 0 calc((100% - 30px) / 2); }
+.lp-gmodal-player { padding: 22px; overflow-y: auto; }
+.lp-gmodal-titulo {
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--lp-purple-dark);
+  margin: 14px 0 0;
 }
+
 @media (max-width: 600px) {
-  /* 85% y no 100%: el borde de la siguiente asoma y deja claro que la fila
-     sigue, sin necesidad de ver las flechas. */
-  .lp-carrusel-item { flex: 0 0 85%; }
+  .lp-gmodal { padding: 12px; }
+  .lp-gmodal-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+    padding: 16px;
+  }
 }
+
 /* prefijo .lp para ganarle en especificidad (y por orden de fuente) a las
    reglas del reveal (.lp .lp-reveal), que si no gobiernan el transform/transition
    y harían el hover lento en vez del "pop". */
