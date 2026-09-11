@@ -195,27 +195,9 @@ const IconClose = () => (
   </svg>
 )
 
-/** Los ajustes de la página de modelos. Se piden acá y no en cada pantalla
- *  porque el encabezado necesita saber si mostrar la entrada del menú, y la
- *  página necesita lo mismo más la lista: una sola llamada sirve a las dos. */
-export function usePaginaModelos() {
-  const [datos, setDatos] = useState(null)
-  useEffect(() => {
-    let vivo = true
-    api.get('/catalog/modelos/')
-      .then(r => vivo && setDatos(r.data))
-      // Si falla, la entrada del menú simplemente no aparece: es contenido
-      // opcional y no vale romper la portada entera por él.
-      .catch(() => vivo && setDatos({ visible: false, modelos: [] }))
-    return () => { vivo = false }
-  }, [])
-  return datos
-}
-
 export function LandingHeader({ active }) {
   const { user } = useAuth()
   const location = useLocation()
-  const modelos = usePaginaModelos()
   const [menuAbierto, setMenuAbierto] = useState(false)
   const cls = (id) => (active === id ? 'active' : undefined)
 
@@ -238,26 +220,10 @@ export function LandingHeader({ active }) {
     }
   }, [menuAbierto])
 
-  // Se arma UNA lista y se intercala "Modelos" antes de "Contacto", en vez de
-  // agregarla siempre al final: es donde el cliente la quiere ver. Si la
-  // página está apagada (modelos?.visible es false) el link simplemente no
-  // entra al arreglo -no hay un hueco vacío que rellenar, .lp-nav es flex sin
-  // anchos fijos, así que Contacto ocupa solo el lugar que corresponde-.
   function itemsDeNav(alClick) {
-    const items = []
-    for (const { id, texto, href } of enlaces) {
-      if (id === 'contacto' && modelos?.visible) {
-        items.push(
-          <Link key="modelos" to="/modelos" className={cls('modelos')} onClick={alClick}>
-            Modelos
-          </Link>,
-        )
-      }
-      items.push(
-        <a key={id} href={href} className={cls(id)} onClick={alClick}>{texto}</a>,
-      )
-    }
-    return items
+    return enlaces.map(({ id, texto, href }) => (
+      <a key={id} href={href} className={cls(id)} onClick={alClick}>{texto}</a>
+    ))
   }
 
   return (

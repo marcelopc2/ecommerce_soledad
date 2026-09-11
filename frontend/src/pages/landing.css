@@ -610,10 +610,65 @@
   color: #4a3d00;
   margin: 0 0 30px;
 }
-.lp-videos {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+/* ---------- Carrusel de modelos ----------
+   Reemplaza a la grilla fija de 3: los modelos salen del Aula, son ~44 y se
+   barajan en cada recarga, así que la fila tiene que poder correrse.
+   Es scroll nativo con scroll-snap y no un carrusel de JS: el dedo en el
+   celular y la rueda del trackpad ya funcionan solos, y las flechas solo
+   empujan ese mismo scroll. */
+.lp-carrusel { position: relative; }
+.lp-carrusel-pista {
+  display: flex;
+  /* Explícito y no por omisión: las tarjetas tienen que medir todas lo mismo
+     aunque un nombre ocupe dos líneas y el de al lado una. */
+  align-items: stretch;
   gap: 30px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  /* Sitio para que la tarjeta crezca en el hover sin que el overflow se la
+     recorte por arriba ni por los lados. */
+  padding: 6px 6px 18px;
+  margin: -6px -6px 0;
+  scrollbar-width: none;
+}
+.lp-carrusel-pista::-webkit-scrollbar { display: none; }
+.lp-carrusel-item {
+  scroll-snap-align: start;
+  /* Tres a la vista descontando los dos huecos de 30px. `flex: 0 0` para que
+     no se encojan al no caber: si se encogieran, el carrusel dejaría de
+     desplazarse y entrarían las 44 apretadas. */
+  flex: 0 0 calc((100% - 60px) / 3);
+}
+.lp-carrusel-flechas {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+.lp-carrusel-flecha {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: var(--lp-purple-dark);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.lp-carrusel-flecha:hover:not(:disabled) { transform: scale(1.08); }
+/* Se dejan a la vista en vez de esconderlas: si aparecieran y desaparecieran,
+   el bloque cambiaría de alto y el contenido de abajo daría saltos. */
+.lp-carrusel-flecha:disabled { opacity: 0.3; cursor: default; }
+
+@media (max-width: 900px) {
+  .lp-carrusel-item { flex: 0 0 calc((100% - 30px) / 2); }
+}
+@media (max-width: 600px) {
+  /* 85% y no 100%: el borde de la siguiente asoma y deja claro que la fila
+     sigue, sin necesidad de ver las flechas. */
+  .lp-carrusel-item { flex: 0 0 85%; }
 }
 /* prefijo .lp para ganarle en especificidad (y por orden de fuente) a las
    reglas del reveal (.lp .lp-reveal), que si no gobiernan el transform/transition

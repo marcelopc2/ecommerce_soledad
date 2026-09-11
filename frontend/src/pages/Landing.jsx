@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../api'
@@ -6,7 +6,7 @@ import { useAuth } from '../auth'
 import { ocultarPreloader } from '../preloader'
 import {
   Contacto, LandingFooter, LandingHeader, PlusDeco, Sparkle, useScrollReveal,
-  usePaginaModelos, IconInstagram, IconFacebook, IconYoutube,
+  IconInstagram, IconFacebook, IconYoutube,
 } from '../components/LandingSections'
 import './landing.css'
 
@@ -47,10 +47,6 @@ const IconPlayCircle = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
   </svg>
-)
-
-const IconPlaySolid = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="#2f0053"><polygon points="8 5 19 12 8 19 8 5" /></svg>
 )
 
 /* Convención que la clienta escribe a mano en el panel: una línea que empieza
@@ -250,60 +246,35 @@ function ComoFunciona() {
   )
 }
 
-// Modal con el reproductor de YouTube. Se monta en document.body (portal) para
-// que ningún transform/contexto de apilamiento de la landing lo afecte.
-function VideoModal({ video, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'  // bloquea el scroll del fondo
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
-    }
-  }, [onClose])
-
-  return createPortal(
-    <div className="lp-vmodal" onClick={onClose}>
-      <div className="lp-vmodal-inner" onClick={(e) => e.stopPropagation()}>
-        <button className="lp-vmodal-close" onClick={onClose} aria-label="Cerrar video">×</button>
-        <div className="lp-vmodal-frame">
-          <iframe
-            src={`https://www.youtube.com/embed/${video.youtube_id}?autoplay=1&rel=0`}
-            title={video.title}
-            allow="autoplay; encrypted-media; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        </div>
-      </div>
-    </div>,
-    document.body,
-  )
-}
 
 function Beneficios() {
-  const [videos, setVideos] = useState([])
-  const [activeVideo, setActiveVideo] = useState(null)
-  // El link a la vitrina respeta el mismo interruptor que el del menú: si la
-  // clienta apaga la página desde el panel, acá tampoco debe quedar un link
-  // que lleve a una página que redirige de vuelta a la portada.
-  const modelos = usePaginaModelos()
+  const [modelos, setModelos] = useState([])
 
   useEffect(() => {
-    api.get('/catalog/landing-videos/')
-      .then(res => setVideos(res.data))
-      .catch(() => {}) // la landing funciona igual sin videos
+    api.get('/catalog/vitrina/')
+      .then(res => setModelos(res.data))
+      .catch(() => {}) // la portada funciona igual sin la vitrina
   }, [])
 
-  // Rotación aleatoria por tarjeta. Se calcula recién cuando llegan los videos
-  // (antes el array venía fijo del código y se podía sembrar en el useState
-  // inicial); useMemo la deja estable entre re-renders para que la tarjeta no
-  // cambie de inclinación en cada hover.
+  // Barajados en el navegador y no en el servidor: cualquier caché intermedia
+  // congelaría un orden y dejarían de salir distintos en cada recarga, que es
+  // justamente lo que se busca. useMemo para que no se rebarajen solos en cada
+  // re-render (si no, al abrir el modal de un video saltaban de posición).
+  const barajados = useMemo(() => {
+    const copia = [...modelos]
+    for (let i = copia.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[copia[i], copia[j]] = [copia[j], copia[i]]
+    }
+    return copia
+  }, [modelos])
+
+  // Rotación aleatoria por tarjeta, para que la fila no se vea como un catálogo
+  // de stock. useMemo la deja estable entre re-renders: si no, la tarjeta
+  // cambiaba de inclinación en cada hover.
   const rotations = useMemo(
-    () => videos.map(() => (Math.random() * 6 - 3).toFixed(2)),
-    [videos.length],
+    () => barajados.map(() => (Math.random() * 6 - 3).toFixed(2)),
+    [barajados],
   )
 
   return (
@@ -338,11 +309,6 @@ function Beneficios() {
             espiral. Esto significa que podrán avanzar a su propio{' '}ritmo.
           </p>
         </div>
-        {modelos?.visible && (
-          <Link to="/modelos" className="lp-beneficios-ver-mas">
-            ver más modelos →
-          </Link>
-        )}
       </div>
       <div className="lp-beneficios-box">
         <div className="lp-studs" aria-hidden="true">
@@ -357,30 +323,74 @@ function Beneficios() {
           dirigen y hacen funcionar vehículos y artefactos motorizados.{' '}
           <strong>Algunos de nuestros modelos:</strong>
         </p>
-        <div className="lp-videos">
-          {videos.map((v, i) => (
-            <button
-              type="button"
-              className="lp-video-card"
-              key={v.id}
-              style={{ '--hover-rot': `${rotations[i]}deg` }}
-              onClick={() => setActiveVideo(v)}
-              aria-label={`Reproducir video: ${v.title}`}
-            >
-              <div className="lp-video-thumb">
-                {v.cover_url && <img src={v.cover_url} alt={v.title} />}
-                <span className="lp-video-play"><IconPlaySolid /></span>
-              </div>
-              <div className="lp-video-body">
-                <h4>{v.title}</h4>
-                <p>{v.description}</p>
-              </div>
-            </button>
-          ))}
-        </div>
+        <CarruselModelos modelos={barajados} rotations={rotations} />
       </div>
-      {activeVideo && <VideoModal video={activeVideo} onClose={() => setActiveVideo(null)} />}
     </section>
+  )
+}
+
+function CarruselModelos({ modelos, rotations }) {
+  const pista = useRef(null)
+  const [alInicio, setAlInicio] = useState(true)
+  const [alFinal, setAlFinal] = useState(false)
+
+  // Se mira el scroll real y no un índice propio: la pista también se arrastra
+  // con el dedo y con la rueda, así que llevar la cuenta por separado se
+  // desincronizaba apenas el visitante deslizaba sin usar las flechas.
+  const revisarBordes = useCallback(() => {
+    const el = pista.current
+    if (!el) return
+    setAlInicio(el.scrollLeft <= 1)
+    setAlFinal(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
+  }, [])
+
+  useEffect(() => {
+    revisarBordes()
+    window.addEventListener('resize', revisarBordes)
+    return () => window.removeEventListener('resize', revisarBordes)
+  }, [revisarBordes, modelos])
+
+  const mover = (sentido) => {
+    const el = pista.current
+    if (!el) return
+    // Se avanza el ancho visible menos una tarjeta: así queda una a la vista
+    // como pista de que la fila sigue, en vez de saltar a un bloque sin
+    // relación con el anterior.
+    const tarjeta = el.firstElementChild?.offsetWidth || el.clientWidth / 3
+    el.scrollBy({ left: sentido * (el.clientWidth - tarjeta), behavior: 'smooth' })
+  }
+
+  if (!modelos.length) return null
+
+  return (
+    <div className="lp-carrusel">
+      <div className="lp-carrusel-pista" ref={pista} onScroll={revisarBordes}>
+        {modelos.map((m, i) => (
+          <article
+            className="lp-video-card lp-carrusel-item"
+            key={m.id}
+            style={{ '--hover-rot': `${rotations[i] || 0}deg` }}
+          >
+            <div className="lp-video-thumb">
+              <img src={m.imagen} alt={m.titulo} loading="lazy" />
+            </div>
+            <div className="lp-video-body">
+              <h4>{m.titulo}</h4>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="lp-carrusel-flechas">
+        <button
+          type="button" className="lp-carrusel-flecha" onClick={() => mover(-1)}
+          disabled={alInicio} aria-label="Ver modelos anteriores"
+        >‹</button>
+        <button
+          type="button" className="lp-carrusel-flecha" onClick={() => mover(1)}
+          disabled={alFinal} aria-label="Ver más modelos"
+        >›</button>
+      </div>
+    </div>
   )
 }
 
@@ -873,10 +883,9 @@ function TestimonioHover({ testimonio: t, rect, onSalir }) {
   )
 }
 
-// Mismo patrón que VideoModal: portal a document.body (así el modal nunca
-// depende del overflow de ningún ancestro, ni de la pista horizontal de
-// testimonios ni de nada más), backdrop que cierra al clic, Escape, scroll de
-// fondo bloqueado mientras está abierto.
+// Portal a document.body: así el modal no depende del overflow de ningún
+// ancestro, ni de la pista horizontal de testimonios ni de nada más. Backdrop
+// que cierra al clic, Escape, y scroll de fondo bloqueado mientras está abierto.
 function TestimonioModal({ testimonio: t, onClose }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }

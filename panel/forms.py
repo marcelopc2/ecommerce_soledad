@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
-    SeccionConcurso, GanadorConcurso, ModeloArmable, SeccionModelos,
+    SeccionConcurso, GanadorConcurso,
 )
 from lms.models import (
     AjustesAula, CategoryCourse, Course, CourseCategory, Lesson, Membership, Diploma,
@@ -728,57 +728,3 @@ class MiCuentaForm(BootstrapFormMixin, forms.ModelForm):
         # propia casilla "Limpiar" junto a la ruta del archivo guardado, que
         # duplica al botón "Quitar la foto" y encima se lee peor.
         widgets = {'avatar': forms.FileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'})}
-
-
-class SeccionModelosForm(BootstrapFormMixin, forms.ModelForm):
-    """Ajustes de la página de modelos (fila única)."""
-
-    class Meta:
-        model = SeccionModelos
-        fields = ['visible', 'titulo', 'intro']
-        widgets = {'intro': forms.Textarea(attrs={'rows': 3})}
-
-
-class ModeloArmableForm(BootstrapFormMixin, forms.ModelForm):
-    class Meta:
-        model = ModeloArmable
-        # Sin 'is_active': se prende o apaga con el ojo de la lista, mismo
-        # patrón que Productos y Preguntas frecuentes.
-        fields = ['nombre', 'descripcion', 'youtube_url', 'foto']
-        widgets = {
-            'nombre': forms.TextInput(attrs={'placeholder': 'Grúa Torre'}),
-            'descripcion': forms.Textarea(attrs={'rows': 3}),
-            'youtube_url': forms.TextInput(attrs={'placeholder': 'https://www.youtube.com/watch?v=...'}),
-        }
-
-    def clean_youtube_url(self):
-        """El trailer es OPCIONAL -una tarjeta con solo la foto es válida-, pero
-        si se pega un link tiene que ser uno que se pueda reproducir: si no, la
-        tarjeta queda con un botón de play que no lleva a ninguna parte."""
-        url = (self.cleaned_data.get('youtube_url') or '').strip()
-        if url and not extract_youtube_id(url):
-            raise forms.ValidationError(
-                'No se reconoce el video en ese link. Pega la dirección completa de '
-                'YouTube (por ejemplo https://www.youtube.com/watch?v=XXXXXXXXXXX), '
-                'o deja el campo vacío si este modelo no tiene trailer.'
-            )
-        return url
-
-    def clean_foto(self):
-        """Máx 4 MB: son fotos que carga cada visitante de la página."""
-        foto = self.cleaned_data.get('foto')
-        if foto and getattr(foto, 'size', 0) > 4 * 1024 * 1024:
-            raise forms.ValidationError('La imagen no puede pesar más de 4 MB.')
-        return foto
-
-    def clean(self):
-        data = super().clean()
-        # Sin foto Y sin trailer la tarjeta queda vacía: no hay de dónde sacar
-        # una imagen, porque la miniatura se saca justamente del trailer.
-        if not data.get('foto') and not data.get('youtube_url') and not self.instance.foto:
-            self.add_error(
-                'foto',
-                'Sube una foto o pega el link del trailer: con ninguno de los dos, '
-                'la tarjeta se vería vacía.',
-            )
-        return data

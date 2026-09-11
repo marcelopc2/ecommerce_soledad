@@ -64,65 +64,6 @@
       </div>
     </div>
 
-    <div class="tab-pane fade{% if tab == 'modelos' %} show active{% endif %}" id="tab-modelos" role="tabpanel">
-      {% comment %}
-        La nota va PRIMERO, antes de tocar nada: quien entra acá tiene que saber
-        que esta lista es la vitrina pública y no tiene relación con el Aula
-        Virtual, antes de decidir si publica algo o lo deja fuera. Antes vivía
-        dentro de "Nuevo modelo", donde solo la veía quien ya había decidido
-        agregar uno.
-      {% endcomment %}
-      <div class="card-pad border-bottom">
-        <p class="mdetail-note mb-0">
-          <i class="bi bi-info-circle"></i>
-          Esta lista es la <strong>vitrina pública</strong>: lo que ve cualquiera que
-          entre a la página de Modelos, sin haber comprado. No tiene relación con los
-          modelos del Aula Virtual, así que acá puedes anunciar uno que todavía no
-          está armado, o dejar fuera alguno que sí.
-        </p>
-      </div>
-
-      {% comment %}
-        Los ajustes de la página van ARRIBA de la lista: lo primero que hay que
-        decidir es si la página se muestra o no, y recién después qué contiene.
-      {% endcomment %}
-      <form method="post" class="card-pad border-bottom">
-        {% csrf_token %}
-        <input type="hidden" name="form" value="modelos">
-
-        <div class="form-check form-switch mb-3">
-          {{ modelos_form.visible }}
-          <label class="form-check-label ms-1" for="{{ modelos_form.visible.id_for_label }}">
-            {{ modelos_form.visible.label }}
-          </label>
-          <div class="pnl-campo-ayuda">{{ modelos_form.visible.help_text }}</div>
-        </div>
-
-        <div class="row g-4">
-          <div class="col-md-5">
-            <label class="form-label" for="{{ modelos_form.titulo.id_for_label }}">
-              {{ modelos_form.titulo.label }}
-            </label>
-            {{ modelos_form.titulo }}
-          </div>
-          <div class="col-md-7">
-            <label class="form-label" for="{{ modelos_form.intro.id_for_label }}">
-              {{ modelos_form.intro.label }}
-            </label>
-            {{ modelos_form.intro }}
-          </div>
-        </div>
-
-        <button type="submit" class="btn btn-brand btn-sm mt-3">
-          <i class="bi bi-check-lg me-1"></i> Guardar ajustes
-        </button>
-      </form>
-
-      <div id="pnl-modelos-panel">
-        {% include 'panel/partials/modelos_panel.html' %}
-      </div>
-    </div>
-
     <div class="tab-pane fade{% if tab == 'concurso' %} show active{% endif %}" id="tab-concurso" role="tabpanel">
       <div class="pnl-toolbar">
         <span class="pnl-hint">
@@ -371,34 +312,4 @@
     </div>
   </div>
 </div>
-{% endblock %}
-
-
-{% block scripts %}
-<script>
-  // Mismo patrón de arrastre que la lista de cursos: se reinicia después de
-  // cada swap de htmx porque el <tbody> se reemplaza entero.
-  function initModelosSortable() {
-    var tbody = document.getElementById('modelos-tbody')
-    var tabla = document.getElementById('modelos-tabla')
-    if (!tbody || !tabla || tbody.dataset.sortableInit) return
-    tbody.dataset.sortableInit = '1'
-
-    Sortable.create(tbody, {
-      handle: '.drag-handle',
-      animation: 180,
-      ghostClass: 'drag-ghost',
-      dragClass: 'drag-dragging',
-      onEnd: function () {
-        var ids = Array.from(tbody.querySelectorAll('tr.pnl-drag-row')).map(function (tr) { return tr.dataset.id })
-        if (ids.length === 0) return
-        htmx.ajax('POST', tabla.dataset.reorderUrl, {
-          source: tbody, target: '#modelos-tbody', swap: 'innerHTML', values: { order: ids },
-        })
-      },
-    })
-  }
-  document.addEventListener('DOMContentLoaded', initModelosSortable)
-  document.body.addEventListener('htmx:afterSettle', initModelosSortable)
-</script>
 {% endblock %}

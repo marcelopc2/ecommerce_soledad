@@ -8,13 +8,11 @@ from rest_framework.permissions import AllowAny
 from .models import (
     Category, Product, FAQ, Testimonial, LandingVideo, LandingStep,
     SeccionConcurso, GanadorConcurso,
-    ModeloArmable, SeccionModelos,
 )
 from .serializers import (
     CategorySerializer, ProductSerializer, FAQSerializer, TestimonialSerializer,
     ContactSerializer, LandingVideoSerializer, LandingStepSerializer,
     SeccionConcursoSerializer, GanadorConcursoSerializer,
-    ModeloArmableSerializer, SeccionModelosSerializer,
 )
 
 log = logging.getLogger(__name__)
@@ -134,27 +132,41 @@ class ContactView(APIView):
         return Response({'ok': True})
 
 
-class ModelosView(APIView):
-    """La vitrina de modelos: los ajustes de la página más su lista.
+class VitrinaModelosView(APIView):
+    """Los modelos que se muestran en la portada, sacados del Aula.
 
-    Un solo endpoint y no dos, por lo mismo que el concurso: el menú de la
-    landing necesita saber si la página está visible ANTES de decidir si muestra
-    el enlace, y así se resuelve con una sola llamada.
+    Salen directo de `lms.Course` y no de una lista aparte para marketing: así
+    la clienta carga el modelo una sola vez -cuando lo sube al Aula, que es
+    trabajo que igual tiene que hacer- y la portada se actualiza sola. Antes
+    existía una vitrina con su propia lista y nunca se llegó a cargar: quedó
+    vacía porque era trabajo duplicado.
 
-    Con la página apagada NO se envían los modelos. Si se enviaran, apagarla
-    sería solo esconder el enlace: la lista seguiría a la vista de cualquiera
-    que mirara la respuesta de la API.
+    Se mandan TODOS de una vez y no una página: son ~44 registros de dos campos
+    cada uno, y el carrusel los baraja en el navegador. Barajarlos acá haría que
+    cualquier caché intermedia congelara un orden y dejaran de salir distintos
+    en cada recarga, que es justamente la gracia.
     """
     permission_classes = [AllowAny]
 
     def get(self, request):
-        seccion = SeccionModelos.obtener()
-        datos = SeccionModelosSerializer(seccion).data
-        datos['modelos'] = (
-            ModeloArmableSerializer(
-                ModeloArmable.objects.filter(is_active=True), many=True,
-                context={'request': request},
-            ).data
-            if seccion.visible else []
+        from lms.models import Course
+
+        cursos = (
+            Course.objects.filter(is_active=True)
+            .order_by('order', 'id')
+            .prefetch_related('lessons')
         )
+        datos = []
+        for c in cursos:
+            portada = c.portada_url
+            # Sin foto la tarjeta sería un rectángulo gris con un nombre: en una
+            # sección que existe para mostrar cómo se ven los modelos, eso resta
+            # en vez de sumar.
+            if not portada:
+                continue
+            datos.append({
+                'id': c.id,
+                'titulo': c.title,
+                'imagen': request.build_absolute_uri(portada),
+            })
         return Response(datos)
