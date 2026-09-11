@@ -610,11 +610,19 @@
   color: #4a3d00;
   margin: 0 0 30px;
 }
-/* ---------- Botón "Ver los N modelos" ----------
-   Reemplaza al carrusel que vivía acá: mostraba 3 de 44 y había que empujarlo
-   de a poco, así que no cumplía lo que la sección promete. El botón abre una
-   galería con todos. */
+/* Tres modelos de muestra en el recuadro. Antes acá hubo un carrusel: mostraba
+   3 de 44 y había que empujarlo de a poco, así que no cumplía lo que la sección
+   promete. Ahora son tres fijas (sorteadas en cada recarga) y el botón de abajo
+   abre la galería con todas. */
+.lp-videos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+
+/* ---------- Botón "Ver todos los modelos" ---------- */
 .lp-ver-modelos {
+  margin-top: 26px;
   display: inline-flex;
   align-items: center;
   gap: 10px;

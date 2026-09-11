@@ -277,11 +277,11 @@ function ComoFunciona() {
 //
 // Se monta en document.body (portal) para que ningún transform ni contexto de
 // apilamiento de la portada lo afecte.
-function GaleriaModelos({ modelos, onCerrar }) {
+function GaleriaModelos({ modelos, inicial = null, onCerrar }) {
   // El trailer se ve DENTRO de esta misma ventana, reemplazando la grilla, en
   // vez de abrir un segundo modal encima: dos capas de modal se vuelven un
   // laberinto para cerrar, sobre todo en el celular.
-  const [viendo, setViendo] = useState(null)
+  const [viendo, setViendo] = useState(inicial)
 
   useEffect(() => {
     const alTeclear = (e) => {
@@ -386,6 +386,14 @@ function Beneficios() {
     return copia
   }, [modelos])
 
+  // Inclinación aleatoria por tarjeta, para que las tres no se vean como un
+  // catálogo de stock. useMemo la deja estable entre re-renders: si no, la
+  // tarjeta cambiaba de ángulo en cada hover.
+  const rotations = useMemo(
+    () => barajados.slice(0, 3).map(() => (Math.random() * 6 - 3).toFixed(2)),
+    [barajados],
+  )
+
   return (
     <section className="lp-beneficios" id="beneficios">
       <div className="lp-beneficios-col">
@@ -432,6 +440,38 @@ function Beneficios() {
           dirigen y hacen funcionar vehículos y artefactos motorizados.{' '}
           <strong>Algunos de nuestros modelos:</strong>
         </p>
+        {/* Tres de muestra -sorteados en cada recarga- y el botón para verlos
+            todos. Solo el botón dejaba el recuadro vacío: la sección promete
+            enseñar los modelos, no anunciar que existen. */}
+        <div className="lp-videos">
+          {barajados.slice(0, 3).map((m, i) => {
+            const Tarjeta = m.trailer ? 'button' : 'article'
+            return (
+              <Tarjeta
+                className="lp-video-card"
+                key={m.id}
+                style={{ '--hover-rot': `${rotations[i] || 0}deg` }}
+                {...(m.trailer ? {
+                  type: 'button',
+                  // Abre la MISMA galería, ya mostrando ese video: desde ahí
+                  // "Volver a los modelos" lleva al listado completo, en vez de
+                  // dejar al visitante en un callejón sin salida.
+                  onClick: () => setGaleria(m),
+                  'aria-label': `Ver el video de ${m.titulo}`,
+                } : {})}
+              >
+                <div className="lp-video-thumb">
+                  <img src={m.imagen} alt={m.titulo} loading="lazy" />
+                  {m.trailer && <span className="lp-video-play"><IconPlaySolid /></span>}
+                </div>
+                <div className="lp-video-body">
+                  <h4>{m.titulo}</h4>
+                </div>
+              </Tarjeta>
+            )
+          })}
+        </div>
+
         {modelos.length > 0 && (
           <button
             type="button"
@@ -439,12 +479,16 @@ function Beneficios() {
             onClick={() => setGaleria(true)}
           >
             <IconGrilla />
-            Ver los {modelos.length} modelos
+            Ver todos los modelos
           </button>
         )}
       </div>
       {galeria && (
-        <GaleriaModelos modelos={barajados} onCerrar={() => setGaleria(false)} />
+        <GaleriaModelos
+          modelos={barajados}
+          inicial={galeria === true ? null : galeria}
+          onCerrar={() => setGaleria(false)}
+        />
       )}
     </section>
   )
