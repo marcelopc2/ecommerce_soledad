@@ -86,16 +86,17 @@ class Course(models.Model):
         max_length=300, blank=True,
         verbose_name='Trailer de YouTube',
         help_text='Video corto de MARKETING que se ve en la portada, no el paso '
-                  'a paso. Pega el link tal cual. Si lo dejas vacío, en la '
-                  'portada la tarjeta muestra solo la foto.',
+                  'a paso. Pega el link tal cual. Sin trailer el modelo NO '
+                  'aparece en la portada: esa galería es para ver los videos.',
     )
     is_active = models.BooleanField(default=True)
     mostrar_en_portada = models.BooleanField(
         default=True,
         verbose_name='Mostrar en la portada',
-        help_text='Aparece entre los modelos de la portada. Apágalo para lo que '
-                  'no sea un modelo armable (la bienvenida, una introducción): '
-                  'el alumno lo sigue recibiendo igual en el Aula.',
+        help_text='Aparece entre los modelos de la portada, si además tiene '
+                  'trailer. Apágalo para lo que no sea un modelo armable (la '
+                  'bienvenida, una introducción): el alumno lo sigue recibiendo '
+                  'igual en el Aula.',
     )
     order = models.PositiveIntegerField(
         default=0,

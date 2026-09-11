@@ -151,18 +151,23 @@ class VitrinaModelosView(APIView):
     def get(self, request):
         from lms.models import Course
 
+        # Sin trailer no entra: la galería existe para VER los modelos, y una
+        # tarjeta que no reproduce nada es un botón que no lleva a ninguna
+        # parte. Cuando se suba el video y se le asigne, aparece sola.
         cursos = (
             Course.objects.filter(is_active=True, mostrar_en_portada=True)
+            .exclude(trailer_url='')
             .order_by('order', 'id')
             .prefetch_related('lessons')
         )
         datos = []
         for c in cursos:
             # Se prefiere la miniatura del trailer sobre la portada del curso:
-            # la portada es la lámina de marca (el nombre sobre fondo de
-            # colores), y en una galería de 44 todas se ven casi iguales. El
+            # la portada suele ser la lámina de marca (el nombre sobre fondo de
+            # colores), y en una galería de 40 todas se ven casi iguales. El
             # fotograma del video muestra el modelo armado, que es lo que el
-            # visitante quiere ver.
+            # visitante quiere ver. La portada queda de respaldo para un link
+            # que no sea de YouTube, donde no hay miniatura que sacar.
             portada = youtube_thumbnail(c.trailer_url) or c.portada_url
             # Sin foto la tarjeta sería un rectángulo gris con un nombre: en una
             # sección que existe para mostrar cómo se ven los modelos, eso resta
