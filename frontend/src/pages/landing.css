@@ -728,7 +728,9 @@
   transition: transform 0.15s ease;
 }
 /* El play va en la esquina y no al centro: las portadas traen el nombre del
-   modelo impreso a la izquierda, y centrado le caía justo encima. */
+   modelo impreso a la izquierda, y centrado le caía justo encima. Vale para
+   las tres del recuadro y para las de la galería. */
+.lp-videos .lp-video-play,
 .lp-gmodal-thumb .lp-video-play {
   top: auto;
   left: auto;
@@ -841,7 +843,9 @@ figure.lp-gmodal-card { cursor: default; }
   transform: scale(0.97) rotate(0deg);
   transition-duration: 0.1s;
 }
-.lp .lp-video-card:hover .lp-video-play { transform: translate(-50%, -50%) scale(1.14); }
+/* Sin el translate: el botón ya no está centrado sino anclado a la esquina
+   (ver arriba), y reponerlo en el hover lo mandaba de vuelta al medio. */
+.lp .lp-video-card:hover .lp-video-play { transform: scale(1.14); }
 /* aspect-ratio va en el contenedor (no en la img): dos de las tres fotos son
    recortes muy chicos (168x95px) y con una imagen tan pequeña como fuente,
    algunos navegadores no respetan el aspect-ratio puesto directo en el <img>.
