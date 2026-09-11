@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api } from '../api'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 import './lms.css'
+import CampoClave from '../components/CampoClave'
+import Cargando from '../components/Cargando'
 
 export default function SetPassword() {
   const { uid, token } = useParams()
@@ -49,16 +51,16 @@ export default function SetPassword() {
               <form onSubmit={handleSubmit}>
                 <div className="lms-field">
                   <label htmlFor="sp-pass">Nueva contraseña</label>
-                  <input id="sp-pass" type="password" placeholder="Mínimo 8 caracteres" value={password}
+                  <CampoClave id="sp-pass" placeholder="Mínimo 8 caracteres" value={password}
                     onChange={e => setPassword(e.target.value)} required autoFocus />
                 </div>
                 <div className="lms-field">
                   <label htmlFor="sp-confirm">Repite la contraseña</label>
-                  <input id="sp-confirm" type="password" placeholder="••••••••" value={confirm}
+                  <CampoClave id="sp-confirm" placeholder="••••••••" value={confirm}
                     onChange={e => setConfirm(e.target.value)} required />
                 </div>
                 <button className="lms-btn yellow" type="submit" disabled={busy}>
-                  {busy ? 'Guardando…' : 'Guardar y continuar'}
+                  {busy ? <><Cargando />Guardando…</> : 'Guardar y continuar'}
                 </button>
               </form>
             </>

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { api } from '../api'
 import LmsHeader, { LmsLoader } from '../components/LmsHeader'
 import './lms.css'
+import Cargando from '../components/Cargando'
 
 const fmtDate = (d) => d
   ? new Date(d + 'T00:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -173,7 +174,7 @@ export default function CourseView() {
                   active.completed
                     ? <div className="lms-lesson-done">✓ ¡Listo, ya lo hiciste!</div>
                     : <button className="lms-btn yellow lms-mark-btn" onClick={() => markSeen(active)} disabled={busy}>
-                        {busy ? 'Guardando…' : '✓ Marcar como visto'}
+                        {busy ? <><Cargando />Guardando…</> : '✓ Marcar como visto'}
                       </button>
                 )}
               </>

@@ -1309,3 +1309,30 @@ body.login-body {
 .pnl-cuenta-menu .dropdown-item:hover { background: var(--purple-50); color: var(--purple-600); }
 .pnl-cuenta-menu .dropdown-item.danger { color: #c03434; }
 .pnl-cuenta-menu .dropdown-item.danger:hover { background: #fdf0f0; color: #a82a2a; }
+
+/* Campo de contraseña con el ojo, en el login del panel. Mismo gesto que en el
+   sitio público; acá el input lo arma Django, así que el ojo se posiciona
+   encima en vez de envolverlo en un componente. */
+.campo-clave { position: relative; }
+.campo-clave input { padding-right: 46px; }
+.campo-clave-ojo {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: #8a8095;
+  font-size: 17px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.campo-clave-ojo:hover { color: var(--purple-600); background: var(--purple-50); }
+.campo-clave-ojo:focus-visible { outline: 2px solid var(--purple-600); outline-offset: 1px; }

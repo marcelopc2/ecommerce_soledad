@@ -6,6 +6,7 @@ import Combobox from '../components/Combobox'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 import './landing.css'
 import './checkout.css'
+import Cargando from '../components/Cargando'
 
 const clp = (n) => '$' + parseInt(n, 10).toLocaleString('es-CL')
 
@@ -395,7 +396,7 @@ export default function Checkout() {
               </div>
 
               <button className="co-btn-cotizar" onClick={handleQuote} disabled={!commune || quoting}>
-                {quoting ? 'Cotizando…' : 'Cotizar envío'}
+                {quoting ? <><Cargando />Cotizando…</> : 'Cotizar envío'}
               </button>
 
               {quoteMsg && <p className="co-msg co-msg-error">{quoteMsg}</p>}
@@ -471,11 +472,11 @@ export default function Checkout() {
           <div className="co-pagos">
             <button className="co-btn-pagar co-btn-webpay"
               disabled={!puedePagar} onClick={() => handleCheckout('webpay')}>
-              {paying ? 'Procesando…' : 'Pagar con Webpay'}
+              {paying ? <><Cargando />Procesando…</> : 'Pagar con Webpay'}
             </button>
             <button className="co-btn-pagar co-btn-mp"
               disabled={!puedePagar} onClick={() => handleCheckout('mercadopago')}>
-              {paying ? 'Procesando…' : 'Pagar con MercadoPago'}
+              {paying ? <><Cargando />Procesando…</> : 'Pagar con MercadoPago'}
             </button>
           </div>
 

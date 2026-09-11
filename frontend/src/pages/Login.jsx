@@ -6,6 +6,8 @@ import logo from '../assets/landing/logo-ingenioblocks.svg'
 import heroNino from '../assets/landing/hero-nino.webp'
 import './landing.css'
 import './login.css'
+import CampoClave from '../components/CampoClave'
+import Cargando from '../components/Cargando'
 
 /* Adornos sueltos del diseño (cruces, triangulitos y puntos). */
 const Cruz = ({ color, style }) => (
@@ -131,8 +133,8 @@ export default function Login() {
               />
 
               <label className="lg-label" htmlFor="login-pass">Contraseña</label>
-              <input
-                id="login-pass" type="password" className="lg-input" value={password}
+              <CampoClave
+                id="login-pass" className="lg-input" value={password}
                 onChange={e => setPassword(e.target.value)} required
               />
 
@@ -141,7 +143,7 @@ export default function Login() {
               </button>
 
               <button type="submit" className="lg-btn-ingresar" disabled={busy || resetBusy}>
-                {busy ? 'ingresando…' : 'ingresar'}
+                {busy ? <><Cargando />ingresando…</> : 'ingresar'}
               </button>
 
               {/* La cuenta no se crea sola: nace al pagar un kit (ver

@@ -184,3 +184,58 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* ---------- Campo de contraseña con el ojo (components/CampoClave) ----------
+   Va en index.css y no en la hoja de cada pantalla porque el mismo componente
+   se usa en el login, en el perfil y al definir la clave, y cada una tiene su
+   propio diseño: acá se resuelve una vez y hereda los estilos del input que ya
+   traía cada formulario. */
+.campo-clave { position: relative; display: block; }
+
+/* El texto no puede pasar por debajo del ojo: se le reserva el espacio. El
+   padding va con !important porque cada pantalla define el suyo en el input
+   (.lg-input, .pf-campo input, .lms-field input) y esas reglas son igual de
+   específicas o más. */
+.campo-clave .campo-clave-input { width: 100%; padding-right: 46px !important; }
+
+.campo-clave-ojo {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: #8a8095;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.campo-clave-ojo:hover { opacity: 1; color: #590599; background: rgba(89, 5, 153, 0.07); }
+.campo-clave-ojo:focus-visible { outline: 2px solid #590599; outline-offset: 1px; opacity: 1; }
+
+/* Rueda de espera de los botones (components/Cargando) */
+.cargando-rueda {
+  display: inline-block;
+  flex-shrink: 0;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.85;
+  animation: cargando-giro 0.7s linear infinite;
+  vertical-align: -2px;
+  margin-right: 8px;
+}
+@keyframes cargando-giro { to { transform: rotate(360deg); } }
+
+/* Quien pidió que no se muevan las cosas en pantalla no debería ver esto girar;
+   se deja fijo, que igual comunica el estado junto al texto del botón. */
+@media (prefers-reduced-motion: reduce) {
+  .cargando-rueda { animation: none; }
+}

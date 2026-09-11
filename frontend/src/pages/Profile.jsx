@@ -5,6 +5,8 @@ import { useAuth } from '../auth'
 import LmsHeader, { LmsLoader } from '../components/LmsHeader'
 import './lms.css'
 import './profile.css'
+import CampoClave from '../components/CampoClave'
+import Cargando from '../components/Cargando'
 
 /* Mismas reglas que el checkout y que el servidor (payments/serializers.py). */
 function errorNombre(v, que, obligatorio = true) {
@@ -215,7 +217,7 @@ export default function Profile() {
           {aviso && <p className="pf-msg pf-msg-ok">{aviso}</p>}
 
           <button className="pf-btn" type="submit" disabled={guardando || sinCambios || hayErrores}>
-            {guardando ? 'Guardando…' : 'Guardar cambios'}
+            {guardando ? <><Cargando />Guardando…</> : 'Guardar cambios'}
           </button>
         </form>
         </div>
@@ -250,17 +252,17 @@ export default function Profile() {
 
           <div className="pf-campo">
             <label htmlFor="pf-actual">Contraseña actual</label>
-            <input id="pf-actual" type="password" value={claves.actual}
+            <CampoClave id="pf-actual" value={claves.actual}
               onChange={e => setClaves({ ...claves, actual: e.target.value })} />
           </div>
           <div className="pf-campo">
             <label htmlFor="pf-nueva">Contraseña nueva</label>
-            <input id="pf-nueva" type="password" value={claves.nueva}
+            <CampoClave id="pf-nueva" value={claves.nueva}
               onChange={e => setClaves({ ...claves, nueva: e.target.value })} />
           </div>
           <div className="pf-campo">
             <label htmlFor="pf-repetir">Repite la contraseña nueva</label>
-            <input id="pf-repetir" type="password" value={claves.repetir}
+            <CampoClave id="pf-repetir" value={claves.repetir}
               onChange={e => setClaves({ ...claves, repetir: e.target.value })} />
           </div>
 

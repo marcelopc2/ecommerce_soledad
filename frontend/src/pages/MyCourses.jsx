@@ -4,6 +4,7 @@ import { api, PANEL_URL } from '../api'
 import LmsHeader, { LmsLoader } from '../components/LmsHeader'
 import { openDiploma } from '../lib/diploma'
 import './lms.css'
+import Cargando from '../components/Cargando'
 
 export default function MyCourses() {
   const [data, setData] = useState(null)
@@ -266,7 +267,7 @@ function DiplomaCard({ diploma: d }) {
         : 'Completa los cursos anteriores para desbloquear este diploma.'}</p>
       {d.unlocked
         ? <button className="lms-btn yellow" onClick={download} disabled={busy}>
-            {busy ? 'Preparando…' : '🎓 Descargar diploma'}
+            {busy ? <><Cargando />Preparando…</> : '🎓 Descargar diploma'}
           </button>
         : <span className="lms-diploma-locked-tag">Bloqueado</span>}
     </div>

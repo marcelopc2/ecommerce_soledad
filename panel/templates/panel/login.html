@@ -44,11 +44,34 @@
     </div>
     <div class="mb-4">
       <label class="form-label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
-      {{ form.password }}
+      {% comment %}
+        El ojo para ver la clave. Mismo gesto que en el sitio, pero acá se hace
+        con unas líneas de JS en vez de un componente: esta pantalla es la
+        única del panel con un campo de contraseña a ciegas.
+      {% endcomment %}
+      <div class="campo-clave">
+        {{ form.password }}
+        <button type="button" class="campo-clave-ojo" tabindex="-1"
+                aria-label="Mostrar la contraseña" aria-pressed="false"
+                onclick="verClave(this)">
+          <i class="bi bi-eye"></i>
+        </button>
+      </div>
     </div>
     <button type="submit" class="btn btn-brand">Entrar al panel</button>
   </form>
 </div>
+
+<script>
+  function verClave(boton) {
+    var campo = boton.parentElement.querySelector('input')
+    var visible = campo.type === 'text'
+    campo.type = visible ? 'password' : 'text'
+    boton.setAttribute('aria-pressed', String(!visible))
+    boton.setAttribute('aria-label', visible ? 'Mostrar la contraseña' : 'Ocultar la contraseña')
+    boton.querySelector('i').className = visible ? 'bi bi-eye' : 'bi bi-eye-slash'
+  }
+</script>
 
 </body>
 </html>
