@@ -639,28 +639,73 @@
      desplazarse y entrarían las 44 apretadas. */
   flex: 0 0 calc((100% - 60px) / 3);
 }
+/* Pie del carrusel: a la izquierda cuánto se lleva recorrido, a la derecha los
+   controles. Van juntos en una sola línea para no sumarle otro alto al bloque. */
+.lp-carrusel-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 10px;
+}
+.lp-carrusel-barra {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  /* Sobre el amarillo del recuadro, un gris se ve sucio: se usa el morado de
+     la marca muy rebajado, que se lee como "riel" sin ensuciar el color. */
+  background: rgba(47, 0, 83, 0.13);
+  overflow: hidden;
+  max-width: 320px;
+}
+.lp-carrusel-barra span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--lp-purple-dark);
+  transition: width 0.25s ease;
+}
 .lp-carrusel-flechas {
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
-  margin-top: 6px;
+  flex-shrink: 0;
 }
+/* Blancas y no moradas macizas: el recuadro ya es un bloque de color fuerte, y
+   dos círculos oscuros encima competían con las tarjetas. En blanco se leen
+   como controles y dejan el protagonismo a los modelos. */
 .lp-carrusel-flecha {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
   border: none;
+  background: #fff;
+  color: var(--lp-purple-dark);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(47, 0, 83, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+              background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+.lp-carrusel-flecha:hover:not(:disabled) {
   background: var(--lp-purple-dark);
   color: #fff;
-  font-size: 22px;
-  line-height: 1;
-  cursor: pointer;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(47, 0, 83, 0.28);
 }
-.lp-carrusel-flecha:hover:not(:disabled) { transform: scale(1.08); }
+.lp-carrusel-flecha:active:not(:disabled) { transform: translateY(0); }
+.lp-carrusel-flecha:focus-visible {
+  outline: 3px solid var(--lp-purple-dark);
+  outline-offset: 2px;
+}
 /* Se dejan a la vista en vez de esconderlas: si aparecieran y desaparecieran,
    el bloque cambiaría de alto y el contenido de abajo daría saltos. */
-.lp-carrusel-flecha:disabled { opacity: 0.3; cursor: default; }
+.lp-carrusel-flecha:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
 
 @media (max-width: 900px) {
   .lp-carrusel-item { flex: 0 0 calc((100% - 30px) / 2); }

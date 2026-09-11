@@ -46,6 +46,18 @@
 </div>
 
 {% comment %}
+  El trailer es lo que se reproduce al hacer clic en la tarjeta de la portada.
+  Va separado de los recursos del curso a propósito: esos son el paso a paso que
+  recibe quien pagó, y no deben quedar a la vista de cualquiera.
+{% endcomment %}
+<div class="mb-3">
+  <label class="form-label" for="{{ form.trailer_url.id_for_label }}">{{ form.trailer_url.label }}</label>
+  {{ form.trailer_url }}
+  {% for e in form.trailer_url.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+  <div class="pnl-campo-ayuda">{{ form.trailer_url.help_text }}</div>
+</div>
+
+{% comment %}
   A qué categorías pertenece. Es lo que decide quién puede verlo: sin ninguna
   marcada, el modelo no aparece en el Aula de nadie.
 {% endcomment %}

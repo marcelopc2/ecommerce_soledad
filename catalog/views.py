@@ -168,5 +168,9 @@ class VitrinaModelosView(APIView):
                 'id': c.id,
                 'titulo': c.title,
                 'imagen': request.build_absolute_uri(portada),
+                # El trailer es material de marketing, grabado para mostrarse.
+                # NO se envían los videos de las lecciones: esos son el paso a
+                # paso que recibe quien paga.
+                'trailer': c.trailer_url,
             })
         return Response(datos)

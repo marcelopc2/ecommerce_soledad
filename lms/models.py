@@ -82,6 +82,13 @@ class Course(models.Model):
     )
     image_url = models.URLField(max_length=500, blank=True,
                                help_text='Alternativa: dirección de una imagen ya publicada en internet.')
+    trailer_url = models.CharField(
+        max_length=300, blank=True,
+        verbose_name='Trailer de YouTube',
+        help_text='Video corto de MARKETING que se ve en la portada, no el paso '
+                  'a paso. Pega el link tal cual. Si lo dejas vacío, en la '
+                  'portada la tarjeta muestra solo la foto.',
+    )
     is_active = models.BooleanField(default=True)
     order = models.PositiveIntegerField(
         default=0,

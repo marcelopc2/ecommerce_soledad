@@ -49,6 +49,21 @@ const IconPlayCircle = () => (
   </svg>
 )
 
+/* Chevron de trazo y no el carácter "‹": el glifo depende de la fuente, se ve
+   finito y no queda centrado igual en todos los navegadores. */
+const IconChevron = ({ derecha = false }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="2.5"
+       strokeLinecap="round" strokeLinejoin="round"
+       style={derecha ? { transform: 'rotate(180deg)' } : undefined}>
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+)
+
+const IconPlaySolid = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="#2f0053"><polygon points="8 5 19 12 8 19 8 5" /></svg>
+)
+
 /* Convención que la clienta escribe a mano en el panel: una línea que empieza
    con +/-/* cambia el ícono y el color de su viñeta. El símbolo se saca del
    texto mostrado, no forma parte del beneficio.
@@ -247,8 +262,46 @@ function ComoFunciona() {
 }
 
 
+// Modal con el trailer de YouTube. Se monta en document.body (portal) para que
+// ningún transform/contexto de apilamiento de la portada lo afecte.
+function TrailerModal({ modelo, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'  // bloquea el scroll del fondo
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [onClose])
+
+  // El link llega ya normalizado a /embed/ desde el panel (ver CourseForm), así
+  // que acá solo se le agregan los parámetros del reproductor.
+  const separador = modelo.trailer.includes('?') ? '&' : '?'
+
+  return createPortal(
+    <div className="lp-vmodal" onClick={onClose}>
+      <div className="lp-vmodal-inner" onClick={(e) => e.stopPropagation()}>
+        <button className="lp-vmodal-close" onClick={onClose} aria-label="Cerrar video">×</button>
+        <div className="lp-vmodal-frame">
+          <iframe
+            src={`${modelo.trailer}${separador}autoplay=1&rel=0`}
+            title={modelo.titulo}
+            allow="autoplay; encrypted-media; fullscreen"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 function Beneficios() {
   const [modelos, setModelos] = useState([])
+  const [trailer, setTrailer] = useState(null)
 
   useEffect(() => {
     api.get('/catalog/vitrina/')
@@ -323,16 +376,20 @@ function Beneficios() {
           dirigen y hacen funcionar vehículos y artefactos motorizados.{' '}
           <strong>Algunos de nuestros modelos:</strong>
         </p>
-        <CarruselModelos modelos={barajados} rotations={rotations} />
+        <CarruselModelos
+          modelos={barajados} rotations={rotations} onAbrir={setTrailer}
+        />
       </div>
+      {trailer && <TrailerModal modelo={trailer} onClose={() => setTrailer(null)} />}
     </section>
   )
 }
 
-function CarruselModelos({ modelos, rotations }) {
+function CarruselModelos({ modelos, rotations, onAbrir }) {
   const pista = useRef(null)
   const [alInicio, setAlInicio] = useState(true)
   const [alFinal, setAlFinal] = useState(false)
+  const [avance, setAvance] = useState(0)
 
   // Se mira el scroll real y no un índice propio: la pista también se arrastra
   // con el dedo y con la rueda, así que llevar la cuenta por separado se
@@ -342,6 +399,10 @@ function CarruselModelos({ modelos, rotations }) {
     if (!el) return
     setAlInicio(el.scrollLeft <= 1)
     setAlFinal(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
+    // Con 44 modelos, las flechas solas no dicen cuánto falta. La barra sí, y
+    // ocupa menos que 44 puntitos.
+    const recorrible = el.scrollWidth - el.clientWidth
+    setAvance(recorrible > 0 ? (el.scrollLeft / recorrible) * 100 : 0)
   }, [])
 
   useEffect(() => {
@@ -365,30 +426,52 @@ function CarruselModelos({ modelos, rotations }) {
   return (
     <div className="lp-carrusel">
       <div className="lp-carrusel-pista" ref={pista} onScroll={revisarBordes}>
-        {modelos.map((m, i) => (
-          <article
-            className="lp-video-card lp-carrusel-item"
-            key={m.id}
-            style={{ '--hover-rot': `${rotations[i] || 0}deg` }}
-          >
-            <div className="lp-video-thumb">
-              <img src={m.imagen} alt={m.titulo} loading="lazy" />
-            </div>
-            <div className="lp-video-body">
-              <h4>{m.titulo}</h4>
-            </div>
-          </article>
-        ))}
+        {modelos.map((m, i) => {
+          // Con trailer la tarjeta es un <button>: se hace clic para verlo, y
+          // así el teclado y los lectores de pantalla la tratan como lo que es.
+          // Sin trailer es un <article>: un botón que no hace nada al pulsarlo
+          // promete algo que no existe.
+          const Tarjeta = m.trailer ? 'button' : 'article'
+          return (
+            <Tarjeta
+              className="lp-video-card lp-carrusel-item"
+              key={m.id}
+              style={{ '--hover-rot': `${rotations[i] || 0}deg` }}
+              {...(m.trailer ? {
+                type: 'button',
+                onClick: () => onAbrir(m),
+                'aria-label': `Ver el video de ${m.titulo}`,
+              } : {})}
+            >
+              <div className="lp-video-thumb">
+                <img src={m.imagen} alt={m.titulo} loading="lazy" />
+                {m.trailer && <span className="lp-video-play"><IconPlaySolid /></span>}
+              </div>
+              <div className="lp-video-body">
+                <h4>{m.titulo}</h4>
+              </div>
+            </Tarjeta>
+          )
+        })}
       </div>
-      <div className="lp-carrusel-flechas">
-        <button
-          type="button" className="lp-carrusel-flecha" onClick={() => mover(-1)}
-          disabled={alInicio} aria-label="Ver modelos anteriores"
-        >‹</button>
-        <button
-          type="button" className="lp-carrusel-flecha" onClick={() => mover(1)}
-          disabled={alFinal} aria-label="Ver más modelos"
-        >›</button>
+      <div className="lp-carrusel-pie">
+        <div className="lp-carrusel-barra" aria-hidden="true">
+          <span style={{ width: `${Math.max(avance, 6)}%` }} />
+        </div>
+        <div className="lp-carrusel-flechas">
+          <button
+            type="button" className="lp-carrusel-flecha" onClick={() => mover(-1)}
+            disabled={alInicio} aria-label="Ver modelos anteriores"
+          >
+            <IconChevron />
+          </button>
+          <button
+            type="button" className="lp-carrusel-flecha" onClick={() => mover(1)}
+            disabled={alFinal} aria-label="Ver más modelos"
+          >
+            <IconChevron derecha />
+          </button>
+        </div>
       </div>
     </div>
   )

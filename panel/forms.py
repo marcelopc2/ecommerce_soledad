@@ -231,18 +231,40 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
 
     class Meta:
         model = Course
-        fields = ['title', 'slug', 'description', 'image_file', 'image_url', 'is_active']
+        fields = ['title', 'slug', 'description', 'image_file', 'image_url',
+                  'trailer_url', 'is_active']
         labels = {
             'title': 'Título',
             'slug': 'Dirección web (se genera sola desde el título)',
             'description': 'Descripción',
             'image_file': 'Imagen de portada',
             'image_url': '…o pegar una dirección de internet',
+            'trailer_url': 'Trailer de YouTube (portada)',
             'is_active': 'Curso activo',
         }
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
+            'trailer_url': forms.TextInput(
+                attrs={'placeholder': 'https://www.youtube.com/watch?v=...'}),
         }
+
+    def clean_trailer_url(self):
+        """El trailer es opcional -una tarjeta con solo la foto es válida-, pero
+        si se pega un link tiene que ser reproducible: si no, la tarjeta de la
+        portada queda con un botón de play que no lleva a ninguna parte.
+
+        Se guarda normalizado a /embed/ porque es lo que necesita el <iframe>;
+        pegar el link de la barra del navegador tal cual dejaba el reproductor
+        en blanco sin ningún aviso."""
+        url = (self.cleaned_data.get('trailer_url') or '').strip()
+        if not url:
+            return url
+        video_id = extract_youtube_id(url)
+        if not video_id:
+            raise forms.ValidationError(
+                'No reconocimos ese link de YouTube. Cópialo desde la barra del '
+                'navegador mientras ves el video, o usa el botón Compartir.')
+        return f'https://www.youtube.com/embed/{video_id}'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
