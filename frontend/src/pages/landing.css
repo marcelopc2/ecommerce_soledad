@@ -657,7 +657,7 @@
   background: rgba(15, 0, 30, 0.82);
 }
 .lp-gmodal-inner {
-  width: min(1040px, 100%);
+  width: min(1180px, 100%);
   /* Alto acotado y la grilla scrollea por dentro: con 44 tarjetas, dejar
      crecer la ventana obligaba a desplazar la página por detrás del modal. */
   max-height: min(86vh, 820px);
@@ -672,7 +672,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 22px;
+  padding: 22px 30px;
   border-bottom: 1px solid #f0ebf5;
   flex-shrink: 0;
 }
@@ -708,17 +708,20 @@
 }
 .lp-gmodal-close:hover { color: var(--lp-purple-dark); }
 
+/* Tarjetas más grandes y más aire entre ellas: con 190px y 18px de separación
+   la grilla se leía como una planilla, y son 44 seguidas -el apretujamiento se
+   nota mucho más que en una lista corta-. */
 .lp-gmodal-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 18px;
-  padding: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 28px 26px;
+  padding: 28px 30px 34px;
   overflow-y: auto;
 }
 .lp-gmodal-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 11px;
   padding: 0;
   border: none;
   background: none;
@@ -768,7 +771,7 @@ figure.lp-gmodal-card { cursor: default; }
 .lp-gmodal-nombre {
   font-family: var(--lp-heading);
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 15.5px;
   color: var(--lp-purple-dark);
   line-height: 1.3;
 }
@@ -784,10 +787,11 @@ figure.lp-gmodal-card { cursor: default; }
 
 @media (max-width: 600px) {
   .lp-gmodal { padding: 12px; }
+  .lp-gmodal-head { padding: 16px 18px; }
   .lp-gmodal-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 14px;
-    padding: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 20px 16px;
+    padding: 20px 18px 26px;
   }
 }
 

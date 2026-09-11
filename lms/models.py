@@ -90,6 +90,13 @@ class Course(models.Model):
                   'portada la tarjeta muestra solo la foto.',
     )
     is_active = models.BooleanField(default=True)
+    mostrar_en_portada = models.BooleanField(
+        default=True,
+        verbose_name='Mostrar en la portada',
+        help_text='Aparece entre los modelos de la portada. Apágalo para lo que '
+                  'no sea un modelo armable (la bienvenida, una introducción): '
+                  'el alumno lo sigue recibiendo igual en el Aula.',
+    )
     order = models.PositiveIntegerField(
         default=0,
         help_text="Posición en la secuencia semanal (1 = primero). Se arrastra en el panel.",

@@ -232,7 +232,7 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Course
         fields = ['title', 'slug', 'description', 'image_file', 'image_url',
-                  'trailer_url', 'is_active']
+                  'trailer_url', 'mostrar_en_portada', 'is_active']
         labels = {
             'title': 'Título',
             'slug': 'Dirección web (se genera sola desde el título)',
@@ -240,6 +240,7 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
             'image_file': 'Imagen de portada',
             'image_url': '…o pegar una dirección de internet',
             'trailer_url': 'Trailer de YouTube (portada)',
+            'mostrar_en_portada': 'Mostrar entre los modelos de la portada',
             'is_active': 'Curso activo',
         }
         widgets = {

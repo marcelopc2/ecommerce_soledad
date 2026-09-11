@@ -57,6 +57,14 @@
   <div class="pnl-campo-ayuda">{{ form.trailer_url.help_text }}</div>
 </div>
 
+<div class="mb-3 form-check">
+  {{ form.mostrar_en_portada }}
+  <label class="form-check-label ms-1" for="{{ form.mostrar_en_portada.id_for_label }}">
+    {{ form.mostrar_en_portada.label }}
+  </label>
+  <div class="pnl-campo-ayuda">{{ form.mostrar_en_portada.help_text }}</div>
+</div>
+
 {% comment %}
   A qué categorías pertenece. Es lo que decide quién puede verlo: sin ninguna
   marcada, el modelo no aparece en el Aula de nadie.

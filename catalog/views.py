@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from .models import (
     Category, Product, FAQ, Testimonial, LandingVideo, LandingStep,
-    SeccionConcurso, GanadorConcurso,
+    SeccionConcurso, GanadorConcurso, youtube_thumbnail,
 )
 from .serializers import (
     CategorySerializer, ProductSerializer, FAQSerializer, TestimonialSerializer,
@@ -152,13 +152,18 @@ class VitrinaModelosView(APIView):
         from lms.models import Course
 
         cursos = (
-            Course.objects.filter(is_active=True)
+            Course.objects.filter(is_active=True, mostrar_en_portada=True)
             .order_by('order', 'id')
             .prefetch_related('lessons')
         )
         datos = []
         for c in cursos:
-            portada = c.portada_url
+            # Se prefiere la miniatura del trailer sobre la portada del curso:
+            # la portada es la lámina de marca (el nombre sobre fondo de
+            # colores), y en una galería de 44 todas se ven casi iguales. El
+            # fotograma del video muestra el modelo armado, que es lo que el
+            # visitante quiere ver.
+            portada = youtube_thumbnail(c.trailer_url) or c.portada_url
             # Sin foto la tarjeta sería un rectángulo gris con un nombre: en una
             # sección que existe para mostrar cómo se ven los modelos, eso resta
             # en vez de sumar.
