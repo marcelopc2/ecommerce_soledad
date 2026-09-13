@@ -6,6 +6,7 @@ de la Order (+ Shipment si corresponde).
 import logging
 from django.db import transaction
 from catalog.models import Product
+from . import coupons
 from .models import Order, OrderItem
 from .serializers import CheckoutSerializer
 from shipments.models import Shipment
@@ -86,9 +87,23 @@ def build_order_from_request(data, user=None):
         customer_email = user.email or user.username
 
     # Precio autoritativo del servidor: usa el precio de oferta cuando corresponde.
-    products_total = sum(p.effective_price for p in products)
+    products_total = int(sum(p.effective_price for p in products))
     if products_total <= 0:
         return None, 'Monto inválido'
+
+    # Cupón. Va DESPUÉS de resolver el correo definitivo (los packs para alumnos
+    # lo reemplazan por el de la sesión), porque el límite "un uso por correo"
+    # se mide sobre el correo con el que de verdad queda la compra.
+    cupon = None
+    descuento = 0
+    codigo = (datos.get('coupon_code') or '').strip()
+    if codigo:
+        cupon = coupons.buscar(codigo)
+        if cupon is None:
+            return None, 'Ese cupón no existe.'
+        descuento, problema = coupons.revisar(cupon, products_total, customer_email)
+        if problema:
+            return None, problema
 
     has_physical = any(not p.is_digital for p in products)
 
@@ -131,7 +146,15 @@ def build_order_from_request(data, user=None):
         shipping_cost = int(match['price'])
         validated = {'package': package, 'quote': match, 'shipping': shipping}
 
-    total_amount = int(products_total) + int(shipping_cost)
+    # El descuento se resta solo de los productos: el despacho se cobra entero.
+    total_amount = (products_total - descuento) + int(shipping_cost)
+    if total_amount <= 0:
+        # Ni Webpay ni MercadoPago aceptan un cobro de $0. Es preferible decirlo
+        # que mandar a la pasarela algo que va a reventar con un error críptico.
+        return None, (
+            'Ese cupón deja el total en $0 y el sistema de pago no acepta cobros '
+            'de $0. Escríbenos y lo resolvemos a mano.'
+        )
 
     # Todo junto o nada: la orden, sus productos y el envío son una sola cosa.
     # Sin esto, un corte entre medio dejaba una orden física SIN envío, con el
@@ -143,6 +166,8 @@ def build_order_from_request(data, user=None):
             student_name=student_name,       # va al diploma (ver lms.services._grant)
             customer_phone=customer_phone,
             total_amount=total_amount,
+            coupon=cupon,
+            discount_amount=descuento,
             status='PENDING',
         )
         order.products.set(products)
@@ -150,12 +175,17 @@ def build_order_from_request(data, user=None):
         # Una línea por producto, con el nombre y el precio congelados. Es lo
         # que lee la boleta, para que el documento cuadre con lo cobrado aunque
         # el precio del producto cambie después.
+        # El descuento se reparte ENTRE LAS LÍNEAS, no se guarda solo en el
+        # total: la boleta electrónica exige que el detalle sume exactamente lo
+        # cobrado, así que una línea a precio de lista dejaría toda compra con
+        # cupón sin poder boletearse (ver invoicing/services.py).
+        cobrados = coupons.repartir([int(p.effective_price) for p in products], descuento)
         OrderItem.objects.bulk_create([
             OrderItem(
                 order=order, product=p, name=p.name,
-                unit_price=int(p.effective_price), quantity=1,
+                unit_price=precio, quantity=1,
             )
-            for p in products
+            for p, precio in zip(products, cobrados)
         ])
 
         if validated:
@@ -184,6 +214,7 @@ def build_order_from_request(data, user=None):
                 status='PENDING_DISPATCH',
             )
 
-    log.info('Orden %s creada por %s (total %s, %s producto/s)',
-             order.order_id, customer_email, total_amount, len(products))
+    log.info('Orden %s creada por %s (total %s, %s producto/s%s)',
+             order.order_id, customer_email, total_amount, len(products),
+             f', cupón {cupon.code} -{descuento}' if cupon else '')
     return order, None

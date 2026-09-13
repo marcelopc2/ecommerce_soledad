@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 from django import forms
@@ -8,6 +9,7 @@ from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
     SeccionConcurso, GanadorConcurso,
 )
+from payments.models import Coupon
 from lms.models import (
     AjustesAula, CategoryCourse, Course, CourseCategory, Lesson, Membership, Diploma,
     PerfilUsuario,
@@ -751,3 +753,90 @@ class MiCuentaForm(BootstrapFormMixin, forms.ModelForm):
         # propia casilla "Limpiar" junto a la ruta del archivo guardado, que
         # duplica al botón "Quitar la foto" y encima se lee peor.
         widgets = {'avatar': forms.FileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'})}
+
+
+class CouponForm(BootstrapFormMixin, forms.ModelForm):
+    """Alta y edición de un cupón de descuento.
+
+    Las fechas usan <input type="datetime-local">, que es el único control de
+    fecha+hora que el navegador muestra en el idioma del sistema. Django espera
+    el formato ISO que ese input entrega, de ahí el input_formats explícito: sin
+    él, toda fecha se rechazaba con "Escribe una fecha/hora válida".
+    """
+
+    class Meta:
+        model = Coupon
+        fields = [
+            'code', 'description', 'discount_type', 'value',
+            'min_purchase', 'starts_at', 'ends_at', 'max_uses', 'once_per_email',
+        ]
+        labels = {
+            'code': 'Código',
+            'description': 'Para qué es (nota interna)',
+            'discount_type': 'Tipo de descuento',
+            'value': 'Descuento',
+            'min_purchase': 'Compra mínima',
+            'starts_at': 'Empieza',
+            'ends_at': 'Termina',
+            'max_uses': 'Tope de usos',
+            'once_per_email': 'Un uso por persona',
+        }
+        help_texts = {
+            'code': 'Es lo que escribe el cliente al pagar. Sin espacios. Se guarda en mayúsculas.',
+            'description': 'Solo para ti. El cliente no la ve.',
+            'min_purchase': 'En pesos. Déjalo en 0 si sirve para cualquier compra.',
+            'starts_at': 'Déjalo vacío para que sirva desde ya.',
+            'ends_at': 'Déjalo vacío para que no venza. El cupón se apaga solo al llegar la fecha.',
+            'max_uses': 'Cuántas compras pueden usarlo en total. Vacío = sin tope.',
+            'once_per_email': 'El mismo correo no puede volver a usarlo.',
+        }
+        widgets = {
+            'code': forms.TextInput(attrs={
+                'placeholder': 'CYBER2026', 'autocapitalize': 'characters',
+                'style': 'text-transform:uppercase',
+            }),
+            'description': forms.TextInput(attrs={'placeholder': 'CyberMonday 2026'}),
+            'value': forms.NumberInput(attrs={'min': 1, 'placeholder': '25'}),
+            'min_purchase': forms.NumberInput(attrs={'min': 0, 'step': 1000}),
+            'max_uses': forms.NumberInput(attrs={'min': 1, 'placeholder': 'Sin tope'}),
+            'starts_at': forms.DateTimeInput(
+                attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M',
+            ),
+            'ends_at': forms.DateTimeInput(
+                attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M',
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for campo in ('starts_at', 'ends_at'):
+            self.fields[campo].input_formats = ['%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%M:%S']
+
+    def clean_code(self):
+        """El código viaja por mail, WhatsApp e Instagram y lo escribe gente a
+        mano: se limita a letras, números y guiones para que no haya forma de
+        que un espacio o una tilde lo deje inservible sin que se note."""
+        code = (self.cleaned_data['code'] or '').strip().upper()
+        if not re.fullmatch(r'[A-Z0-9\-]{3,30}', code):
+            raise forms.ValidationError(
+                'Usa entre 3 y 30 caracteres, solo letras, números y guiones. '
+                'Sin espacios ni tildes: el cliente lo va a escribir a mano.'
+            )
+        return code
+
+    def clean(self):
+        datos = super().clean()
+        tipo = datos.get('discount_type')
+        valor = datos.get('value')
+        inicio = datos.get('starts_at')
+        fin = datos.get('ends_at')
+
+        if tipo == Coupon.PORCENTAJE and valor is not None and valor > 100:
+            self.add_error('value', 'Un porcentaje no puede pasar de 100.')
+        if valor is not None and valor < 1:
+            self.add_error('value', 'El descuento tiene que ser mayor que 0.')
+
+        if inicio and fin and fin <= inicio:
+            self.add_error('ends_at', 'La fecha de término tiene que ser posterior a la de inicio.')
+
+        return datos

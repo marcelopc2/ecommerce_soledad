@@ -60,6 +60,9 @@
     <a href="{% url 'panel:orders' %}" class="{% if section == 'orders' %}active{% endif %}">
       <i class="bi bi-bag-check-fill"></i> Pedidos
     </a>
+    <a href="{% url 'panel:coupons' %}" class="{% if section == 'coupons' %}active{% endif %}">
+      <i class="bi bi-ticket-perforated-fill"></i> Cupones
+    </a>
 
     <div class="pnl-nav-label">Academia</div>
     <a href="{% url 'panel:courses' %}" class="{% if section == 'courses' %}active{% endif %}">

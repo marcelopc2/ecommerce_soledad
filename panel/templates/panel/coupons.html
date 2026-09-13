@@ -1,0 +1,15 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Cupones{% endblock %}
+{% block crumb %}Panel · Tienda{% endblock %}
+{% block heading %}Cupones de descuento{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:coupon_new' %}" class="btn btn-brand"><i class="bi bi-plus-lg me-1"></i> Nuevo cupón</a>
+{% endblock %}
+
+{% block content %}
+<div class="pnl-card" id="pnl-cupones-panel">
+  {% include 'panel/partials/coupons_panel.html' %}
+</div>
+{% endblock %}

@@ -21,6 +21,12 @@ urlpatterns = [
     path('pedidos/<int:pk>/despachar/', views.order_shipment_dispatch, name='order_shipment_dispatch'),
     path('pedidos/<int:pk>/eliminar/', views.order_delete, name='order_delete'),
 
+    path('cupones/', views.coupons, name='coupons'),
+    path('cupones/nuevo/', views.coupon_form, name='coupon_new'),
+    path('cupones/<int:pk>/editar/', views.coupon_form, name='coupon_edit'),
+    path('cupones/<int:pk>/estado/', views.coupon_toggle_active, name='coupon_toggle_active'),
+    path('cupones/<int:pk>/eliminar/', views.coupon_delete, name='coupon_delete'),
+
     path('categorias/', views.categories, name='categories'),
     path('categorias/nueva/', views.category_form, name='category_new'),
     path('categorias/<int:pk>/editar/', views.category_form, name='category_edit'),

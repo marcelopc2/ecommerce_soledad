@@ -319,6 +319,7 @@ REST_FRAMEWORK = {
         'reset': '5/min',           # solicitudes de recuperación (anti spam de correos)
         'payment': '10/min',        # creación de pagos
         'quote': '30/min',          # cotizaciones de envío
+        'cupon': '20/min',          # probar códigos de cupón (anti fuerza bruta)
         'contact': '5/min',         # formulario de contacto (anti spam de correos)
         # Contador de visitas: una por cambio de página. Alto a propósito -es
         # solo un INSERT y quien navega rápido no debe perder sus visitas-,

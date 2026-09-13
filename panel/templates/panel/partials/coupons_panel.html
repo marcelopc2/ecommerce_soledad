@@ -1,0 +1,49 @@
+{% comment %}
+  Barra + tabla juntas: el interruptor de cada cupón reemplaza ESTE bloque
+  completo y no solo las filas, porque al apagar uno cambia también su estado
+  en la columna "Estado" y conviene que la barra y la tabla queden coherentes.
+  Los avisos viajan fuera de banda a la cabecera de la página; acá es válido
+  porque el destino del intercambio es un <div>.
+{% endcomment %}
+{% if oob %}
+  <div id="pnl-avisos" class="pnl-avisos" hx-swap-oob="true">
+    {% include 'panel/partials/avisos.html' %}
+  </div>
+{% endif %}
+
+<div class="pnl-toolbar">
+  <div class="pnl-search">
+    <i class="bi bi-search"></i>
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar por código…"
+           autocomplete="off"
+           hx-get="{% url 'panel:coupons' %}"
+           hx-trigger="input changed delay:300ms, search"
+           hx-target="#coupons-tbody"
+           hx-swap="innerHTML"
+           hx-indicator="#coupons-spin">
+    <span id="coupons-spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
+  </div>
+  <span class="pnl-hint">
+    <i class="bi bi-info-circle"></i>
+    El cliente escribe el código al pagar. El descuento se aplica solo a los
+    productos: el despacho se cobra completo.
+  </span>
+</div>
+
+<div class="table-responsive">
+  <table class="table pnl-table">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Descuento</th>
+        <th>Condiciones</th>
+        <th>Usos</th>
+        <th>Estado</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="coupons-tbody">
+      {% include 'panel/partials/coupons_rows.html' %}
+    </tbody>
+  </table>
+</div>

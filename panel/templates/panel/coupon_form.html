@@ -1,0 +1,134 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}{% if coupon %}Editar cupón{% else %}Nuevo cupón{% endif %}{% endblock %}
+{% block crumb %}Panel · Tienda · Cupones{% endblock %}
+{% block heading %}{% if coupon %}Editar cupón{% else %}Nuevo cupón{% endif %}{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:coupons' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-ticket-perforated"></i> El cupón</div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.code.label }}</label>
+          {{ form.code }}
+          <div class="pnl-campo-ayuda"><i class="bi bi-info-circle"></i> {{ form.code.help_text }}</div>
+          {% for e in form.code.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.description.label }}</label>
+          {{ form.description }}
+          <div class="pnl-campo-ayuda"><i class="bi bi-info-circle"></i> {{ form.description.help_text }}</div>
+          {% for e in form.description.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">{{ form.discount_type.label }}</label>
+            {{ form.discount_type }}
+            {% for e in form.discount_type.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">{{ form.value.label }}</label>
+            {{ form.value }}
+            <div class="pnl-campo-ayuda">
+              <i class="bi bi-info-circle"></i>
+              Si elegiste porcentaje escribe <strong>25</strong> para un 25%.
+              Si elegiste monto fijo, escribe los pesos: <strong>5000</strong>.
+            </div>
+            {% for e in form.value.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+      </div></div>
+
+      <div class="pnl-card mt-3"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-sliders"></i> Límites</div>
+        <p class="pnl-campo-ayuda mb-3">
+          Todos son opcionales. Un cupón sin límites sirve siempre, para todos y
+          sin tope.
+        </p>
+
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">{{ form.starts_at.label }}</label>
+            {{ form.starts_at }}
+            <div class="pnl-campo-ayuda">{{ form.starts_at.help_text }}</div>
+            {% for e in form.starts_at.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">{{ form.ends_at.label }}</label>
+            {{ form.ends_at }}
+            <div class="pnl-campo-ayuda">{{ form.ends_at.help_text }}</div>
+            {% for e in form.ends_at.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-sm-6">
+            <label class="form-label">{{ form.max_uses.label }}</label>
+            {{ form.max_uses }}
+            <div class="pnl-campo-ayuda">{{ form.max_uses.help_text }}</div>
+            {% for e in form.max_uses.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">{{ form.min_purchase.label }}</label>
+            {{ form.min_purchase }}
+            <div class="pnl-campo-ayuda">{{ form.min_purchase.help_text }}</div>
+            {% for e in form.min_purchase.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="form-check form-switch mt-3">
+          {{ form.once_per_email }}
+          <label class="form-check-label" for="{{ form.once_per_email.id_for_label }}">
+            {{ form.once_per_email.label }}
+          </label>
+          <div class="pnl-campo-ayuda">{{ form.once_per_email.help_text }}</div>
+          {% for e in form.once_per_email.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div></div>
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger mt-3">
+          {% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar cupón</button>
+        <a href="{% url 'panel:coupons' %}" class="btn btn-ghost">Cancelar</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-question-circle"></i> Cómo funciona</div>
+      <ul class="pnl-campo-ayuda" style="padding-left:18px;margin:0;line-height:1.7">
+        <li>El cliente escribe el código en el checkout, antes de pagar, y ve el
+            descuento en el resumen.</li>
+        <li>El descuento se aplica <strong>solo a los productos</strong>. El
+            despacho se cobra completo.</li>
+        <li>Los usos se cuentan sobre compras <strong>pagadas</strong>: si alguien
+            abandona el pago a medio camino, no gasta el cupón.</li>
+        <li>Para cortar una promoción antes de tiempo, apágala con el interruptor
+            de la lista. Deja de servir al instante y las compras que ya lo usaron
+            quedan intactas.</li>
+      </ul>
+      {% if coupon %}
+        <hr>
+        <div class="pnl-campo-ayuda">
+          Usado en <strong>{{ coupon.usos }}</strong> compra{{ coupon.usos|pluralize }} pagada{{ coupon.usos|pluralize }}.
+        </div>
+      {% endif %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}

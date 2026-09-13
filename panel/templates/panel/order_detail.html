@@ -34,6 +34,20 @@
         {% include 'panel/partials/order_status_badge.html' with o=order %}
       </div>
       <div class="mdetail-kv"><span>Total</span><strong>${{ order.total_amount|floatformat:0|intcomma }}</strong></div>
+      {% comment %}
+        El descuento se muestra aparte porque el total y las líneas del detalle
+        ya vienen REBAJADOS (el cupón se reparte entre los productos para que la
+        boleta cuadre). Sin esta fila no habría cómo saber que hubo cupón.
+      {% endcomment %}
+      {% if order.coupon %}
+        <div class="mdetail-kv">
+          <span>Cupón</span>
+          <strong>
+            <span class="badge-soft purple" style="font-family:ui-monospace,monospace">{{ order.coupon.code }}</span>
+            &minus;${{ order.discount_amount|floatformat:0|intcomma }}
+          </strong>
+        </div>
+      {% endif %}
       <div class="mdetail-kv">
         <span>Medio de pago</span>
         <strong>{% if order.tbk_token %}Webpay (Transbank){% else %}MercadoPago{% endif %}</strong>

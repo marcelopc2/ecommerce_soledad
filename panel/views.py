@@ -27,12 +27,13 @@ from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 from lms.services import (
     get_course_access, precargar_listado, reanudar_goteo, send_reset_email,
 )
-from payments.models import Order
+from payments.models import Coupon, Order
 from shipments.services import send_dispatch_email
 from .forms import (
     LoginForm, ProductForm, CourseForm, CourseCategoryForm, LessonForm, MembershipForm,
     DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm,
     MembershipExpiryForm, StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
+    CouponForm,
     MiCuentaForm,
 )
 
@@ -2082,3 +2083,93 @@ def order_delete(request, pk):
         f'Compra {identificador} de {correo} eliminada, con su boleta y su envío.{detalle}',
     )
     return redirect('panel:orders')
+
+
+# ---------------------------------------------------------------------------
+# Cupones de descuento
+# ---------------------------------------------------------------------------
+
+def _coupons_queryset(q=''):
+    """Los cupones con el conteo de usos ya resuelto.
+
+    El `usos` del modelo cuenta órdenes pagadas, así que pintarlo en una lista
+    de 20 filas eran 20 consultas. Se anota de una sola vez.
+    """
+    qs = Coupon.objects.annotate(
+        usos_pagados=Count('orders', filter=Q(orders__status='PAID')),
+    )
+    if q:
+        qs = qs.filter(Q(code__icontains=q) | Q(description__icontains=q))
+    return qs
+
+
+@staff_required
+def coupons(request):
+    q = request.GET.get('q', '').strip()
+    ctx = {'coupons': _coupons_queryset(q), 'section': 'coupons', 'q': q, 'ahora': timezone.now()}
+    if is_search_request(request):
+        return render(request, 'panel/partials/coupons_rows.html', ctx)
+    return render(request, 'panel/coupons.html', ctx)
+
+
+@staff_required
+def coupon_form(request, pk=None):
+    coupon = get_object_or_404(Coupon, pk=pk) if pk else None
+    form = CouponForm(request.POST or None, instance=coupon)
+    if request.method == 'POST' and form.is_valid():
+        obj = form.save()
+        messages.success(request, f'Cupón "{obj.code}" guardado.')
+        return redirect('panel:coupons')
+    return render(request, 'panel/coupon_form.html', {
+        'form': form, 'coupon': coupon, 'section': 'coupons',
+    })
+
+
+@staff_required
+@require_POST
+def coupon_toggle_active(request, pk):
+    """Prende o apaga un cupón desde la lista.
+
+    Es la forma de cortar una promoción a mitad de camino sin borrar nada: el
+    cupón apagado deja de servir al instante y las compras que ya lo usaron
+    conservan su descuento y su boleta.
+    """
+    coupon = get_object_or_404(Coupon, pk=pk)
+    coupon.is_active = not coupon.is_active
+    coupon.save(update_fields=['is_active'])
+    messages.success(
+        request,
+        f'Cupón "{coupon.code}" {"activado" if coupon.is_active else "desactivado"}.',
+    )
+    ctx = {'coupons': _coupons_queryset(), 'section': 'coupons', 'q': '',
+           'ahora': timezone.now(), 'oob': True}
+    return render(request, 'panel/partials/coupons_panel.html', ctx)
+
+
+@staff_required
+@require_POST
+def coupon_delete(request, pk):
+    """Elimina un cupón, salvo que ya se haya usado en una compra.
+
+    Mismo criterio que los productos vendidos: borrarlo dejaría pedidos con un
+    descuento aplicado sin poder decir de dónde salió, y la boleta de esa venta
+    sin respaldo. Un cupón usado se desactiva.
+    """
+    coupon = get_object_or_404(Coupon, pk=pk)
+    code = coupon.code
+
+    usado = coupon.orders.count()
+    if usado:
+        messages.error(
+            request,
+            f'No se puede eliminar "{code}": se usó en {usado} pedido'
+            f'{"s" if usado != 1 else ""} y se perdería el registro de ese '
+            f'descuento. Para que deje de funcionar, apágalo con el interruptor.'
+        )
+        return redirect('panel:coupons')
+
+    coupon.delete()
+    if is_htmx(request):
+        return HttpResponse('')
+    messages.success(request, f'Cupón "{code}" eliminado.')
+    return redirect('panel:coupons')

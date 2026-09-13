@@ -1,0 +1,92 @@
+{% load humanize %}
+{% comment %}
+  Solo filas <tr>: este trozo se inserta dentro de un <tbody> y el navegador
+  descarta cualquier etiqueta que no sea válida ahí. El aviso fuera de banda
+  vive en coupons_panel.html, que es un <div> y no tiene esa restricción.
+{% endcomment %}
+{% for c in coupons %}
+  <tr data-pk="{{ c.pk }}">
+    <td>
+      <div class="cell-title" style="font-family:ui-monospace,monospace;letter-spacing:.5px">{{ c.code }}</div>
+      {% if c.description %}<div class="cell-sub">{{ c.description }}</div>{% endif %}
+    </td>
+
+    <td>
+      <span class="badge-soft purple">{{ c.etiqueta }}</span>
+      {% if c.min_purchase %}
+        <div class="cell-sub">desde ${{ c.min_purchase|floatformat:0|intcomma }}</div>
+      {% endif %}
+    </td>
+
+    <td class="cell-sub">
+      {% if c.starts_at or c.ends_at %}
+        <div>
+          <i class="bi bi-calendar-event"></i>
+          {% if c.starts_at %}{{ c.starts_at|date:'d M H:i' }}{% else %}desde ya{% endif %}
+          →
+          {% if c.ends_at %}{{ c.ends_at|date:'d M H:i' }}{% else %}sin vencimiento{% endif %}
+        </div>
+      {% endif %}
+      {% if c.once_per_email %}
+        <div><i class="bi bi-person-check"></i> un uso por persona</div>
+      {% endif %}
+      {% if not c.starts_at and not c.ends_at and not c.once_per_email and not c.min_purchase %}
+        <span class="badge-soft gray">sin condiciones</span>
+      {% endif %}
+    </td>
+
+    <td>
+      {% comment %}
+        Se cuentan solo las compras PAGADAS: una orden abandonada a medio pagar
+        no gastó el cupón (ver Coupon.usos).
+      {% endcomment %}
+      <span class="cell-title">{{ c.usos }}</span>
+      {% if c.max_uses %}<span class="cell-sub"> de {{ c.max_uses }}</span>{% endif %}
+    </td>
+
+    <td>
+      {% if not c.is_active %}
+        <span class="badge-soft gray">Apagado</span>
+      {% elif c.por_empezar %}
+        <span class="badge-soft yellow">Programado</span>
+      {% elif c.vencido %}
+        <span class="badge-soft red">Vencido</span>
+      {% elif c.agotado %}
+        <span class="badge-soft red">Agotado</span>
+      {% else %}
+        <span class="badge-soft green">Activo</span>
+      {% endif %}
+    </td>
+
+    <td class="text-end">
+      <div class="d-inline-flex gap-2">
+        <button type="button" class="btn-icon pnl-ojo{% if c.is_active %} activo{% endif %}"
+                aria-label="Activar o desactivar el cupón {{ c.code }}"
+                title="{% if c.is_active %}Está encendido. Haz clic para apagarlo: deja de servir al instante.{% else %}Está apagado. Haz clic para encenderlo.{% endif %}"
+                hx-post="{% url 'panel:coupon_toggle_active' c.pk %}"
+                hx-target="#pnl-cupones-panel"
+                hx-swap="innerHTML transition:false">
+          <i class="bi {% if c.is_active %}bi-toggle-on{% else %}bi-toggle-off{% endif %}"></i>
+        </button>
+        <a href="{% url 'panel:coupon_edit' c.pk %}" class="btn-icon" title="Editar"><i class="bi bi-pencil"></i></a>
+        <button class="btn-icon danger" title="Eliminar"
+                hx-post="{% url 'panel:coupon_delete' c.pk %}"
+                hx-confirm="¿Eliminar el cupón «{{ c.code }}»?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.35s">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr class="no-hover">
+    <td colspan="6" class="empty-cell">
+      {% if q %}
+        No hay cupones que coincidan con «{{ q }}».
+      {% else %}
+        Todavía no hay cupones.
+        <a href="{% url 'panel:coupon_new' %}">Crear el primero</a>.
+      {% endif %}
+    </td>
+  </tr>
+{% endfor %}

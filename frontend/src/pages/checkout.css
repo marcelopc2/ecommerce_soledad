@@ -338,6 +338,61 @@
 .co-item-antes { font-size: 12.5px; color: #94a3b8; text-decoration: line-through; margin-right: 6px; }
 .co-item-oferta { color: #e7000b; font-weight: 700; }
 
+/* ---------- Cupón ----------
+   Campo + botón en una sola fila del resumen. Deliberadamente discreto: quien
+   no tiene cupón no debería sentir que se está perdiendo algo justo antes de
+   pagar (es la forma más clásica de abandonar un carro: irse a buscar uno). */
+.co-cupon {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--lp-border);
+}
+.co-cupon input {
+  flex: 1;
+  min-width: 0;              /* sin esto el input desborda el resumen en móvil */
+  padding: 9px 12px;
+  font-size: 14px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  border: 1px solid var(--lp-border);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--lp-ink);
+}
+.co-cupon input::placeholder { text-transform: none; letter-spacing: 0; color: #94a3b8; }
+.co-cupon input:focus { outline: none; border-color: var(--lp-purple, #590599); }
+.co-cupon button {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: 1px solid var(--lp-border);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--lp-ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.co-cupon button:hover:not(:disabled) { background: #faf7fd; border-color: #cbb6df; }
+.co-cupon button:disabled { opacity: .5; cursor: not-allowed; }
+
+.co-cupon-ok { color: #17804a; }
+.co-cupon-ok strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.co-cupon-quitar {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  color: #94a3b8;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.co-cupon-quitar:hover { color: #64748b; }
+
 .co-total {
   display: flex;
   align-items: baseline;

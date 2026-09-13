@@ -6,6 +6,8 @@ from django.db import transaction
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.conf import settings
+from catalog.models import Product
+from . import coupons
 from .models import Order
 from .orders import build_order_from_request
 from .services import create_webpay_transaction, commit_webpay_transaction
@@ -321,3 +323,57 @@ class MercadoPagoWebhookView(APIView):
 
         # Siempre respondemos 200 para que MercadoPago no reintente indefinidamente.
         return Response(status=status.HTTP_200_OK)
+
+
+class ValidarCuponView(APIView):
+    """Dice si un código sirve para esta compra, ANTES de pagar.
+
+    Existe para que la persona vea "-$5.000" en el resumen en vez de descubrir
+    en la pasarela que el cupón no servía. No cobra ni reserva nada: la palabra
+    final la tiene la creación de la orden, que vuelve a revisarlo todo con el
+    mismo código (payments/coupons.py). Acá solo se informa.
+
+    Con throttle propio porque un código de cupón es adivinable a fuerza bruta:
+    sin tope, un script podría probar miles de combinaciones hasta dar con uno.
+    """
+    throttle_scope = 'cupon'
+
+    def post(self, request):
+        codigo = coupons.normalizar(request.data.get('code'))
+        if not codigo:
+            return Response({'ok': False, 'error': 'Escribe el código del cupón.'})
+
+        product_ids = request.data.get('product_ids') or []
+        if not isinstance(product_ids, list) or not product_ids:
+            return Response({'ok': False, 'error': 'No hay productos en la compra.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        productos = list(Product.objects.filter(id__in=product_ids, is_active=True))
+        if not productos:
+            return Response({'ok': False, 'error': 'Productos no encontrados.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        subtotal = int(sum(p.effective_price for p in productos))
+
+        cupon = coupons.buscar(codigo)
+        if cupon is None or not cupon.is_active:
+            # Un cupón apagado responde EXACTAMENTE igual que uno inexistente.
+            # Distinguirlos le confirma a quien prueba códigos al azar cuáles
+            # acertó, y los códigos se reciclan entre campañas: el de la
+            # promoción pasada, apagado hoy, delataría el patrón de los nombres.
+            return Response({'ok': False, 'error': 'Ese cupón no existe o ya no está disponible.'})
+
+        # El correo puede no estar escrito todavía; en ese caso el límite "un uso
+        # por correo" no se puede evaluar acá y se evalúa al crear la orden.
+        email = (request.data.get('email') or '').strip()
+        descuento, problema = coupons.revisar(cupon, subtotal, email)
+        if problema:
+            return Response({'ok': False, 'error': problema})
+
+        return Response({
+            'ok': True,
+            'code': cupon.code,
+            'label': cupon.etiqueta,
+            'discount': descuento,
+            'subtotal': subtotal,
+        })

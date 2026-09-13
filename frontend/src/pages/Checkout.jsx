@@ -90,6 +90,10 @@ export default function Checkout() {
   const [courier, setCourier] = useState(null) // {courier, service, price, days}
   const [paying, setPaying] = useState(false)
   const [errorPago, setErrorPago] = useState('')   // error al iniciar el pago, junto al botón
+  const [cupon, setCupon] = useState('')           // lo que la persona escribe
+  const [cuponAplicado, setCuponAplicado] = useState(null) // {code, label, discount}
+  const [cuponMsg, setCuponMsg] = useState('')
+  const [revisandoCupon, setRevisandoCupon] = useState(false)
 
   // Con sesión iniciada, el correo de la cuenta viene puesto. En los productos
   // "solo para alumnos" además queda fijo: el servidor ancla la compra a esa
@@ -178,7 +182,11 @@ export default function Checkout() {
   const enOferta = product.is_on_sale && product.sale_price != null
   const precio = parseInt(product.effective_price ?? product.price, 10)
   const envio = courier ? courier.price : 0
-  const total = precio + envio
+  // El descuento se resta SOLO de los productos: el envío se cobra entero.
+  // Es la misma regla del servidor (payments/orders.py); si acá se calculara
+  // distinto, el resumen mostraría un total que no es el que se cobra.
+  const descuento = cuponAplicado ? cuponAplicado.discount : 0
+  const total = Math.max(0, precio - descuento) + envio
 
   // Errores por campo. Se calculan siempre, pero solo se MUESTRAN cuando la
   // persona ya pasó por el campo (`tocado`) o cuando intentó pagar: mostrar
@@ -205,6 +213,40 @@ export default function Checkout() {
 
   const marcarTodo = () => setTocado(Object.fromEntries(Object.keys(errores).map(k => [k, true])))
 
+  const aplicarCupon = async () => {
+    const code = cupon.trim()
+    if (!code || revisandoCupon) return
+    setRevisandoCupon(true); setCuponMsg('')
+    try {
+      // El correo va si ya está escrito: es lo que permite avisar acá mismo
+      // que el cupón es de un solo uso y esta persona ya lo gastó. Si todavía
+      // no lo escribió, el servidor igual lo revisa al crear la orden.
+      const { data } = await api.post('/payments/cupon/', {
+        code, product_ids: [product.id], email: contact.email.trim(),
+      })
+      if (data.ok) {
+        setCuponAplicado({ code: data.code, label: data.label, discount: data.discount })
+        setCuponMsg('')
+      } else {
+        setCuponAplicado(null)
+        setCuponMsg(data.error || 'Ese cupón no se puede usar.')
+      }
+    } catch (err) {
+      setCuponAplicado(null)
+      setCuponMsg(
+        err?.response?.status === 429
+          ? 'Demasiados intentos. Espera un minuto.'
+          : 'No se pudo revisar el cupón. Intenta de nuevo.'
+      )
+    } finally {
+      setRevisandoCupon(false)
+    }
+  }
+
+  const quitarCupon = () => {
+    setCuponAplicado(null); setCupon(''); setCuponMsg('')
+  }
+
   const handleCheckout = async (gateway) => {
     // Último resguardo: si igual se llama con datos malos, se marcan los
     // campos para que se vean los errores en vez de rebotar en el servidor.
@@ -217,6 +259,7 @@ export default function Checkout() {
       student_name: contact.student,   // va al diploma
       phone: contact.phone,
     }
+    if (cuponAplicado) payload.coupon_code = cuponAplicado.code
     if (requiereEnvio) {
       payload.shipping = {
         recipient_name: contact.name,
@@ -453,6 +496,40 @@ export default function Checkout() {
               <span>{courier ? clp(envio) : '—'}</span>
             </div>
           )}
+
+          {/* Cupón. Va DESPUÉS del envío y antes del total, que es el orden en
+              que se leen las cifras: precio, despacho, descuento, total. */}
+          {cuponAplicado ? (
+            <div className="co-item co-cupon-ok">
+              <span>
+                Cupón <strong>{cuponAplicado.code}</strong> ({cuponAplicado.label})
+                <button type="button" className="co-cupon-quitar" onClick={quitarCupon}>
+                  quitar
+                </button>
+              </span>
+              <span>&minus;{clp(descuento)}</span>
+            </div>
+          ) : (
+            <div className="co-cupon">
+              <input
+                type="text"
+                value={cupon}
+                placeholder="¿Tienes un cupón?"
+                aria-label="Código de cupón"
+                autoComplete="off"
+                autoCapitalize="characters"
+                onChange={e => { setCupon(e.target.value.toUpperCase()); setCuponMsg('') }}
+                /* Enter aplica el cupón en vez de enviar nada: este campo no
+                   vive dentro de un <form>, pero la gente igual aprieta Enter. */
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarCupon() } }}
+              />
+              <button type="button" onClick={aplicarCupon}
+                      disabled={!cupon.trim() || revisandoCupon}>
+                {revisandoCupon ? <Cargando /> : 'Aplicar'}
+              </button>
+            </div>
+          )}
+          {cuponMsg && <p className="co-msg co-msg-error">{cuponMsg}</p>}
 
           <div className="co-total">
             <span>Total</span>

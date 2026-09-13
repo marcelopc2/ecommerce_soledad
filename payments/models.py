@@ -51,6 +51,18 @@ class Order(models.Model):
     )
     customer_phone = models.CharField(max_length=30, blank=True)
 
+    # Cupón usado, si hubo. PROTECT y no SET_NULL: si se borrara el cupón, las
+    # ventas quedarían sin saber con qué descuento se vendieron. Un cupón usado
+    # se desactiva, no se borra (mismo criterio que los productos vendidos).
+    coupon = models.ForeignKey(
+        'Coupon', related_name='orders', on_delete=models.PROTECT,
+        null=True, blank=True,
+    )
+    #: Pesos descontados por el cupón. Se guarda aparte del total porque el
+    #: total ya viene rebajado y, sin esto, no habría cómo saber cuánto se
+    #: regaló ni reconstruir el precio de lista.
+    discount_amount = models.PositiveIntegerField(default=0)
+
     # Indexado porque es el orden por defecto de los listados del panel.
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -60,6 +72,131 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order {self.order_id} - {self.status}"
+
+
+
+class Coupon(models.Model):
+    """Un cupón de descuento, del tipo que se reparte en un CyberMonday.
+
+    Las reglas que se pueden configurar (fechas, tope de usos, un uso por
+    correo, compra mínima) están todas acá; quién decide si se puede usar en
+    una compra concreta es payments/coupons.py.
+
+    El descuento se aplica SOLO a los productos, nunca al despacho.
+    """
+
+    PORCENTAJE = 'PERCENT'
+    MONTO = 'AMOUNT'
+    TIPOS = (
+        (PORCENTAJE, 'Porcentaje de descuento'),
+        (MONTO, 'Monto fijo en pesos'),
+    )
+
+    # Se guarda siempre en mayúsculas (ver save): el código que escribe el
+    # cliente se compara normalizado, así "cyber25" y "CYBER25" son el mismo.
+    code = models.CharField(
+        max_length=30, unique=True, db_index=True,
+        help_text='Lo que escribe el cliente al pagar. Ej: CYBER2026',
+    )
+    description = models.CharField(
+        max_length=200, blank=True,
+        help_text='Nota interna para acordarse de para qué era. No la ve el cliente.',
+    )
+
+    discount_type = models.CharField(max_length=10, choices=TIPOS, default=PORCENTAJE)
+    value = models.PositiveIntegerField(
+        help_text='Si es porcentaje, de 1 a 100. Si es monto fijo, los pesos a descontar.',
+    )
+
+    min_purchase = models.PositiveIntegerField(
+        default=0, help_text='Compra mínima para poder usarlo. 0 = sin mínimo.',
+    )
+    starts_at = models.DateTimeField(
+        null=True, blank=True, help_text='Desde cuándo sirve. Vacío = desde ya.',
+    )
+    ends_at = models.DateTimeField(
+        null=True, blank=True, help_text='Hasta cuándo sirve. Vacío = sin vencimiento.',
+    )
+    max_uses = models.PositiveIntegerField(
+        null=True, blank=True, help_text='Tope de compras que pueden usarlo. Vacío = sin tope.',
+    )
+    once_per_email = models.BooleanField(
+        default=False, help_text='Cada correo puede usarlo una sola vez.',
+    )
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.code
+
+    def save(self, *args, **kwargs):
+        self.code = (self.code or '').strip().upper()
+        return super().save(*args, **kwargs)
+
+    @property
+    def usos(self):
+        """Cuántas compras PAGADAS lo usaron.
+
+        Se cuenta sobre las pagadas y no con un contador propio a propósito: un
+        contador que sube al crear la orden se queda alto para siempre cuando la
+        persona abandona el pago a medio camino, y termina agotando un cupón que
+        en realidad nadie usó. El costo es que dos compras simultáneas podrían
+        pasarse del tope por una; a la escala de esta tienda eso no pasa, y
+        regalar un descuento de más es mejor que no vender.
+
+        Si la consulta ya vino con `usos_pagados` anotado (lo hace la lista del
+        panel), se usa eso: sin el atajo, pintar 20 filas eran 20 consultas
+        más las que gatillan `agotado` y `vigente` sobre cada una.
+        """
+        anotado = getattr(self, 'usos_pagados', None)
+        if anotado is not None:
+            return anotado
+        return self.orders.filter(status='PAID').count()
+
+    def descuento_sobre(self, subtotal):
+        """Cuántos pesos descuenta sobre ese subtotal de productos.
+
+        Nunca más que el subtotal: un cupón de $10.000 sobre una compra de
+        $6.000 descuenta $6.000, no deja la orden en negativo.
+        """
+        subtotal = int(subtotal)
+        if subtotal <= 0:
+            return 0
+        if self.discount_type == self.PORCENTAJE:
+            bruto = subtotal * self.value // 100
+        else:
+            bruto = self.value
+        return max(0, min(int(bruto), subtotal))
+
+    @property
+    def etiqueta(self):
+        """Cómo se nombra el descuento en pantalla. Ej: "25%" o "$5.000"."""
+        if self.discount_type == self.PORCENTAJE:
+            return f'{self.value}%'
+        return '${:,.0f}'.format(self.value).replace(',', '.')
+
+    @property
+    def vencido(self):
+        from django.utils import timezone
+        return bool(self.ends_at and timezone.now() > self.ends_at)
+
+    @property
+    def agotado(self):
+        return self.max_uses is not None and self.usos >= self.max_uses
+
+    @property
+    def por_empezar(self):
+        from django.utils import timezone
+        return bool(self.starts_at and timezone.now() < self.starts_at)
+
+    @property
+    def vigente(self):
+        """True si hoy un cliente podría usarlo (sin mirar su compra)."""
+        return self.is_active and not self.vencido and not self.agotado and not self.por_empezar
 
 
 class OrderItem(models.Model):

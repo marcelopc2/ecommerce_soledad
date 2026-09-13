@@ -90,6 +90,11 @@ class CheckoutSerializer(serializers.Serializer):
     student_name = serializers.CharField(max_length=200)
     phone = serializers.CharField(max_length=30)
     shipping = ShippingSerializer(required=False, allow_null=True)
+    # Opcional: la mayoría de las compras no trae cupón. Que exista o sirva se
+    # decide en el servidor (payments/orders.py); acá solo se acepta el texto.
+    coupon_code = serializers.CharField(
+        max_length=30, required=False, allow_blank=True,
+    )
 
     def validate_customer_name(self, v):
         return validar_nombre(v, 'nombre del apoderado')
