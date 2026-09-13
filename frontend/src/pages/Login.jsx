@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
-import fondoLogin from '../assets/landing/login-fondo.webp'
+import ninos from '../assets/landing/ninos-armando.webp'
 import './landing.css'
 import './login.css'
 import CampoClave from '../components/CampoClave'
@@ -86,7 +86,7 @@ export default function Login() {
             debajo de la tarjeta, que lo cruza igual que en el Figma. */}
         <div className="lg-panel" aria-hidden="true">
           <div className="lg-panel-grid" />
-          <img src={fondoLogin} alt="" className="lg-panel-foto" />
+          <img src={ninos} alt="" className="lg-panel-ninos" />
         </div>
 
         <header className="lg-topbar">
