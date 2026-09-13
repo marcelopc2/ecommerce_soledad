@@ -34,58 +34,14 @@
   inset: 0 32% 0 0;
   background: linear-gradient(135deg, #2f0053 12%, #590599 72%);
 }
-/* La grilla de bloques, que es la marca de la casa en todo el diseño.
-   z-index 3 y no el orden del DOM: al meter la foto, la grilla quedó debajo
-   de ella y desapareció de la pantalla sin que nada fallara. Va ARRIBA de
-   todo -foto incluida- porque es lo que amarra el login con el resto del
-   sitio; de fondo, tapada, no cumple ninguna función. */
+/* La grilla de bloques, que es la marca de la casa en todo el diseño. */
 .lg-panel-grid {
   position: absolute;
   inset: 0;
-  z-index: 3;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 28px 28px;
-  pointer-events: none;
-}
-/* Los dos niños armando, recortados del fondo. NO son una figura al frente:
-   son una capa de fondo, entre el morado y la grilla.
-   Por eso van con opacidad y por debajo de la grilla (z 1 contra z 3). Puestos
-   al frente y nítidos quedaban como un recorte pegado encima, compitiendo con
-   el formulario en vez de acompañarlo.
-   Pegados al borde izquierdo y apoyados abajo: el texto va por encima y el
-   aire de la derecha es por donde entra la tarjeta.
-   El archivo trae los bordes laterales desvanecidos a mano. Con el recorte a
-   secas quedaban líneas rectas -el brazo del niño, la mesa- y se leía como un
-   rectángulo. Abajo no se desvanece: ese borde coincide con el fin de la
-   pantalla, así que no se lee como corte. */
-.lg-panel-ninos {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  /* El ancho es un % del panel, pero el panel crece con la pantalla y el texto
-     no: en 1920 el recorte se hacía enorme y le pasaba por encima al título.
-     El tope en px lo congela a partir de ahí. */
-  width: 46%;
-  max-width: 520px;
-  height: auto;
-  z-index: 1;
-  opacity: 0.55;
-  pointer-events: none;
-}
-
-/* Apaga la parte baja del recorte, que es donde está la mesa blanca: es la
-   zona más clara de la foto y es justo por donde pasan el botón y la pregunta
-   en blanco. Va ENCIMA del recorte (z 2) y debajo de la grilla (z 3). */
-.lg-panel::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 48%;
-  z-index: 2;
-  background: linear-gradient(to top, rgba(24, 0, 44, 0.62), transparent);
-  pointer-events: none;
 }
 
 /* ---------- Barra superior ---------- */
@@ -377,11 +333,7 @@
   /* En vertical el panel morado pasa a ser el fondo completo del bloque
      de texto y la tarjeta queda debajo, ya sobre blanco. */
   .lg-panel { inset: 0 0 52% 0; }
-  /* Apilado sí caben, porque ya no son una figura al frente sino fondo: el
-     título les pasa por encima y se lee igual. Se agrandan en proporción
-     porque la franja morada es mucho más angosta. */
-  .lg-panel-ninos { width: 80%; opacity: 0.42; }
-  .lg-inner { grid-template-columns: 1fr; gap: clamp(20px, 4vh, 34px); }
+    .lg-inner { grid-template-columns: 1fr; gap: clamp(20px, 4vh, 34px); }
   .lg-card-wrap { justify-self: center; max-width: 460px; }
   .lg-copy h1 { font-size: clamp(21px, 5.2vw, 27px); margin-bottom: 14px; }
   .lg-copy p { max-width: none; }
