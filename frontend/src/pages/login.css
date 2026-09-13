@@ -42,28 +42,40 @@
     linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 28px 28px;
 }
-/* Mosaico con los modelos reales, en vez de la foto del niño que ya se usa en
-   el banner de la portada: repetirla hacía que el login pareciera la misma
-   pantalla, y como es un recorte sobre fondo BLANCO, ese blanco se veía como
-   una mancha clara sobre el morado.
-   Va a sangre (cover) y por debajo de una capa morada: los modelos se
-   reconocen, pero el formulario sigue siendo lo que se lee primero. */
-.lg-panel-mosaico {
+/* Foto de ambiente que entregó la clienta: dos niños armando. Va a sangre
+   (cover) y llena el panel entero.
+   object-position left: en cover la foto se recorta a lo ancho, y centrada la
+   niña queda tapada por el título y el niño se pierde fuera del cuadro.
+   Anclada a la izquierda, la cara de la niña cae en el hueco que queda a la
+   derecha del título y el armado con la pinza queda debajo del texto.
+   No lleva opacidad: quien la apaga es el velo de abajo, así la foto conserva
+   su contraste en la zona clara en vez de verse lavada de forma pareja. */
+.lg-panel-foto {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.38;
+  object-position: left center;
   pointer-events: none;
 }
-/* La capa morada va DESPUÉS del mosaico en el DOM-order del panel (::after),
-   así tiñe también la foto y no solo el degradado de abajo. */
+/* Velo morado. Va DESPUÉS de la foto en el DOM-order del panel (::after), así
+   la tiñe a ella y no solo al degradado de abajo.
+   No es parejo a propósito: es denso a la izquierda, que es donde va el título
+   -texto amarillo y blanco de 48px que tiene que leerse sí o sí- y se abre
+   hacia la derecha, que es donde queda la foto a la vista. Un velo uniforme
+   obliga a elegir entre texto legible o foto visible; así se tienen las dos. */
 .lg-panel::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(47, 0, 83, 0.9) 10%, rgba(89, 5, 153, 0.82) 75%);
+  background:
+    linear-gradient(100deg,
+      rgba(37, 0, 66, 0.94) 0%,
+      rgba(47, 0, 83, 0.90) 30%,
+      rgba(76, 4, 133, 0.72) 58%,
+      rgba(89, 5, 153, 0.58) 100%),
+    linear-gradient(to top, rgba(37, 0, 66, 0.55) 0%, transparent 45%);
   pointer-events: none;
 }
 
@@ -356,7 +368,13 @@
   /* En vertical el panel morado pasa a ser el fondo completo del bloque
      de texto y la tarjeta queda debajo, ya sobre blanco. */
   .lg-panel { inset: 0 0 52% 0; }
-  .lg-panel-foto { opacity: 0.32; height: 74%; right: -6%; }
+  /* Apilado el recorte es mucho más cerrado, y anclado a la izquierda queda
+     medio niño y nada más: centrado entra la niña completa. El título ya ocupa
+     todo el ancho, así que acá el velo vuelve a ser parejo. */
+  .lg-panel-foto { object-position: center; }
+  .lg-panel::after {
+    background: linear-gradient(160deg, rgba(37, 0, 66, 0.90) 0%, rgba(89, 5, 153, 0.80) 100%);
+  }
   .lg-inner { grid-template-columns: 1fr; gap: clamp(20px, 4vh, 34px); }
   .lg-card-wrap { justify-self: center; max-width: 460px; }
   .lg-copy h1 { font-size: clamp(21px, 5.2vw, 27px); margin-bottom: 14px; }
