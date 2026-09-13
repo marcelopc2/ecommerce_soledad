@@ -49,22 +49,20 @@
   background-size: 28px 28px;
   pointer-events: none;
 }
-/* Los dos niños armando, recortados del fondo.
-   Antes iba la foto entera a sangre: para llenar un panel alto y angosto había
-   que ampliarla mucho, se pixelaba, y encima tapaba la grilla.
-   Recortada se apoya abajo a la derecha, a un tamaño cercano al original -o
-   sea nítida-, el morado y la grilla quedan a la vista, y el aire de la
-   izquierda es justo donde va el título.
-   Pegado al borde derecho del panel y sin sobresalir: sobre el blanco de la
-   derecha la mesa difuminada se ve como una mancha gris flotando.
-   El archivo trae los bordes izquierdo y derecho desvanecidos a mano. Con el
-   recorte a secas quedaban tres líneas rectas -el brazo del niño cortado, la
-   mesa cortada- y el conjunto se leía como un rectángulo pegado encima en vez
-   de fundirse con el morado. Abajo NO se desvanece: ese borde coincide con el
-   fin de la pantalla, así que no se lee como corte. */
+/* Los dos niños armando, recortados del fondo. NO son una figura al frente:
+   son una capa de fondo, entre el morado y la grilla.
+   Por eso van con opacidad y por debajo de la grilla (z 1 contra z 3). Puestos
+   al frente y nítidos quedaban como un recorte pegado encima, compitiendo con
+   el formulario en vez de acompañarlo.
+   Pegados al borde izquierdo y apoyados abajo: el texto va por encima y el
+   aire de la derecha es por donde entra la tarjeta.
+   El archivo trae los bordes laterales desvanecidos a mano. Con el recorte a
+   secas quedaban líneas rectas -el brazo del niño, la mesa- y se leía como un
+   rectángulo. Abajo no se desvanece: ese borde coincide con el fin de la
+   pantalla, así que no se lee como corte. */
 .lg-panel-ninos {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: 0;
   /* El ancho es un % del panel, pero el panel crece con la pantalla y el texto
      no: en 1920 el recorte se hacía enorme y le pasaba por encima al título.
@@ -73,18 +71,20 @@
   max-width: 520px;
   height: auto;
   z-index: 1;
+  opacity: 0.55;
   pointer-events: none;
 }
 
-/* Sombra de apoyo bajo la mesa, para que el recorte no flote sobre el morado.
-   Va ANTES del recorte en z, así queda por debajo de él. */
+/* Apaga la parte baja del recorte, que es donde está la mesa blanca: es la
+   zona más clara de la foto y es justo por donde pasan el botón y la pregunta
+   en blanco. Va ENCIMA del recorte (z 2) y debajo de la grilla (z 3). */
 .lg-panel::after {
   content: '';
   position: absolute;
   inset: auto 0 0 0;
-  height: 42%;
-  z-index: 0;
-  background: linear-gradient(to top, rgba(24, 0, 44, 0.55), transparent);
+  height: 48%;
+  z-index: 2;
+  background: linear-gradient(to top, rgba(24, 0, 44, 0.62), transparent);
   pointer-events: none;
 }
 
@@ -377,11 +377,10 @@
   /* En vertical el panel morado pasa a ser el fondo completo del bloque
      de texto y la tarjeta queda debajo, ya sobre blanco. */
   .lg-panel { inset: 0 0 52% 0; }
-  /* Apilado no hay dónde ponerlos. La franja morada mide unos 400px de alto, el
-     título ocupa todo el ancho y la tarjeta tapa desde la mitad: quedaban dos
-     cabezas asomándose y el título cruzándoles la cara. Mejor el morado con la
-     grilla, que se sostiene solo. */
-  .lg-panel-ninos { display: none; }
+  /* Apilado sí caben, porque ya no son una figura al frente sino fondo: el
+     título les pasa por encima y se lee igual. Se agrandan en proporción
+     porque la franja morada es mucho más angosta. */
+  .lg-panel-ninos { width: 80%; opacity: 0.42; }
   .lg-inner { grid-template-columns: 1fr; gap: clamp(20px, 4vh, 34px); }
   .lg-card-wrap { justify-self: center; max-width: 460px; }
   .lg-copy h1 { font-size: clamp(21px, 5.2vw, 27px); margin-bottom: 14px; }
