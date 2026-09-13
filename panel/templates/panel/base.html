@@ -194,6 +194,55 @@
 {% block scripts %}{% endblock %}
 
 {% comment %}
+  El menú lateral recuerda hasta dónde estaba scrolleado.
+
+  El menú tiene su propio scroll (.pnl-nav lleva overflow-y en pantallas altas
+  de 900px) y hx-boost reemplaza el contenido del body entero en cada
+  navegación: el <nav> se vuelve a crear desde cero y su scrollTop nace en 0.
+  El resultado era que al hacer clic en una entrada del final -Cupones,
+  Testimonios, Preguntas frecuentes- el menú saltaba de vuelta arriba y había
+  que volver a bajarlo para seguir trabajando en esa zona.
+
+  Va por sessionStorage y no por una variable suelta para que también aguante
+  una recarga de verdad (F5, o abrir una pantalla del panel desde un favorito),
+  no solo las navegaciones boosted.
+{% endcomment %}
+<script>
+  (function () {
+    // Mismo resguardo que el modal de confirmación: este script se re-ejecuta
+    // en cada navegación boosted, pero document.body persiste, así que los
+    // listeners no deben registrarse dos veces.
+    if (document.body.dataset.navScrollBound) return
+    document.body.dataset.navScrollBound = '1'
+
+    var CLAVE = 'pnl-nav-scroll'
+
+    function guardar(e) {
+      var el = e.target
+      if (el && el.classList && el.classList.contains('pnl-nav')) {
+        try { sessionStorage.setItem(CLAVE, el.scrollTop) } catch (_) {}
+      }
+    }
+
+    function restaurar() {
+      var nav = document.querySelector('.pnl-nav')
+      if (!nav) return
+      var y = 0
+      try { y = parseInt(sessionStorage.getItem(CLAVE) || '0', 10) } catch (_) {}
+      if (y > 0) nav.scrollTop = y
+    }
+
+    // El evento scroll NO burbujea, así que no sirve escucharlo en el body:
+    // hay que hacerlo en fase de captura sobre el documento. Se guarda mientras
+    // la persona scrollea, y no justo antes del swap, porque con las
+    // transiciones de vista el <nav> viejo ya puede no estar accesible ahí.
+    document.addEventListener('scroll', guardar, true)
+    document.body.addEventListener('htmx:afterSwap', restaurar)
+    restaurar()
+  })()
+</script>
+
+{% comment %}
   Modal de confirmación propio: reemplaza el confirm() nativo del navegador en
   TODAS las acciones que usan hx-confirm (eliminar, pausar, activar/desactivar, etc.).
   No va dentro de un bloque de la plantilla, para que esté siempre presente,
