@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from catalog.models import Product
+from .models import PuntoRetiro
 from .services import (
     get_shipping_quotes, get_communes, build_package_from_products,
     CotizacionNoDisponible,
@@ -59,4 +60,29 @@ class QuoteShippingView(APIView):
             'shipping_required': True,
             'package': package,
             'quotes': quotes,
+        })
+
+
+class PuntoRetiroView(APIView):
+    """Dónde se puede retirar en persona, para mostrarlo en el checkout.
+
+    Responde `{disponible: false}` cuando la tienda tiene el retiro apagado o
+    todavía no carga la dirección: así el checkout simplemente no ofrece la
+    opción, en vez de ofrecerla y no saber decir dónde hay que ir.
+    """
+
+    def get(self, request):
+        punto = PuntoRetiro.cargar()
+        if not punto.disponible:
+            return Response({'disponible': False})
+        return Response({
+            'disponible': True,
+            'nombre': punto.nombre,
+            'direccion': punto.direccion,
+            'comuna': punto.comuna,
+            'ciudad': punto.ciudad,
+            'referencia': punto.referencia,
+            'horario': punto.horario,
+            'instrucciones': punto.instrucciones,
+            'mapa_url': punto.mapa_url,
         })

@@ -21,6 +21,10 @@ urlpatterns = [
     path('pedidos/<int:pk>/despachar/', views.order_shipment_dispatch, name='order_shipment_dispatch'),
     path('pedidos/<int:pk>/eliminar/', views.order_delete, name='order_delete'),
 
+    path('retiro-en-tienda/', views.punto_retiro, name='punto_retiro'),
+    path('pedidos/<int:pk>/listo-para-retiro/', views.order_pickup_ready, name='order_pickup_ready'),
+    path('pedidos/<int:pk>/retirado/', views.order_picked_up, name='order_picked_up'),
+
     path('cupones/', views.coupons, name='coupons'),
     path('cupones/nuevo/', views.coupon_form, name='coupon_new'),
     path('cupones/<int:pk>/editar/', views.coupon_form, name='coupon_edit'),

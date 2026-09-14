@@ -1,0 +1,148 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Retiro en tienda{% endblock %}
+{% block crumb %}Panel · Tienda{% endblock %}
+{% block heading %}Retiro en tienda{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-check form-switch mb-1">
+          {{ form.activo }}
+          <label class="form-check-label" for="{{ form.activo.id_for_label }}">
+            <strong>{{ form.activo.label }}</strong>
+          </label>
+        </div>
+        <div class="pnl-campo-ayuda">
+          Cuando está encendido, en el checkout aparece "Retiro en tienda" como
+          alternativa al despacho, sin costo. Apagarlo lo saca al instante, sin
+          tocar los pedidos que ya lo eligieron.
+        </div>
+        {% for e in form.activo.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+      </div></div>
+
+      <div class="pnl-card mt-3"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-shop"></i> La tienda</div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.nombre.label }}</label>
+          {{ form.nombre }}
+          {% for e in form.nombre.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.direccion.label }}</label>
+          {{ form.direccion }}
+          <div class="pnl-campo-ayuda">{{ form.direccion.help_text }}</div>
+          {% for e in form.direccion.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">{{ form.comuna.label }}</label>
+            {{ form.comuna }}
+            {% for e in form.comuna.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">{{ form.ciudad.label }}</label>
+            {{ form.ciudad }}
+            {% for e in form.ciudad.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-3 mt-3">
+          <label class="form-label">{{ form.referencia.label }}</label>
+          {{ form.referencia }}
+          <div class="pnl-campo-ayuda">{{ form.referencia.help_text }}</div>
+          {% for e in form.referencia.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.mapa_url.label }}</label>
+          {{ form.mapa_url }}
+          <div class="pnl-campo-ayuda">{{ form.mapa_url.help_text }}</div>
+          {% for e in form.mapa_url.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div></div>
+
+      <div class="pnl-card mt-3"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-clock"></i> Cuándo y cómo</div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.horario.label }}</label>
+          {{ form.horario }}
+          <div class="pnl-campo-ayuda">
+            {{ form.horario.help_text }} Puedes escribir varias líneas; se ven tal
+            cual en el checkout y en el correo.
+          </div>
+          {% for e in form.horario.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.instrucciones.label }}</label>
+          {{ form.instrucciones }}
+          <div class="pnl-campo-ayuda">{{ form.instrucciones.help_text }}</div>
+          {% for e in form.instrucciones.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div></div>
+
+      <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-box-seam"></i> Estado</div>
+      {% if punto.disponible %}
+        <p class="mb-2"><span class="badge-soft green">Se está ofreciendo</span></p>
+        <div class="pnl-campo-ayuda">
+          Los clientes pueden elegir retiro en tienda al pagar.
+        </div>
+      {% elif punto.activo %}
+        <p class="mb-2"><span class="badge-soft yellow">Incompleto</span></p>
+        <div class="pnl-campo-ayuda">
+          Está encendido pero le falta la dirección o el horario, así que
+          <strong>no aparece</strong> en el checkout. Completa los dos y guarda.
+        </div>
+      {% else %}
+        <p class="mb-2"><span class="badge-soft gray">Apagado</span></p>
+        <div class="pnl-campo-ayuda">
+          Hoy la única forma de recibir es el despacho a domicilio.
+        </div>
+      {% endif %}
+
+      <hr>
+      <div class="pnl-campo-ayuda">
+        {% if por_entregar %}
+          Hay <strong>{{ por_entregar }}</strong> pedido{{ por_entregar|pluralize }}
+          pagado{{ por_entregar|pluralize }} esperando que alguien lo retire.
+          <a href="{% url 'panel:orders' %}">Ver pedidos</a>.
+        {% else %}
+          No hay pedidos esperando retiro.
+        {% endif %}
+      </div>
+    </div></div>
+
+    <div class="pnl-card mt-3"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-question-circle"></i> Cómo funciona</div>
+      <ul class="pnl-campo-ayuda" style="padding-left:18px;margin:0;line-height:1.7">
+        <li>El retiro es <strong>sin costo</strong> y no se cotiza: no hay courier
+            que pagar.</li>
+        <li>Un pedido de retiro <strong>no genera envío</strong>, así que no
+            aparece en la lista de despachos ni pide número de seguimiento.</li>
+        <li>Cuando lo tengas preparado, entra al pedido y aprieta
+            <strong>"Avisar que está listo"</strong>: le llega un correo con la
+            dirección y el horario.</li>
+        <li>Cuando la persona venga a buscarlo, marca <strong>"Retirado"</strong>
+            para cerrarlo.</li>
+      </ul>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

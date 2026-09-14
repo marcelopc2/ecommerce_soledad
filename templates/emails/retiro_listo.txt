@@ -1,0 +1,20 @@
+¡Listo para retirar, {{ nombre }}!
+
+Tu pedido ya está preparado y te espera en la tienda.
+Acá va todo lo que necesitas para pasar a buscarlo:
+
+Pedido:    {{ pedido }}
+Dónde:     {{ lugar }}
+           {{ direccion }}
+{% if referencia %}           {{ referencia }}
+{% endif %}Horario:   {{ horario }}
+{% if instrucciones %}Al llegar: {{ instrucciones }}
+{% endif %}{% if mapa_url %}
+Ver en el mapa: {{ mapa_url }}
+{% endif %}
+Mientras tanto, tu Aula Virtual ya está disponible:
+puedes ir mirando el primer modelo.
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

@@ -10,6 +10,7 @@ from catalog.models import (
     SeccionConcurso, GanadorConcurso,
 )
 from payments.models import Coupon
+from shipments.models import PuntoRetiro
 from lms.models import (
     AjustesAula, CategoryCourse, Course, CourseCategory, Lesson, Membership, Diploma,
     PerfilUsuario,
@@ -839,4 +840,54 @@ class CouponForm(BootstrapFormMixin, forms.ModelForm):
         if inicio and fin and fin <= inicio:
             self.add_error('ends_at', 'La fecha de término tiene que ser posterior a la de inicio.')
 
+        return datos
+
+
+class PuntoRetiroForm(BootstrapFormMixin, forms.ModelForm):
+    """La tienda donde la gente puede pasar a buscar su pedido."""
+
+    class Meta:
+        model = PuntoRetiro
+        fields = [
+            'activo', 'nombre', 'direccion', 'comuna', 'ciudad',
+            'referencia', 'horario', 'instrucciones', 'mapa_url',
+        ]
+        labels = {
+            'activo': 'Ofrecer retiro en tienda',
+            'nombre': 'Nombre del lugar',
+            'direccion': 'Dirección',
+            'comuna': 'Comuna',
+            'ciudad': 'Ciudad',
+            'referencia': 'Cómo encontrarlo',
+            'horario': 'Horario de retiro',
+            'instrucciones': 'Qué tiene que hacer al llegar',
+            'mapa_url': 'Link al mapa',
+        }
+        widgets = {
+            'direccion': forms.TextInput(attrs={'placeholder': 'Av. Apoquindo 1234'}),
+            'referencia': forms.TextInput(attrs={'placeholder': 'Piso 2, local 15, frente al ascensor'}),
+            'horario': forms.Textarea(attrs={
+                'rows': 3, 'placeholder': 'Lunes a viernes de 10:00 a 18:00\nSábados de 10:00 a 14:00',
+            }),
+            'instrucciones': forms.Textarea(attrs={
+                'rows': 2, 'placeholder': 'Presenta tu número de pedido y tu carnet.',
+            }),
+            'mapa_url': forms.URLInput(attrs={'placeholder': 'https://maps.app.goo.gl/...'}),
+        }
+
+    def clean(self):
+        """No se puede encender sin dirección ni horario.
+
+        Sin dirección el retiro es una promesa sin lugar, y sin horario la gente
+        llega cuando está cerrado. El checkout ya se protege solo (no ofrece la
+        opción si falta alguno de los dos), pero avisarlo acá evita que la
+        clienta lo marque, guarde, y se quede esperando una opción que nunca
+        aparece sin entender por qué.
+        """
+        datos = super().clean()
+        if datos.get('activo'):
+            if not (datos.get('direccion') or '').strip():
+                self.add_error('direccion', 'Para ofrecer retiro hay que decir dónde es.')
+            if not (datos.get('horario') or '').strip():
+                self.add_error('horario', 'Para ofrecer retiro hay que decir cuándo se puede ir.')
         return datos

@@ -28,12 +28,13 @@ from lms.services import (
     get_course_access, precargar_listado, reanudar_goteo, send_reset_email,
 )
 from payments.models import Coupon, Order
-from shipments.services import send_dispatch_email
+from shipments.models import PuntoRetiro
+from shipments.services import send_dispatch_email, send_pickup_ready_email
 from .forms import (
     LoginForm, ProductForm, CourseForm, CourseCategoryForm, LessonForm, MembershipForm,
     DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm,
     MembershipExpiryForm, StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
-    CouponForm,
+    CouponForm, PuntoRetiroForm,
     MiCuentaForm,
 )
 
@@ -1028,6 +1029,9 @@ def order_detail(request, pk):
         # DoesNotExist (que hereda de AttributeError), así que getattr da None.
         'invoice': getattr(order, 'invoice', None),
         'shipment': getattr(order, 'shipment', None),
+        # Para los pedidos de retiro: la tarjeta muestra DÓNDE hay que ir, y eso
+        # vive en la configuración de la tienda, no en la orden.
+        'punto': PuntoRetiro.cargar() if order.es_retiro else None,
         'section': 'orders',
     })
 
@@ -2173,3 +2177,88 @@ def coupon_delete(request, pk):
         return HttpResponse('')
     messages.success(request, f'Cupón "{code}" eliminado.')
     return redirect('panel:coupons')
+
+
+# ---------------------------------------------------------------------------
+# Retiro en tienda
+# ---------------------------------------------------------------------------
+
+@staff_required
+def punto_retiro(request):
+    """Dónde y cuándo se puede pasar a buscar un pedido."""
+    punto = PuntoRetiro.cargar()
+    form = PuntoRetiroForm(request.POST or None, instance=punto)
+    if request.method == 'POST' and form.is_valid():
+        obj = form.save()
+        messages.success(
+            request,
+            'Retiro en tienda activado: ya aparece en el checkout.' if obj.disponible
+            else 'Datos guardados. El retiro está apagado, así que no aparece en el checkout.',
+        )
+        return redirect('panel:punto_retiro')
+    return render(request, 'panel/punto_retiro.html', {
+        'form': form, 'punto': punto, 'section': 'punto-retiro',
+        # Pedidos de retiro que todavía nadie vino a buscar: es lo que la
+        # clienta viene a ver acá cuando abre la pantalla.
+        'por_entregar': Order.objects.filter(
+            delivery_method=Order.RETIRO, status='PAID', picked_up_at__isnull=True,
+        ).count(),
+    })
+
+
+@staff_required
+@require_POST
+def order_pickup_ready(request, pk):
+    """Avisa al cliente que su pedido ya está listo para retirar."""
+    order = get_object_or_404(Order, pk=pk)
+    if not order.es_retiro:
+        messages.error(request, 'Este pedido es con despacho, no con retiro en tienda.')
+        return redirect('panel:order_detail', pk=pk)
+
+    punto = PuntoRetiro.cargar()
+    if not punto.completo:
+        messages.error(
+            request,
+            'Falta cargar la dirección y el horario de la tienda antes de avisar. '
+            'El correo llevaría el lugar en blanco.',
+        )
+        return redirect('panel:punto_retiro')
+
+    order.pickup_ready_at = timezone.now()
+    order.save(update_fields=['pickup_ready_at'])
+
+    try:
+        send_pickup_ready_email(order, punto)
+        messages.success(request, 'Se le avisó al cliente que puede pasar a retirar.')
+    except Exception:
+        log.exception('Falló el correo de retiro del pedido %s', order.order_id)
+        messages.warning(
+            request,
+            'Se marcó como listo, pero no se pudo enviar el correo de aviso. '
+            'Avísale por otro medio.',
+        )
+    return redirect('panel:order_detail', pk=pk)
+
+
+@staff_required
+@require_POST
+def order_picked_up(request, pk):
+    """Cierra el retiro: la persona vino y se lo llevó.
+
+    No manda correo: quien está marcando esto lo tiene al cliente enfrente, y un
+    correo diciendo "retiraste tu pedido" no le aporta nada a nadie.
+    """
+    order = get_object_or_404(Order, pk=pk)
+    if not order.es_retiro:
+        messages.error(request, 'Este pedido es con despacho, no con retiro en tienda.')
+        return redirect('panel:order_detail', pk=pk)
+
+    order.picked_up_at = timezone.now()
+    # Si se retiró sin haber avisado nunca (vino a preguntar y se lo llevó), se
+    # deja igual la marca de aviso: sin ella el pedido quedaba en un estado raro
+    # -retirado pero "preparando"- en los listados.
+    if not order.pickup_ready_at:
+        order.pickup_ready_at = order.picked_up_at
+    order.save(update_fields=['picked_up_at', 'pickup_ready_at'])
+    messages.success(request, 'Pedido marcado como retirado.')
+    return redirect('panel:order_detail', pk=pk)

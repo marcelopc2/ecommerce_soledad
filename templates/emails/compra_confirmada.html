@@ -46,7 +46,9 @@
     </tr>
   </table>
 
-  {% if tiene_envio %}
+  {% if es_retiro %}
+    {% include 'emails/_p.html' with texto="Elegiste retirar en tienda. Te avisaremos por correo apenas tu pedido esté listo, con la dirección y el horario. No vayas antes de recibir ese aviso." %}
+  {% elif tiene_envio %}
     {% include 'emails/_p.html' with texto="Te avisaremos por correo apenas despachemos tu kit, con el número de seguimiento." %}
   {% endif %}
   {% if tiene_acceso %}

@@ -94,6 +94,8 @@ export default function Checkout() {
   const [cuponAplicado, setCuponAplicado] = useState(null) // {code, label, discount}
   const [cuponMsg, setCuponMsg] = useState('')
   const [revisandoCupon, setRevisandoCupon] = useState(false)
+  const [retiro, setRetiro] = useState(null)        // el punto de retiro, o null si no hay
+  const [entrega, setEntrega] = useState('SHIPPING') // 'SHIPPING' | 'PICKUP'
 
   // Con sesión iniciada, el correo de la cuenta viene puesto. En los productos
   // "solo para alumnos" además queda fijo: el servidor ancla la compra a esa
@@ -108,6 +110,16 @@ export default function Checkout() {
         .then(res => setRegions(res.data.regions || []))
         .catch(() => {}) // sin comunas el formulario igual permite reintentar
     }
+  }, [product, requiereEnvio])
+
+  // El punto de retiro. Si la tienda lo tiene apagado o sin dirección cargada,
+  // el servidor responde {disponible:false} y acá no se ofrece la opción: es
+  // preferible no ofrecerla a ofrecerla sin poder decir dónde hay que ir.
+  useEffect(() => {
+    if (!product || !requiereEnvio) return
+    api.get('/shipping/retiro/')
+      .then(res => { if (res.data?.disponible) setRetiro(res.data) })
+      .catch(() => {})   // sin retiro, queda solo el despacho: el flujo de siempre
   }, [product, requiereEnvio])
 
   if (!product) {
@@ -181,7 +193,9 @@ export default function Checkout() {
   // oferta mostraba un total distinto al cobrado.
   const enOferta = product.is_on_sale && product.sale_price != null
   const precio = parseInt(product.effective_price ?? product.price, 10)
-  const envio = courier ? courier.price : 0
+  // Retirar es gratis y no se cotiza: no hay courier que pagar.
+  const esRetiro = requiereEnvio && entrega === 'PICKUP'
+  const envio = esRetiro ? 0 : (courier ? courier.price : 0)
   // El descuento se resta SOLO de los productos: el envío se cobra entero.
   // Es la misma regla del servidor (payments/orders.py); si acá se calculara
   // distinto, el resumen mostraría un total que no es el que se cobra.
@@ -196,7 +210,9 @@ export default function Checkout() {
     student: errorNombre(contact.student, 'nombre del niño o niña'),
     email: errorEmail(contact.email),
     phone: errorTelefono(contact.phone),
-    ...(requiereEnvio ? {
+    // Con retiro en tienda no hay dirección que pedir: exigirla igual dejaba el
+    // botón de pagar apagado para siempre.
+    ...(requiereEnvio && !esRetiro ? {
       region: errorTexto(region, 'Elige tu región.'),
       commune: errorTexto(commune, 'Elige tu comuna.'),
       street: errorTexto(address.street, 'Falta la calle.'),
@@ -206,9 +222,10 @@ export default function Checkout() {
   const ver = (campo) => (tocado[campo] ? errores[campo] : '')
 
   const datosListos = !errores.name && !errores.student && !errores.email && !errores.phone
-  const direccionLista = !requiereEnvio ||
+  const direccionLista = !requiereEnvio || esRetiro ||
     (!errores.region && !errores.commune && !errores.street && !errores.number)
-  const entregaLista = direccionLista && (!requiereEnvio || courier)
+  // Con retiro no hay cotización que elegir: basta con haber elegido retirar.
+  const entregaLista = direccionLista && (!requiereEnvio || esRetiro || courier)
   const puedePagar = datosListos && entregaLista && !paying
 
   const marcarTodo = () => setTocado(Object.fromEntries(Object.keys(errores).map(k => [k, true])))
@@ -260,7 +277,8 @@ export default function Checkout() {
       phone: contact.phone,
     }
     if (cuponAplicado) payload.coupon_code = cuponAplicado.code
-    if (requiereEnvio) {
+    if (esRetiro) payload.delivery_method = 'PICKUP'
+    if (requiereEnvio && !esRetiro) {
       payload.shipping = {
         recipient_name: contact.name,
         recipient_phone: contact.phone,
@@ -372,9 +390,67 @@ export default function Checkout() {
             <section className="co-card">
               <div className="co-paso-cabecera">
                 <span className="co-paso-num">2</span>
-                <h2>Dirección de envío</h2>
+                <h2>{retiro ? 'Entrega' : 'Dirección de envío'}</h2>
               </div>
 
+              {/* El selector solo aparece si de verdad hay dos opciones. Con la
+                  tienda cerrada o sin dirección cargada, el formulario queda
+                  exactamente como estaba antes: una sola forma de recibir. */}
+              {retiro && (
+                <div className="co-entrega">
+                  <label className={'co-entrega-op' + (entrega === 'SHIPPING' ? ' activa' : '')}>
+                    <input type="radio" name="entrega" checked={entrega === 'SHIPPING'}
+                           onChange={() => setEntrega('SHIPPING')} />
+                    <span>
+                      <span className="co-entrega-nombre">Despacho a domicilio</span>
+                      <span className="co-entrega-sub">Llega a tu casa. El costo se cotiza abajo.</span>
+                    </span>
+                  </label>
+                  <label className={'co-entrega-op' + (entrega === 'PICKUP' ? ' activa' : '')}>
+                    <input type="radio" name="entrega" checked={entrega === 'PICKUP'}
+                           onChange={() => setEntrega('PICKUP')} />
+                    <span>
+                      <span className="co-entrega-nombre">Retiro en tienda</span>
+                      <span className="co-entrega-sub">{retiro.comuna} · sin costo</span>
+                    </span>
+                    <span className="co-entrega-precio">Gratis</span>
+                  </label>
+                </div>
+              )}
+
+              {esRetiro ? (
+                <div className="co-retiro">
+                  <p className="co-retiro-nombre">{retiro.nombre}</p>
+                  <p className="co-retiro-dir">
+                    {retiro.direccion}, {retiro.comuna}
+                    {retiro.ciudad ? `, ${retiro.ciudad}` : ''}
+                  </p>
+                  {retiro.referencia && <p className="co-retiro-ref">{retiro.referencia}</p>}
+
+                  <div className="co-retiro-dato">
+                    <span className="co-retiro-et">Horario</span>
+                    <span>{retiro.horario}</span>
+                  </div>
+                  {retiro.instrucciones && (
+                    <div className="co-retiro-dato">
+                      <span className="co-retiro-et">Al llegar</span>
+                      <span>{retiro.instrucciones}</span>
+                    </div>
+                  )}
+
+                  {retiro.mapa_url && (
+                    <a className="co-retiro-mapa" href={retiro.mapa_url}
+                       target="_blank" rel="noreferrer">Ver en el mapa</a>
+                  )}
+
+                  <p className="co-nota co-nota-info" style={{ marginTop: 16 }}>
+                    <span aria-hidden="true">📦</span>
+                    Te avisamos por correo cuando tu pedido esté listo para retirar.
+                    No vayas antes de recibir ese aviso.
+                  </p>
+                </div>
+              ) : (
+              <>
               <div className="co-fila">
                 <div className="co-campo">
                   <label htmlFor="co-region">Región</label>
@@ -460,6 +536,8 @@ export default function Checkout() {
                   ))}
                 </div>
               )}
+              </>
+              )}
             </section>
           ) : (
             <section className="co-card">
@@ -491,10 +569,17 @@ export default function Checkout() {
           </div>
 
           {requiereEnvio && (
-            <div className="co-item">
-              <span>Envío {courier ? `(${courier.courier})` : ''}</span>
-              <span>{courier ? clp(envio) : '—'}</span>
-            </div>
+            esRetiro ? (
+              <div className="co-item">
+                <span>Retiro en tienda ({retiro.comuna})</span>
+                <span className="co-item-gratis">Gratis</span>
+              </div>
+            ) : (
+              <div className="co-item">
+                <span>Envío {courier ? `(${courier.courier})` : ''}</span>
+                <span>{courier ? clp(envio) : '—'}</span>
+              </div>
+            )
           )}
 
           {/* Cupón. Va DESPUÉS del envío y antes del total, que es el orden en

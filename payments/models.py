@@ -51,6 +51,26 @@ class Order(models.Model):
     )
     customer_phone = models.CharField(max_length=30, blank=True)
 
+    # --- Cómo recibe el pedido ---
+    #
+    # Solo importa cuando hay algo físico. Con RETIRO no se crea Shipment: no
+    # hay courier, ni tracking, ni costo de despacho que cotizar, y crear uno
+    # vacío ensuciaba los listados de "pendientes de despacho" con pedidos que
+    # nadie va a despachar.
+    DESPACHO = 'SHIPPING'
+    RETIRO = 'PICKUP'
+    ENTREGA_CHOICES = (
+        (DESPACHO, 'Despacho a domicilio'),
+        (RETIRO, 'Retiro en tienda'),
+    )
+    delivery_method = models.CharField(
+        max_length=10, choices=ENTREGA_CHOICES, default=DESPACHO,
+    )
+    #: Cuándo se le avisó al cliente que su pedido está listo para retirar.
+    pickup_ready_at = models.DateTimeField(null=True, blank=True)
+    #: Cuándo se lo llevó. Es el equivalente a "entregado" de un despacho.
+    picked_up_at = models.DateTimeField(null=True, blank=True)
+
     # Cupón usado, si hubo. PROTECT y no SET_NULL: si se borrara el cupón, las
     # ventas quedarían sin saber con qué descuento se vendieron. Un cupón usado
     # se desactiva, no se borra (mismo criterio que los productos vendidos).
@@ -72,6 +92,23 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order {self.order_id} - {self.status}"
+
+    @property
+    def es_retiro(self):
+        return self.delivery_method == self.RETIRO
+
+    @property
+    def estado_retiro(self):
+        """En qué va el retiro: 'RETIRADO', 'AVISADO' o 'PREPARANDO'.
+
+        Se deriva de las dos fechas en vez de guardarse como un campo aparte,
+        así no hay forma de que el estado y las fechas se contradigan.
+        """
+        if self.picked_up_at:
+            return 'RETIRADO'
+        if self.pickup_ready_at:
+            return 'AVISADO'
+        return 'PREPARANDO'
 
 
 

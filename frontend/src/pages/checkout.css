@@ -298,6 +298,77 @@
 .co-cot-dias { display: block; font-size: 12.5px; font-weight: 400; color: var(--lp-body-c); margin-top: 2px; }
 .co-cot-precio { font-size: 15px; font-weight: 700; color: var(--lp-ink); white-space: nowrap; }
 
+/* ---------- Elegir cómo recibir ----------
+   Reusa la forma de .co-cotizacion (misma grilla, mismo estado activo) porque
+   es la misma decisión repetida dos veces en la pantalla: elegir una opción de
+   entrega entre varias. Dos tratamientos distintos para lo mismo obligaban a
+   volver a aprender el control. */
+.co-entrega {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.co-entrega-op {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 1.5px solid var(--lp-border);
+  border-radius: 12px;
+  padding: 13px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.co-entrega-op:hover { border-color: var(--lp-accent); }
+.co-entrega-op.activa { border-color: var(--lp-accent); background: #faf6ff; }
+.co-entrega-op input { accent-color: var(--lp-accent); width: 17px; height: 17px; }
+.co-entrega-nombre { font-size: 14px; font-weight: 600; color: var(--lp-ink); }
+.co-entrega-sub { display: block; font-size: 12.5px; color: var(--lp-body-c); margin-top: 2px; }
+.co-entrega-precio { font-size: 14px; font-weight: 700; color: #17804a; white-space: nowrap; }
+
+/* ---------- La tienda donde se retira ---------- */
+.co-retiro {
+  border: 1.5px solid var(--lp-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: #fcfaff;
+}
+.co-retiro-nombre {
+  margin: 0;
+  font-family: var(--lp-heading);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--lp-ink);
+}
+.co-retiro-dir { margin: 4px 0 0; font-size: 14.5px; color: var(--lp-ink); }
+.co-retiro-ref { margin: 3px 0 0; font-size: 13px; color: var(--lp-body-c); }
+.co-retiro-dato {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13.5px;
+  color: var(--lp-body-c);
+  /* El horario viene de un textarea del panel: los saltos de línea que escribió
+     la clienta tienen que verse tal cual, o "lunes a viernes / sábados" queda
+     todo pegado en un párrafo. */
+  white-space: pre-line;
+}
+.co-retiro-et {
+  flex: 0 0 72px;
+  font-weight: 700;
+  color: var(--lp-ink);
+  white-space: nowrap;
+}
+.co-retiro-mapa {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lp-accent);
+}
+
+.co-item-gratis { color: #17804a; font-weight: 700; }
+
 .co-msg { font-size: 13.5px; margin: 12px 0 0; }
 .co-msg-error { color: #c0392b; }
 

@@ -425,3 +425,28 @@ def send_dispatch_email(shipment):
             'estimado': f'Llegada estimada: {shipment.estimated_days}.' if shipment.estimated_days else '',
         },
     )
+
+
+def send_pickup_ready_email(order, punto):
+    """Avisa al cliente que su pedido ya está listo para pasar a buscarlo.
+
+    Lleva la dirección y el horario en el propio correo, y no solo un "pasa a
+    retirar": ese correo es el que la persona va a abrir en el celular parada en
+    la calle, así que tiene que bastarse solo.
+    """
+    nombre = (order.customer_name or '').split()
+    enviar_email(
+        'retiro_listo',
+        asunto='Tu pedido está listo para retirar · Ingenio Blocks',
+        destinatarios=[order.customer_email],
+        contexto={
+            'nombre': nombre[0] if nombre else 'Hola',
+            'lugar': punto.nombre,
+            'direccion': punto.direccion_completa,
+            'referencia': punto.referencia,
+            'horario': punto.horario,
+            'instrucciones': punto.instrucciones,
+            'mapa_url': punto.mapa_url,
+            'pedido': f'#{str(order.order_id)[:8]}',
+        },
+    )

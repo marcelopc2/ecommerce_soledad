@@ -57,6 +57,11 @@ def _send_order_confirmation(order, tiene_acceso):
         for p in order.products.all()
     ]
     tiene_envio = bool(shipment and shipment.shipping_cost)
+    # Con retiro en tienda no hay despacho que anunciar, y decir "te avisamos
+    # cuando lo despachemos" mandaría a la persona a esperar un paquete que
+    # nunca va a salir. Se le dice lo que sí va a pasar: que la avisaremos
+    # cuando pueda pasar a buscarlo.
+    es_retiro = order.es_retiro
     enviar_email(
         'compra_confirmada',
         asunto='Confirmación de tu compra · Ingenio Blocks',
@@ -68,6 +73,7 @@ def _send_order_confirmation(order, tiene_acceso):
             'envio_courier': shipment.courier if tiene_envio else '',
             'total': formato_clp(order.total_amount),
             'tiene_envio': tiene_envio,
+            'es_retiro': es_retiro,
             'tiene_acceso': tiene_acceso,
             'link': f'{settings.FRONTEND_URL}/mis-cursos',
         },

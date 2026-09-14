@@ -9,7 +9,7 @@ from catalog.models import Product
 from . import coupons
 from .models import Order, OrderItem
 from .serializers import CheckoutSerializer
-from shipments.models import Shipment
+from shipments.models import PuntoRetiro, Shipment
 from shipments.services import (
     get_shipping_quotes, build_package_from_products, CotizacionNoDisponible,
 )
@@ -106,11 +106,25 @@ def build_order_from_request(data, user=None):
             return None, problema
 
     has_physical = any(not p.is_digital for p in products)
+    # El retiro solo existe si hay algo físico. Marcarlo en una compra digital
+    # no es un error del cliente -el checkout ni siquiera lo ofrece-, así que se
+    # normaliza en silencio en vez de rechazar la compra.
+    retiro = has_physical and datos.get('delivery_method') == Order.RETIRO
 
     shipping_cost = 0
     validated = None
 
-    if has_physical:
+    if retiro:
+        # Se revalida contra la base y no contra lo que dice el cliente: si la
+        # tienda cerró el retiro mientras la persona llenaba el formulario, no
+        # se puede aceptar una compra que nadie va a poder entregar.
+        punto = PuntoRetiro.cargar()
+        if not punto.disponible:
+            return None, (
+                'El retiro en tienda no está disponible por ahora. '
+                'Elige despacho a domicilio.'
+            )
+    elif has_physical:
         if not shipping:
             return None, 'Faltan los datos de envío para un producto físico'
 
@@ -168,6 +182,7 @@ def build_order_from_request(data, user=None):
             total_amount=total_amount,
             coupon=cupon,
             discount_amount=descuento,
+            delivery_method=Order.RETIRO if retiro else Order.DESPACHO,
             status='PENDING',
         )
         order.products.set(products)
@@ -214,7 +229,8 @@ def build_order_from_request(data, user=None):
                 status='PENDING_DISPATCH',
             )
 
-    log.info('Orden %s creada por %s (total %s, %s producto/s%s)',
+    log.info('Orden %s creada por %s (total %s, %s producto/s%s%s)',
              order.order_id, customer_email, total_amount, len(products),
-             f', cupón {cupon.code} -{descuento}' if cupon else '')
+             f', cupón {cupon.code} -{descuento}' if cupon else '',
+             ', retiro en tienda' if retiro else '')
     return order, None

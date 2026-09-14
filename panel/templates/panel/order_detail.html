@@ -39,6 +39,12 @@
         ya vienen REBAJADOS (el cupón se reparte entre los productos para que la
         boleta cuadre). Sin esta fila no habría cómo saber que hubo cupón.
       {% endcomment %}
+      {% if order.es_retiro %}
+        <div class="mdetail-kv">
+          <span>Entrega</span>
+          <strong><span class="badge-soft purple"><i class="bi bi-shop"></i> Retiro en tienda</span></strong>
+        </div>
+      {% endif %}
       {% if order.coupon %}
         <div class="mdetail-kv">
           <span>Cupón</span>
@@ -161,9 +167,63 @@
     </div></div>
   </div>
 
-  {# ---------- Despacho ---------- #}
+  {# ---------- Despacho o retiro ---------- #}
   <div class="col-lg-6">
     <div class="pnl-card h-100"><div class="card-pad">
+      {% if order.es_retiro %}
+        {% comment %}
+          Un pedido de retiro NO tiene Shipment: no hay courier, ni tracking, ni
+          etiqueta. Por eso es una tarjeta aparte y no un caso raro dentro de la
+          de despacho, donde la mitad de los campos quedarían vacíos.
+        {% endcomment %}
+        <div class="form-section-title"><i class="bi bi-shop"></i> Retiro en tienda</div>
+        <div class="mdetail-status-bar mb-3">
+          {% if order.estado_retiro == 'RETIRADO' %}
+            <span class="badge-soft green">Retirado</span>
+          {% elif order.estado_retiro == 'AVISADO' %}
+            <span class="badge-soft yellow">Avisado, esperando que lo retiren</span>
+          {% else %}
+            <span class="badge-soft purple">Por preparar</span>
+          {% endif %}
+        </div>
+
+        <div class="mdetail-kv"><span>Retira</span><strong>{{ order.customer_name|default:order.customer_email }}</strong></div>
+        {% if order.customer_phone %}
+          <div class="mdetail-kv"><span>Teléfono</span><strong>{{ order.customer_phone }}</strong></div>
+        {% endif %}
+        <div class="mdetail-kv"><span>Lugar</span><strong>{{ punto.direccion_completa|default:"—" }}</strong></div>
+        {% if order.pickup_ready_at %}
+          <div class="mdetail-kv"><span>Avisado</span><strong>{{ order.pickup_ready_at|date:'d M Y H:i' }}</strong></div>
+        {% endif %}
+        {% if order.picked_up_at %}
+          <div class="mdetail-kv"><span>Retirado</span><strong>{{ order.picked_up_at|date:'d M Y H:i' }}</strong></div>
+        {% endif %}
+
+        {% if order.status == 'PAID' and not order.picked_up_at %}
+          <div class="mdetail-actions mt-3">
+            {% if not order.pickup_ready_at %}
+              <button class="btn btn-brand"
+                      hx-post="{% url 'panel:order_pickup_ready' order.pk %}"
+                      hx-confirm="¿Avisarle a {{ order.customer_email }} que su pedido está listo para retirar? Le llega un correo con la dirección y el horario.">
+                <i class="bi bi-envelope-check me-1"></i> Avisar que está listo
+              </button>
+            {% endif %}
+            <button class="btn btn-ghost"
+                    hx-post="{% url 'panel:order_picked_up' order.pk %}"
+                    hx-confirm="¿Marcar este pedido como retirado? Es para cuando la persona ya se lo llevó.">
+              <i class="bi bi-bag-check me-1"></i> Marcar como retirado
+            </button>
+          </div>
+        {% endif %}
+
+        {% if order.status != 'PAID' %}
+          <p class="mdetail-note mt-3 mb-0">
+            <i class="bi bi-info-circle"></i>
+            Este pedido todavía no está pagado. No lo entregues hasta que aparezca como pagado.
+          </p>
+        {% endif %}
+
+      {% else %}
       <div class="form-section-title"><i class="bi bi-truck"></i> Despacho</div>
       {% if shipment %}
         <div class="mdetail-status-bar mb-3">
@@ -204,6 +264,7 @@
         {% endif %}
       {% else %}
         <p class="mdetail-note mb-0"><i class="bi bi-info-circle"></i> Este pedido no tiene envío (solo productos digitales o cursos).</p>
+      {% endif %}
       {% endif %}
     </div></div>
   </div>

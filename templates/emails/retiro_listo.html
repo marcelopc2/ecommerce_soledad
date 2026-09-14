@@ -1,0 +1,41 @@
+{% extends 'emails/base.html' %}
+
+{% block asunto %}Tu pedido está listo para retirar{% endblock %}
+{% block preheader %}Ya puedes pasar a buscarlo. Acá va la dirección y el horario.{% endblock %}
+{% block titulo %}¡Listo para retirar, {{ nombre }}!{% endblock %}
+
+{% block contenido %}
+  {% include 'emails/_p.html' with texto="Tu pedido ya está preparado y te espera en la tienda. Acá va todo lo que necesitas para pasar a buscarlo:" %}
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="margin:20px 0; border:1px solid #ece5f4; border-radius:10px; border-collapse:separate;">
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Pedido</td>
+      <td align="right" style="padding:13px 18px; font-family:'Courier New',monospace; font-size:14px; font-weight:bold; color:#2f0053; border-bottom:1px solid #f4f1f7;">{{ pedido }}</td>
+    </tr>
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Dónde</td>
+      <td align="right" style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:bold; color:#2f0053; border-bottom:1px solid #f4f1f7;">
+        {{ lugar }}<br>
+        <span style="font-weight:normal; color:#314158;">{{ direccion }}</span>
+        {% if referencia %}<br><span style="font-weight:normal; font-size:13px; color:#8a8095;">{{ referencia }}</span>{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095;{% if instrucciones %} border-bottom:1px solid #f4f1f7;{% endif %}">Horario</td>
+      <td align="right" style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158;{% if instrucciones %} border-bottom:1px solid #f4f1f7;{% endif %}">{{ horario|linebreaksbr }}</td>
+    </tr>
+    {% if instrucciones %}
+      <tr>
+        <td style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095;">Al llegar</td>
+        <td align="right" style="padding:13px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158;">{{ instrucciones|linebreaksbr }}</td>
+      </tr>
+    {% endif %}
+  </table>
+
+  {% if mapa_url %}
+    {% include 'emails/_boton.html' with url=mapa_url texto="Ver en el mapa" %}
+  {% endif %}
+
+  {% include 'emails/_p.html' with texto="Mientras tanto, tu Aula Virtual ya está disponible: puedes ir mirando el primer modelo." %}
+{% endblock %}

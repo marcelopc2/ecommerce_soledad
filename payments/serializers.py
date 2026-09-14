@@ -90,6 +90,11 @@ class CheckoutSerializer(serializers.Serializer):
     student_name = serializers.CharField(max_length=200)
     phone = serializers.CharField(max_length=30)
     shipping = ShippingSerializer(required=False, allow_null=True)
+    # Cómo recibe el pedido. Solo se mira si la compra trae algo físico; en una
+    # compra digital no hay nada que despachar ni que retirar.
+    delivery_method = serializers.ChoiceField(
+        choices=['SHIPPING', 'PICKUP'], required=False, default='SHIPPING',
+    )
     # Opcional: la mayoría de las compras no trae cupón. Que exista o sirva se
     # decide en el servidor (payments/orders.py); acá solo se acepta el texto.
     coupon_code = serializers.CharField(

@@ -4,6 +4,19 @@
     <td>
       <div class="cell-title">{{ o.customer_email }}</div>
       <div class="cell-sub mono">#{{ o.order_id|stringformat:'s'|slice:':8' }}</div>
+      {% comment %}
+        El retiro se marca en la lista y no solo dentro del pedido: es lo que
+        evita que alguien despache por error algo que el cliente va a venir a
+        buscar, y al revés, que un pedido de retiro quede olvidado porque nunca
+        aparece en la cola de despachos.
+      {% endcomment %}
+      {% if o.es_retiro %}
+        <span class="badge-soft purple" style="margin-top:4px"
+              title="El cliente pasa a buscarlo. No se despacha.">
+          <i class="bi bi-shop"></i>
+          Retiro{% if o.picked_up_at %} · retirado{% elif o.pickup_ready_at %} · avisado{% endif %}
+        </span>
+      {% endif %}
     </td>
     <td class="mono">{{ o.invoice.folio|default:"—" }}</td>
     <td class="text-end fw-semibold">${{ o.total_amount|floatformat:0|intcomma }}</td>
