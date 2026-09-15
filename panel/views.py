@@ -1177,6 +1177,27 @@ SECCIONES_CONTENIDO = {
 
 
 @staff_required
+def cfg_videos_legacy(request):
+    """La vieja pantalla de Videos de la portada, que ya no se usa.
+
+    Esos videos alimentaban la seccion "Sobre el Mundo Ingenio Blocks" de la
+    landing. Esa seccion ahora muestra los MODELOS del Aula con su trailer de
+    YouTube (catalog.views.VitrinaModelosView), asi que la pantalla quedo
+    administrando contenido que nadie ve.
+
+    Se saca del menu y se redirige a Cursos, que es donde hoy se configura el
+    trailer de cada modelo. No se borra el modelo LandingVideo ni sus filas:
+    borrarlas no le devuelve nada a nadie y perderia las portadas subidas.
+    """
+    messages.info(
+        request,
+        'La sección "Videos" ya no se usa: la portada ahora muestra los modelos '
+        'del Aula con su trailer. El trailer de cada modelo se configura al '
+        'editar el curso.',
+    )
+    return redirect('panel:courses')
+
+
 def configuracion_legacy(request):
     """La vieja pantalla única de Configuración, ahora repartida en el menú.
 

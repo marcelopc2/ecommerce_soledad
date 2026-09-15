@@ -76,7 +76,12 @@ urlpatterns = [
     # seis pestañas dentro de un cajón llamado "Configuración". Todas apuntan a
     # la misma vista; el `tab` decide qué se edita (ver SECCIONES_CONTENIDO).
     path('portada/como-funciona/', views.configuracion, {'tab': 'pasos'}, name='cfg_pasos'),
-    path('portada/videos/', views.configuracion, {'tab': 'videos'}, name='cfg_videos'),
+    # "Videos" ya no existe como pantalla: la seccion "Sobre el Mundo Ingenio
+    # Blocks" de la portada dejo de leer LandingVideo y ahora muestra los
+    # modelos del Aula con su trailer (ver catalog.views.VitrinaModelosView).
+    # La ruta se deja redirigiendo para no matar un favorito, y porque las
+    # vistas de guardar/borrar un video siguen apuntando aca.
+    path('portada/videos/', views.cfg_videos_legacy, name='cfg_videos'),
     path('portada/testimonios/', views.configuracion, {'tab': 'testimonios'}, name='cfg_testimonios'),
     path('portada/preguntas-frecuentes/', views.configuracion, {'tab': 'faqs'}, name='cfg_faqs'),
     path('portada/concurso/', views.configuracion, {'tab': 'concurso'}, name='cfg_concurso'),
