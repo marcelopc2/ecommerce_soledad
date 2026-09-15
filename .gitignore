@@ -56,3 +56,8 @@ dist-ssr
 
 # Archivos temporales de Office (se crean al abrir un .xlsx/.docx)
 ~$*
+
+# Volcados de la base vieja de WordPress. Pesan cientos de MB y traen los datos
+# personales de todos los clientes: no van al repositorio ni por accidente.
+*.sql
+*.sql.gz
