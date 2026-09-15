@@ -6,7 +6,7 @@ from .auth_views import (
     ChangePasswordView,
 )
 from .views import (
-    MyCoursesView, CourseDetailView, LessonPdfView, LessonImageView,
+    MyCoursesView, CourseDetailView, LessonPdfView, LessonImageView, LessonVideoView,
     LessonCompleteView, DiplomaDownloadView,
 )
 
@@ -29,5 +29,6 @@ student_urlpatterns = [
     path('lessons/<int:pk>/complete/', LessonCompleteView.as_view(), name='lms-lesson-complete'),
     path('lessons/<int:pk>/pdf/', LessonPdfView.as_view(), name='lms-lesson-pdf'),
     path('lessons/<int:pk>/image/', LessonImageView.as_view(), name='lms-lesson-image'),
+    path('lessons/<int:pk>/video/', LessonVideoView.as_view(), name='lms-lesson-video'),
     path('diplomas/<int:pk>/download/', DiplomaDownloadView.as_view(), name='lms-diploma-download'),
 ]

@@ -197,6 +197,9 @@ function LessonBody({ lesson, membershipActive }) {
     )
   }
   if (lesson.lesson_type === 'VIDEO') {
+    // Un video propio va primero: si el recurso tiene archivo, ese es el bueno.
+    // El embed de YouTube es el otro camino, para los videos largos.
+    if (lesson.has_video_file) return <LessonVideo lesson={lesson} />
     return lesson.video_embed_url
       ? <div className="lms-video-wrap"><iframe src={lesson.video_embed_url} title={lesson.title} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /></div>
       : <div className="lms-locked"><span className="lock">🎬</span><strong>Video no disponible</strong></div>
@@ -239,6 +242,51 @@ function LessonPdf({ lesson }) {
   return (
     <div className="lms-pdf-wrap">
       <iframe src={src} title={lesson.title} />
+    </div>
+  )
+}
+
+/* Video propio del Aula.
+ *
+ * Se baja como blob y no se apunta el <video> directo al endpoint porque la API
+ * autentica por token en una cabecera, y un <video src="..."> no manda
+ * cabeceras: apuntarlo directo daba 401. El blob queda en memoria del navegador,
+ * así que se puede adelantar y retroceder sin problema.
+ *
+ * El costo es que el archivo se descarga entero antes de empezar: por eso estos
+ * videos son para clips cortos y los largos van a YouTube (ver LessonVideoView). */
+function LessonVideo({ lesson }) {
+  const [src, setSrc] = useState(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let url
+    let cancelled = false
+    setSrc(null); setFailed(false)
+    api.get(`/lms/lessons/${lesson.id}/video/`, { responseType: 'blob' })
+      .then(res => {
+        if (cancelled) return
+        url = URL.createObjectURL(res.data)
+        setSrc(url)
+      })
+      .catch(() => !cancelled && setFailed(true))
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
+  }, [lesson.id])
+
+  if (failed) return <div className="lms-locked"><span className="lock">🎬</span><strong>No se pudo cargar el video</strong></div>
+  if (!src) return <div className="lms-image-loading">Cargando video…</div>
+  return (
+    <div className="lms-video-wrap" onContextMenu={e => e.preventDefault()}>
+      {/* controlsList nodownload esconde el botón de descargar del reproductor
+          del navegador; el clic derecho ya está tapado arriba. */}
+      <video
+        src={src}
+        controls
+        controlsList="nodownload noplaybackrate"
+        disablePictureInPicture
+        playsInline
+        title={lesson.title}
+      />
     </div>
   )
 }

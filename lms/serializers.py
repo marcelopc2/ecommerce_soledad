@@ -11,18 +11,23 @@ class LessonStudentSerializer(serializers.ModelSerializer):
     `completed` se inyecta desde el contexto (set de ids completados)."""
     has_pdf = serializers.SerializerMethodField()
     has_image = serializers.SerializerMethodField()
+    has_video_file = serializers.SerializerMethodField()
     completed = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
         fields = ['id', 'title', 'description', 'order', 'lesson_type',
-                  'video_embed_url', 'has_pdf', 'has_image', 'completed']
+                  'video_embed_url', 'has_pdf', 'has_image', 'has_video_file',
+                  'completed']
 
     def get_has_pdf(self, obj):
         return bool(obj.pdf_file)
 
     def get_has_image(self, obj):
         return bool(obj.image_file)
+
+    def get_has_video_file(self, obj):
+        return bool(obj.video_file)
 
     def get_completed(self, obj):
         return obj.id in self.context.get('completed_lesson_ids', set())
@@ -31,6 +36,9 @@ class LessonStudentSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         if not self.context.get('membership_active', False):
             data['video_embed_url'] = ''  # sin membresía activa no se entrega la URL
+            # El archivo propio ya está protegido por su endpoint, pero decir
+            # que existe invita a ir a buscarlo: sin membresía, no existe.
+            data['has_video_file'] = False
         return data
 
 

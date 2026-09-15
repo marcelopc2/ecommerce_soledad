@@ -315,12 +315,14 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
 class LessonForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Lesson
-        fields = ['title', 'lesson_type', 'description', 'video_embed_url', 'pdf_file', 'image_file']
+        fields = ['title', 'lesson_type', 'description', 'video_embed_url',
+                  'video_file', 'pdf_file', 'image_file']
         labels = {
             'title': 'Título del paso',
             'lesson_type': 'Tipo de paso',
             'description': 'Descripción (acompaña al paso)',
             'video_embed_url': 'Link del video de YouTube',
+            'video_file': 'O sube un archivo de video',
             'pdf_file': 'Archivo PDF',
             'image_file': 'Imagen',
         }
@@ -375,12 +377,42 @@ class LessonForm(BootstrapFormMixin, forms.ModelForm):
             'Compartir de YouTube).'
         )
 
+    def clean_video_file(self):
+        """Tope de 60 MB.
+
+        No es una limitación de disco: el Aula descarga el archivo ENTERO antes
+        de mostrarlo (es la única forma de mandar el token de sesión, ver
+        LessonVideo en CourseView.jsx), así que un archivo grande se traduce en
+        un minuto de pantalla en blanco para el alumno. Lo que pasa de acá va a
+        YouTube como "no listado" y se pega en el campo del link.
+        """
+        archivo = self.cleaned_data.get('video_file')
+        TOPE = 60 * 1024 * 1024
+        if archivo and getattr(archivo, 'size', 0) > TOPE:
+            raise forms.ValidationError(
+                'El video no puede pesar más de 60 MB: el alumno tendría que '
+                'esperar a que se descargue entero antes de verlo. Para un video '
+                'más largo, súbelo a YouTube como "no listado" y pega el link en '
+                'el campo de arriba.'
+            )
+        return archivo
+
     def clean(self):
         data = super().clean()
         lesson_type = data.get('lesson_type')
         new = not self.instance.pk
-        if lesson_type == 'VIDEO' and not data.get('video_embed_url'):
-            self.add_error('video_embed_url', 'Los pasos de video necesitan el link.')
+        # Un paso de video sirve con cualquiera de los dos: el link de YouTube o
+        # un archivo propio. Antes exigía el link, así que al subir solo el
+        # archivo el formulario se negaba a guardar.
+        tiene_video = (
+            data.get('video_embed_url') or data.get('video_file')
+            or (not new and self.instance.video_file)
+        )
+        if lesson_type == 'VIDEO' and not tiene_video:
+            self.add_error(
+                'video_embed_url',
+                'Los pasos de video necesitan el link de YouTube o un archivo subido.',
+            )
         if lesson_type == 'PDF' and not data.get('pdf_file') and new:
             self.add_error('pdf_file', 'Los recursos PDF necesitan un archivo.')
         if lesson_type == 'IMAGE' and not data.get('image_file') and new:

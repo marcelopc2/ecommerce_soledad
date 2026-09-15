@@ -148,6 +148,19 @@
             <label class="form-label" for="{{ lesson_form.video_embed_url.id_for_label }}">{{ lesson_form.video_embed_url.label }}</label>
             {{ lesson_form.video_embed_url }}
             {% for e in lesson_form.video_embed_url.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+
+            {% comment %}
+              Las dos formas de poner un video conviven: YouTube para los largos
+              (no cuesta ancho de banda y se ve al instante) y archivo propio
+              para un clip corto que no se quiere publicar en ningún lado. El
+              archivo sale por un endpoint con permisos; el de YouTube no.
+            {% endcomment %}
+            <div class="mt-3">
+              <label class="form-label" for="{{ lesson_form.video_file.id_for_label }}">{{ lesson_form.video_file.label }}</label>
+              {{ lesson_form.video_file }}
+              <div class="pnl-campo-ayuda">{{ lesson_form.video_file.help_text }}</div>
+              {% for e in lesson_form.video_file.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
           </div>
           <div class="mb-3" id="pdf-field">
             <label class="form-label" for="{{ lesson_form.pdf_file.id_for_label }}">{{ lesson_form.pdf_file.label }}</label>

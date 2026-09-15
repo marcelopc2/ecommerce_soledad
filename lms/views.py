@@ -241,6 +241,29 @@ class LessonPdfView(APIView):
         ))
 
 
+class LessonVideoView(APIView):
+    """Sirve un video propio del recurso. Mismos permisos que el PDF y la imagen.
+
+    Existe porque los videos subidos vivían en `media/`, que nginx sirve como
+    estático: cualquiera con el link se los bajaba sin pagar ni iniciar sesión.
+    Ahora viven en protected_media/ y salen solo por acá.
+
+    Es para CLIPS CORTOS. Los videos largos van a YouTube como "no listados" y
+    se pegan en `video_embed_url`: acá el archivo se entrega entero -el frontend
+    lo carga como blob para poder mandar el token de sesión-, así que un archivo
+    grande se traduce en una espera larga antes de que empiece a verse.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        lesson, membership = _authorized_lesson_file(request, pk)
+        if not lesson.video_file:
+            raise Http404
+        return _sin_guardar(FileResponse(
+            lesson.video_file.open('rb'), as_attachment=False,
+        ))
+
+
 class LessonImageView(APIView):
     """Sirve la imagen protegida de un recurso (para mostrar el paso a paso).
     Requiere membresía ACTIVA y que el curso esté otorgado."""

@@ -190,6 +190,12 @@ class Lesson(models.Model):
         validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp', 'gif'])],
         help_text="Imagen protegida (paso a paso). Solo para recursos de tipo IMAGE.",
     )
+    video_file = models.FileField(
+        storage=protected_storage, upload_to='lesson_videos/', blank=True, null=True,
+        validators=[FileExtensionValidator(allowed_extensions=['mp4', 'webm', 'mov', 'm4v'])],
+        help_text="Video protegido, para clips propios. Los videos largos van a "
+                  "YouTube como 'no listado' y se pegan en el campo de arriba.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -197,6 +203,17 @@ class Lesson(models.Model):
 
     def __str__(self):
         return f"{self.course.title} · {self.order}. {self.title}"
+
+    @property
+    def video_propio(self):
+        """True si el video es un archivo nuestro y no un embed de YouTube.
+
+        Los dos conviven a propósito: YouTube aguanta un video largo sin costo
+        de ancho de banda, y el archivo propio sirve para un clip corto que no
+        se quiere publicar en ningún lado. La diferencia importa porque el
+        archivo propio sale por un endpoint con permisos y el embed no.
+        """
+        return bool(self.video_file)
 
 
 class Membership(models.Model):
