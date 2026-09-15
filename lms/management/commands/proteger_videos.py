@@ -52,9 +52,11 @@ class Command(BaseCommand):
             pendientes.append((lesson, nombre, origen))
 
         if not pendientes:
-            self.stdout.write(self.style.SUCCESS(
-                'No hay videos propios que proteger: todos son de YouTube.'))
-            return
+            # Nada que mover no significa nada que hacer: puede quedar la copia
+            # publica de un movimiento anterior, que sigue siendo descargable.
+            self.stdout.write(
+                'Ninguna leccion apunta a media/: no hay videos que mover.')
+            return self._limpiar_sobrantes(op)
 
         self.stdout.write(self.style.MIGRATE_HEADING(
             'Videos a proteger (%d)' % len(pendientes)))
@@ -105,4 +107,61 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(
                 'La copia pública sigue en media/lesson_videos/ y TODAVÍA se puede '
                 'descargar. Comprueba que los videos se ven en el Aula y después '
-                'corre el comando con --borrar-original.'))
+                'vuelve a correr el comando con --borrar-original.'))
+
+    def _limpiar_sobrantes(self, op):
+        """Borra las copias públicas que ya tienen su gemela protegida.
+
+        Hace falta porque el borrado del original es un paso APARTE del
+        movimiento -a propósito: primero se comprueba que los videos se ven, y
+        recién después se borra-. Pero en la segunda pasada ya no queda ninguna
+        lección apuntando a media/, así que sin esto el comando decía "no hay
+        nada que hacer" y los archivos públicos se quedaban ahí para siempre.
+
+        Solo borra si el archivo protegido existe y pesa EXACTAMENTE lo mismo:
+        ante cualquier diferencia se deja y se informa, porque un video perdido
+        no se recupera.
+        """
+        publico_dir = os.path.join(settings.MEDIA_ROOT, 'lesson_videos')
+        protegido_dir = os.path.join(settings.PROTECTED_MEDIA_ROOT, 'lesson_videos')
+        if not os.path.isdir(publico_dir):
+            return
+
+        sobrantes, dudosos = [], []
+        for nombre in sorted(os.listdir(publico_dir)):
+            publico = os.path.join(publico_dir, nombre)
+            protegido = os.path.join(protegido_dir, nombre)
+            if not os.path.isfile(publico):
+                continue
+            if (os.path.exists(protegido)
+                    and os.path.getsize(protegido) == os.path.getsize(publico)):
+                sobrantes.append((nombre, publico))
+            else:
+                dudosos.append(nombre)
+
+        if dudosos:
+            self.stdout.write(self.style.WARNING(
+                'Sin copia protegida equivalente, NO se tocan (%d):' % len(dudosos)))
+            for nombre in dudosos:
+                self.stdout.write('  %s' % nombre)
+
+        if not sobrantes:
+            self.stdout.write(self.style.SUCCESS(
+                'No quedan copias públicas de videos.'))
+            return
+
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            'Copias públicas que ya están protegidas (%d)' % len(sobrantes)))
+        for nombre, _ in sobrantes:
+            self.stdout.write('  media/lesson_videos/%s' % nombre)
+
+        if not (op['aplicar'] and op['borrar_original']):
+            self.stdout.write(self.style.WARNING(
+                'Siguen siendo descargables por cualquiera. '
+                'Para borrarlas: --aplicar --borrar-original'))
+            return
+
+        for nombre, publico in sobrantes:
+            os.remove(publico)
+        self.stdout.write(self.style.SUCCESS(
+            '%d copia(s) publica(s) borrada(s).' % len(sobrantes)))
