@@ -667,6 +667,8 @@ def _grant(order):
         membership.student_name = order.student_name
     if order.customer_name and not membership.parent_name:
         membership.parent_name = order.customer_name
+    if order.customer_phone and not membership.phone:
+        membership.phone = order.customer_phone
 
     # Idempotencia: si esta orden ya fue aplicada (webhook + retorno duplicado), no re-sumar.
     if membership.orders.filter(pk=order.pk).exists():

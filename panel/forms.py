@@ -2,7 +2,8 @@ import re
 from datetime import timedelta
 
 from django import forms
-from django.db.models import Max
+from django.contrib.auth import get_user_model
+from django.db.models import Max, Q
 from django.utils import timezone
 from django.utils.text import slugify
 from catalog.models import (
@@ -11,6 +12,8 @@ from catalog.models import (
 )
 from payments.models import Coupon
 from shipments.models import PuntoRetiro
+
+User = get_user_model()
 from lms.models import (
     AjustesAula, CategoryCourse, Course, CourseCategory, Lesson, Membership, Diploma,
     PerfilUsuario,
@@ -164,17 +167,86 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
 
 
 class MembershipForm(BootstrapFormMixin, forms.ModelForm):
+    """Los datos de contacto del alumno, todos editables.
+
+    El correo no es un dato más: en este proyecto el `username` ES el correo
+    (ver lms.services.grant_access_for_order), así que cambiarlo cambia también
+    con qué se inicia sesión. Por eso se guarda en los DOS campos: si solo se
+    tocara `email`, la persona seguiría entrando con el correo viejo y el nuevo
+    no le serviría, sin ningún error visible.
+    """
+
+    email = forms.EmailField(
+        label='Correo de registro',
+        help_text='Es con el que inicia sesión y a donde llegan los avisos. '
+                  'Si lo cambias, avísale: el anterior deja de servir.',
+        widget=forms.EmailInput(attrs={'placeholder': 'nombre@correo.cl'}),
+    )
+
     class Meta:
         model = Membership
-        fields = ['parent_name', 'student_name']
+        fields = ['parent_name', 'student_name', 'phone']
         labels = {
             'parent_name': 'Nombre del apoderado',
             'student_name': 'Nombre del alumno',
+            'phone': 'Teléfono',
         }
         widgets = {
             'parent_name': forms.TextInput(attrs={'placeholder': 'Nombre y apellido'}),
             'student_name': forms.TextInput(attrs={'placeholder': 'Nombre del niño o niña'}),
+            'phone': forms.TextInput(attrs={'placeholder': '+56 9 1234 5678'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # El correo no vive en Membership sino en el User, así que hay que
+        # traerlo a mano: un ModelForm no lo sabe buscar solo.
+        if self.instance and self.instance.pk:
+            self.fields['email'].initial = self.instance.user.email or self.instance.user.username
+
+    def clean_email(self):
+        """Normaliza y comprueba que no sea el correo de otra cuenta.
+
+        Sin esto, guardar el correo de un alumno existente reventaba con un
+        IntegrityError (username es único) y la clienta veía un error 500 en vez
+        de "ese correo ya lo usa otra persona".
+        """
+        email = (self.cleaned_data['email'] or '').lower().strip()
+        usuario = self.instance.user if self.instance and self.instance.pk else None
+
+        chocan = User.objects.filter(Q(username__iexact=email) | Q(email__iexact=email))
+        if usuario is not None:
+            chocan = chocan.exclude(pk=usuario.pk)
+        if chocan.exists():
+            raise forms.ValidationError(
+                'Ese correo ya lo usa otra cuenta. Si son la misma persona con '
+                'dos cuentas, hay que unirlas a mano, no cambiar el correo.'
+            )
+        return email
+
+    def clean_phone(self):
+        """Se acepta como lo escriban; solo se colapsan los espacios de más.
+
+        No se valida el formato chileno como en el checkout a propósito: acá
+        quien escribe es la administradora corrigiendo un dato, y a veces el
+        número que tiene es un fijo, uno extranjero o con una anotación al lado.
+        Rechazárselo sería impedirle guardar el único contacto que tiene.
+        """
+        return ' '.join((self.cleaned_data.get('phone') or '').split())
+
+    def save(self, commit=True):
+        membership = super().save(commit=False)
+        email = self.cleaned_data['email']
+        usuario = membership.user
+        # Los dos, siempre: `username` es con lo que entra y `email` a donde le
+        # llegan los correos. Dejarlos distintos es la forma más fácil de que
+        # alguien quede sin poder entrar sin que nadie se entere.
+        usuario.username = email
+        usuario.email = email
+        if commit:
+            usuario.save(update_fields=['username', 'email'])
+            membership.save()
+        return membership
 
 
 class MembershipExpiryForm(BootstrapFormMixin, forms.Form):

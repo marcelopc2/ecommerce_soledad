@@ -851,10 +851,27 @@ def membership_detail(request, pk):
 @staff_required
 @require_POST
 def membership_names_update(request, pk):
+    """Guarda los datos de contacto del alumno: nombres, teléfono y correo.
+
+    El correo se registra en el log igual que un cambio de vencimiento: cambia
+    con qué inicia sesión la persona, así que si mañana alguien dice "no puedo
+    entrar", esa línea es la única forma de saber que el correo se editó, cuándo
+    y quién lo hizo.
+    """
     m = get_object_or_404(Membership.objects.select_related('user'), pk=pk)
+    antes = m.user.email or m.user.username
     form = MembershipForm(request.POST, instance=m)
     if form.is_valid():
         form.save()
+        ahora = form.cleaned_data['email']
+        if ahora != antes:
+            log.info('Correo de la membresía %s cambiado de %s a %s por %s',
+                     m.pk, antes, ahora, request.user.username)
+            messages.success(
+                request,
+                f'Correo cambiado a {ahora}. Avísale: el anterior ya no sirve '
+                f'para entrar.',
+            )
         form = None
     return _membership_detail_response(request, m, form)
 

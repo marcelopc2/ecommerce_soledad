@@ -240,6 +240,11 @@ class Membership(models.Model):
     # desde el panel, ej. tras hablar con la clienta) ---
     parent_name = models.CharField(max_length=200, blank=True, help_text="Nombre del padre/apoderado")
     student_name = models.CharField(max_length=200, blank=True, help_text="Nombre del alumno (niño/a)")
+    #: Teléfono de contacto de la familia. Vive acá y no solo en la orden porque
+    #: la orden es el registro histórico de UNA compra y esto es "cómo ubicar a
+    #: esta familia hoy": si cambian de número, se corrige acá sin tocar ninguna
+    #: boleta ya emitida. Mismo criterio que los dos nombres de arriba.
+    phone = models.CharField(max_length=30, blank=True, help_text="Teléfono de contacto")
 
     # Marca las cuentas traídas por `importar_wordpress`, activas o no. Sirve
     # para distinguirlas en el listado (badge y filtro) mientras convive la
