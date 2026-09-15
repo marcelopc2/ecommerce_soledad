@@ -58,10 +58,27 @@ def get_organization():
     return _ORG_CACHE
 
 
+def _es_exento(product):
+    """¿Esta línea va exenta de IVA?
+
+    Un producto borrado o una línea sin producto se tratan como EXENTOS, que es
+    lo que vende esta empresa: equivocarse hacia el otro lado significaría
+    cobrarle IVA al cliente en una venta que no lo lleva.
+    """
+    return getattr(product, 'exento_iva', True)
+
+
 def _build_boleta_payload(order):
     """
     Arma el JSON de una boleta electrónica (DTE 39) para una orden pagada.
-    Precios con IVA incluido (así se venden en la tienda): el neto se deriva del total.
+
+    La empresa es de servicios educativos y sus productos van EXENTOS de IVA;
+    el DESPACHO no, porque es un servicio del courier. Así que una boleta con
+    envío lleva las dos cosas a la vez: una parte exenta y una afecta.
+
+    Los precios se manejan con IVA incluido -es como se venden en la tienda-,
+    así que el neto del despacho se deriva hacia atrás desde lo cobrado.
+
     Receptor: consumidor final (RUT genérico 66.666.666-6, estándar SII para boletas).
     """
     org = get_organization()
@@ -72,28 +89,43 @@ def _build_boleta_payload(order):
     # OrderItem trae el nombre y el precio CONGELADOS al momento de la compra:
     # es lo que realmente se cobró, no el precio actual del producto. Las
     # órdenes creadas antes de que existiera OrderItem caen al M2M (fallback).
+    #: Lo exento se suma aparte del resto: el SII lo quiere en su propio total
+    #: (MntExe) y no mezclado con el neto afecto.
+    monto_exento = 0
+
     items = list(order.items.all())
     if items:
         for item in items:
             line += 1
-            detalle.append({
+            linea = {
                 'NroLinDet': line,
                 'NmbItem': item.name[:80],
                 'QtyItem': item.quantity,
                 'PrcItem': int(item.unit_price),
                 'MontoItem': item.subtotal,
-            })
+            }
+            # IndExe 1 es lo que hace que en el PDF salga "**Producto o servicio
+            # es exento o no afecto" bajo el nombre, y que el monto vaya a
+            # MntExe en vez de al neto afecto.
+            if _es_exento(item.product):
+                linea['IndExe'] = 1
+                monto_exento += item.subtotal
+            detalle.append(linea)
     else:
         for product in order.products.all():
             line += 1
             price = int(product.effective_price)
-            detalle.append({
+            linea = {
                 'NroLinDet': line,
                 'NmbItem': product.name[:80],
                 'QtyItem': 1,
                 'PrcItem': price,
                 'MontoItem': price,
-            })
+            }
+            if _es_exento(product):
+                linea['IndExe'] = 1
+                monto_exento += price
+            detalle.append(linea)
 
     # El envío se cobra al cliente → va como línea de la boleta.
     shipment = getattr(order, 'shipment', None)
@@ -120,8 +152,24 @@ def _build_boleta_payload(order):
             f'y el costo de despacho antes de emitir.'
         )
 
-    neto = round(total / (1 + IVA_RATE))
-    iva = total - neto
+    # Lo AFECTO es todo lo que no es exento: en la práctica, el despacho. Su
+    # precio ya viene con IVA incluido (es lo que se le cobró al cliente), así
+    # que el neto se deriva hacia atrás y el IVA es la diferencia. Se calcula
+    # por resta y no con `round(afecto * 0.19)` para que neto + IVA dé EXACTO lo
+    # cobrado: si no, la boleta se cae por un peso de redondeo.
+    afecto_con_iva = total - monto_exento
+    neto = round(afecto_con_iva / (1 + IVA_RATE))
+    iva = afecto_con_iva - neto
+
+    totales = {'MntTotal': total}
+    if monto_exento:
+        totales['MntExe'] = monto_exento
+    # Una compra 100% exenta (un plan digital sin despacho) no lleva neto ni IVA.
+    # Mandarlos en 0 no es lo mismo que omitirlos: el SII los interpreta como
+    # "hay una parte afecta que suma cero", que es otra cosa.
+    if afecto_con_iva:
+        totales['MntNeto'] = neto
+        totales['IVA'] = iva
 
     return {
         'response': ['FOLIO', 'PDF'],
@@ -130,7 +178,7 @@ def _build_boleta_payload(order):
                 'IdDoc': {
                     'TipoDTE': 39,
                     'FchEmis': date.today().isoformat(),
-                    'IndServicio': 3,  # 3 = boleta de venta de bienes
+                    'IndServicio': 3,  # 3 = boleta de venta y servicios
                 },
                 'Emisor': {
                     'RUTEmisor': org.get('rut', ''),
@@ -145,14 +193,20 @@ def _build_boleta_payload(order):
                     'DirRecep': 'Chile',
                     'CmnaRecep': 'Chile',
                 },
-                # Boleta (39): solo MntNeto/IVA/MntTotal — TasaIVA no es parte del esquema de boletas.
-                'Totales': {
-                    'MntNeto': neto,
-                    'IVA': iva,
-                    'MntTotal': total,
-                },
+                # Boleta (39): MntExe/MntNeto/IVA/MntTotal — TasaIVA no es parte
+                # del esquema de boletas.
+                'Totales': totales,
             },
             'Detalle': detalle,
+            # Igual que en las boletas que la clienta emite hoy a mano: deja el
+            # número de pedido impreso en el documento. Es lo que permite que
+            # alguien con la boleta en la mano encuentre la compra en el panel.
+            'Referencia': [{
+                'NroLinRef': 1,
+                'RazonRef': 'Orden de compra N°%s - Fecha %s' % (
+                    str(order.order_id)[:8], order.created_at.date().isoformat(),
+                ),
+            }],
         },
     }
 

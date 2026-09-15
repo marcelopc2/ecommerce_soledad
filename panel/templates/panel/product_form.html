@@ -258,6 +258,29 @@
         </div>
       </div></div>
 
+      <div class="pnl-card mb-4"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-receipt"></i> Boleta</div>
+        <div class="form-check form-switch">
+          {{ form.exento_iva }}
+          <label class="form-check-label ms-1" for="{{ form.exento_iva.id_for_label }}">
+            {{ form.exento_iva.label }}
+            <span class="pnl-ayuda der" tabindex="0">
+              <i class="bi bi-info-circle"></i>
+              <span class="pnl-ayuda-globo">
+                Encendido, la boleta lo muestra como "producto o servicio exento
+                o no afecto" y no le suma IVA. Es lo normal en esta empresa.
+                Apágalo solo si este producto sí paga IVA.
+              </span>
+            </span>
+          </label>
+        </div>
+        <div class="pnl-campo-ayuda mt-2">
+          El despacho va aparte y <strong>siempre</strong> paga IVA: es un
+          servicio del courier, no de la empresa.
+        </div>
+        {% for e in form.exento_iva.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+      </div></div>
+
       <div class="pnl-card"><div class="card-pad">
         <div class="form-section-title"><i class="bi bi-truck"></i> Envío</div>
         <div class="form-check form-switch">

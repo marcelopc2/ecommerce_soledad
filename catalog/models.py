@@ -24,6 +24,20 @@ class Product(models.Model):
     is_digital = models.BooleanField(default=False, help_text="¿Es un pack de modelos digital? (No requiere envío)")
     is_active = models.BooleanField(default=True)
 
+    #: La empresa es de servicios educativos y sus ventas van EXENTAS de IVA. Por
+    #: eso el valor por omisión es True: hoy todo lo que se vende acá es exento.
+    #: Queda como campo y no como constante porque la exención depende de QUÉ se
+    #: vende, no de la empresa: si mañana aparece un producto afecto, se desmarca
+    #: acá sin tocar código. El despacho es aparte y SIEMPRE va afecto: es un
+    #: servicio del courier, no de la empresa (ver invoicing/services.py).
+    exento_iva = models.BooleanField(
+        default=True,
+        verbose_name='Exento de IVA',
+        help_text='La boleta lo muestra como "producto o servicio exento o no '
+                  'afecto" y no le suma IVA. Desmárcalo solo si este producto '
+                  'sí paga IVA.',
+    )
+
     # --- Oferta ---
     is_on_sale = models.BooleanField(default=False, help_text="Mostrar el producto en oferta (ribbon rojo)")
     sale_price = models.DecimalField(

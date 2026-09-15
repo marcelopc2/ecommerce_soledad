@@ -1,5 +1,6 @@
 import base64
 import logging
+from urllib.parse import quote
 from datetime import datetime, time, timedelta
 from functools import wraps
 
@@ -22,7 +23,7 @@ from catalog.models import (
     SeccionConcurso, GanadorConcurso,
 )
 from invoicing.models import Invoice
-from invoicing.services import issue_invoice_for_order
+from invoicing.services import get_organization, issue_invoice_for_order
 from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 from lms.services import (
     get_course_access, precargar_listado, reanudar_goteo, send_reset_email,
@@ -1130,15 +1131,45 @@ def invoice_pdf(request, pk):
         raise Http404("La boleta no tiene PDF")
     pdf_bytes = base64.b64decode(invoice.pdf_base64)
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
-    filename = f"boleta_{invoice.folio or invoice.pk}.pdf"
+    filename = _nombre_de_boleta(invoice)
     # `inline` y no `attachment`: la boleta se abre en una pestaña y se mira. Casi
     # siempre lo que se necesita es revisar un folio o un monto, no guardar el
     # archivo; con `attachment` eso obligaba a bajarlo, abrirlo desde la carpeta
     # de descargas y después borrarlo. Quien sí la necesite la baja desde el
     # visor del navegador, que ya trae su botón. El filename se conserva para
     # que ese botón proponga el nombre correcto.
-    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    # El nombre lleva "Nº", que no es ASCII, y una cabecera HTTP solo admite
+    # ASCII: hay que mandarlo en las dos formas. La segunda (RFC 5987) es la que
+    # de verdad usa el navegador; la primera queda de respaldo para los viejos,
+    # que si no verían el nombre con caracteres rotos.
+    ascii_seguro = filename.replace('º', 'o')
+    response['Content-Disposition'] = (
+        f'inline; filename="{ascii_seguro}"; '
+        f"filename*=UTF-8''{quote(filename)}"
+    )
     return response
+
+
+def _nombre_de_boleta(invoice):
+    """El mismo nombre de archivo que usa la clienta hoy.
+
+    Sus boletas se llaman "DTE 39- Empresa 77915902 - Folio Nº 161.pdf": es el
+    formato de Haulmer, y ella ya tiene meses de archivos guardados así. Si las
+    nuestras se llamaran distinto, las dos series quedarían mezcladas en la
+    misma carpeta sin poder ordenarse juntas.
+
+    El RUT va sin dígito verificador, como en el original.
+    """
+    rut = ''
+    try:
+        rut = (get_organization().get('rut') or '').split('-')[0]
+    except Exception:
+        # El nombre del archivo no vale una excepción: si OpenFactura no
+        # responde, se emite igual con el folio, que es lo que identifica.
+        log.warning('No se pudo leer el RUT del emisor para nombrar la boleta')
+    folio = invoice.folio or invoice.pk
+    empresa = f'Empresa {rut} - ' if rut else ''
+    return f'DTE {invoice.dte_type}- {empresa}Folio Nº {folio}.pdf'
 
 
 # ---------- Contenido del sitio público (portada) + ritmo del Aula ----------

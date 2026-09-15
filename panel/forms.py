@@ -69,7 +69,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
         #    acá abajo, en save(), is_active se mantiene igual a show_on_landing.
         #    Antes eran dos controles en dos pantallas para lo mismo.
         fields = [
-            'name', 'description', 'price',
+            'name', 'description', 'price', 'exento_iva',
             'is_digital', 'categories', 'courses', 'access_months',
             'weight_kg', 'width_cm', 'height_cm', 'length_cm',
             # oferta / próximamente / compra restringida
@@ -83,6 +83,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'name': 'Nombre',
             'description': 'Descripción',
             'price': 'Precio (CLP)',
+            'exento_iva': 'Exento de IVA',
             'is_digital': 'Producto digital',
             'categories': 'Categorías que incluye',
             'courses': 'Modelos sueltos extra',
