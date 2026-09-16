@@ -343,12 +343,20 @@ class Command(BaseCommand):
         for pos, (cid, p) in enumerate(ordenados, 1):
             m = RE_NUMERO.match((p.get('post_title') or '').strip())
             titulo = (m.group(2) if m else p.get('post_title') or 'Modelo').strip()
+            # La bienvenida NO es un modelo armable: es la introducción al
+            # Aula. Se importa igual -el alumno la recibe como cualquier otro
+            # curso- pero fuera de la vitrina de la portada, que promete
+            # "nuestros modelos". Va acá y no como un ajuste a mano en el panel
+            # porque cada re-importación la devolvía a la portada, y el error
+            # solo se nota entrando a mirar la galería.
+            es_bienvenida = 'bienvenida' in titulo.lower()
             curso = Course(
                 title=titulo[:200],
                 slug=_slug_unico(titulo, usados),
                 description='',
                 order=pos,
                 is_active=True,
+                mostrar_en_portada=not es_bienvenida,
             )
             portada = d['adjuntos'].get(d['portada_de'].get(cid))
             if portada:
