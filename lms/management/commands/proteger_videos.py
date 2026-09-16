@@ -28,6 +28,11 @@ from django.core.management.base import BaseCommand
 from lms.models import Lesson
 
 
+#: Qué se considera "un archivo de video" al mirar una URL del sitio viejo. Un
+#: .jpg en esa misma carpeta es una imagen y no le corresponde a este comando.
+EXTENSIONES = ('.mp4', '.webm', '.mov', '.m4v')
+
+
 class Command(BaseCommand):
     help = 'Pasa los videos de media/ (público) a protected_media/ (con permisos).'
 
@@ -40,16 +45,28 @@ class Command(BaseCommand):
                                  'descargable: usarlo una vez comprobado que se ven.')
 
     def handle(self, *args, **op):
-        # Solo los que apuntan a nuestro propio /media/: un embed de YouTube no
-        # es un archivo nuestro y no hay nada que mover.
+        # Un archivo de video puede estar en dos lugares, y los dos hay que
+        # protegerlos:
+        #
+        #  · en nuestro propio /media/, que nginx sirve como estático;
+        #  · TODAVÍA en el WordPress viejo, que es como los deja una importación
+        #    recién hecha. Esos son peores: están publicados en el sitio del
+        #    cliente y además se van a romper solos el día del cambio de DNS,
+        #    porque la URL apunta al dominio que va a dejar de ser WordPress.
+        #
+        # Un embed de YouTube o Vimeo no es un archivo nuestro y se deja quieto.
         pendientes = []
         for lesson in Lesson.objects.exclude(video_embed_url=''):
-            ruta = urlparse(lesson.video_embed_url).path
-            if '/media/lesson_videos/' not in ruta:
-                continue
+            url = lesson.video_embed_url
+            ruta = urlparse(url).path
             nombre = os.path.basename(ruta)
-            origen = os.path.join(settings.MEDIA_ROOT, 'lesson_videos', nombre)
-            pendientes.append((lesson, nombre, origen))
+
+            if '/media/lesson_videos/' in ruta:
+                origen = os.path.join(settings.MEDIA_ROOT, 'lesson_videos', nombre)
+                pendientes.append((lesson, nombre, origen))
+            elif '/wp-content/uploads/' in ruta and nombre.lower().endswith(EXTENSIONES):
+                # `origen` es la URL: se baja más abajo en vez de copiarse.
+                pendientes.append((lesson, nombre, url))
 
         if not pendientes:
             # Nada que mover no significa nada que hacer: puede quedar la copia
@@ -83,13 +100,26 @@ class Command(BaseCommand):
 
         movidos = 0
         for lesson, nombre, origen in pendientes:
-            if not os.path.exists(origen):
-                continue
             destino = os.path.join(destino_dir, nombre)
-            # copy2 y no move: si algo falla a mitad de camino, el original
-            # sigue ahí y el alumno no se queda sin ver el video. El borrado del
-            # público es un paso aparte y explícito.
-            shutil.copy2(origen, destino)
+
+            if origen.startswith('http'):
+                # Todavía vive en el WordPress viejo: hay que bajarlo. Se hace
+                # acá y no en bajar_fotos_wordpress porque la URL del video no
+                # está en el cuerpo de la lección -de donde ese comando saca las
+                # imágenes- sino en un campo aparte del volcado.
+                try:
+                    self._bajar(origen, destino)
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(
+                        '  No se pudo bajar %s: %s' % (nombre, e)))
+                    continue
+            else:
+                if not os.path.exists(origen):
+                    continue
+                # copy2 y no move: si algo falla a mitad de camino, el original
+                # sigue ahí y el alumno no se queda sin ver el video. El borrado
+                # del público es un paso aparte y explícito.
+                shutil.copy2(origen, destino)
 
             lesson.video_file.name = 'lesson_videos/%s' % nombre
             # Se vacía la URL vieja: si quedara, el Aula seguiría prefiriendo…
@@ -99,7 +129,10 @@ class Command(BaseCommand):
             lesson.save(update_fields=['video_file', 'video_embed_url'])
             movidos += 1
 
-            if op['borrar_original']:
+            # Solo se borra lo NUESTRO. El archivo del WordPress viejo no se
+            # toca: no es nuestro, y el encargo fue explícito de no borrar nada
+            # de ese servidor.
+            if op['borrar_original'] and not origen.startswith('http'):
                 os.remove(origen)
 
         self.stdout.write(self.style.SUCCESS('\n%d video(s) protegidos.' % movidos))
@@ -108,6 +141,24 @@ class Command(BaseCommand):
                 'La copia pública sigue en media/lesson_videos/ y TODAVÍA se puede '
                 'descargar. Comprueba que los videos se ven en el Aula y después '
                 'vuelve a correr el comando con --borrar-original.'))
+
+    def _bajar(self, url, destino):
+        """Trae el archivo del sitio viejo, en trozos.
+
+        stream=True para no cargar el video entero en memoria, y se escribe a un
+        archivo temporal que recién al final se renombra: si se corta la
+        descarga, no queda un .mp4 a medias que parezca bueno y le muestre al
+        alumno un reproductor en negro.
+        """
+        import requests
+
+        parcial = destino + '.parcial'
+        with requests.get(url, stream=True, timeout=60) as r:
+            r.raise_for_status()
+            with open(parcial, 'wb') as f:
+                for trozo in r.iter_content(chunk_size=256 * 1024):
+                    f.write(trozo)
+        os.replace(parcial, destino)
 
     def _limpiar_sobrantes(self, op):
         """Borra las copias públicas que ya tienen su gemela protegida.
