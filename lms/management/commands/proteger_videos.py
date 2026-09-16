@@ -79,12 +79,18 @@ class Command(BaseCommand):
             'Videos a proteger (%d)' % len(pendientes)))
         faltantes = []
         for lesson, nombre, origen in pendientes:
-            existe = os.path.exists(origen)
-            if not existe:
+            if origen.startswith('http'):
+                # No hay archivo local que buscar: se va a bajar. Preguntarle a
+                # os.path.exists() por una URL siempre dice que no, y el ensayo
+                # reportaba como perdidos justo los que sí se pueden traer.
+                estado = self.style.SUCCESS('se baja del sitio viejo')
+            elif os.path.exists(origen):
+                estado = 'se copia'
+            else:
                 faltantes.append(nombre)
+                estado = self.style.ERROR('NO ESTÁ EL ARCHIVO')
             self.stdout.write('  %-28s %-32s %s' % (
-                lesson.course.title[:28], nombre[:32],
-                '' if existe else self.style.ERROR('NO ESTÁ EL ARCHIVO')))
+                lesson.course.title[:28], nombre[:32], estado))
 
         if faltantes:
             self.stdout.write(self.style.WARNING(
