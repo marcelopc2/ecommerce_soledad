@@ -653,6 +653,9 @@ def memberships(request):
     # o vencido, así que va aparte en vez de sumarse a ese grupo mutuamente
     # excluyente.
     legado = request.GET.get('legado', '').strip() == '1'
+    # Mismo criterio que `legado`: tampoco es un estado, es cómo quedó la
+    # membresía al migrarla, y se combina con los demás.
+    sin_venc = request.GET.get('sin_venc', '').strip() == '1'
     sort, direction, next_dir = _sort_params(request, MEMBERSHIP_SORT_COLUMNS)
 
     base = Membership.objects.select_related('user').prefetch_related('courses')
@@ -667,6 +670,7 @@ def memberships(request):
     paused_count = base.filter(paused_at__isnull=False).count()
     expired_count = base.filter(paused_at__isnull=True).exclude(Membership.VIGENTE).count()
     legado_count = base.filter(es_legado=True).count()
+    sin_venc_count = base.filter(sin_vencimiento=True).count()
 
     items = base
     if estado == 'activa':
@@ -677,6 +681,8 @@ def memberships(request):
         items = items.filter(paused_at__isnull=True).exclude(Membership.VIGENTE)
     if legado:
         items = items.filter(es_legado=True)
+    if sin_venc:
+        items = items.filter(sin_vencimiento=True)
 
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
@@ -762,10 +768,16 @@ def memberships(request):
         'paused_count': paused_count,
         'expired_count': expired_count,
         'legado_count': legado_count,
+        'sin_venc_count': sin_venc_count,
         'section': 'memberships',
         'q': q,
         'estado': estado,
         'legado': legado,
+        'sin_venc': sin_venc,
+        # Para la pantalla de "no hay resultados": sin esto decía "aún no hay
+        # membresías" aunque hubiera 296, y quien filtraba creía que el filtro
+        # estaba roto en vez de ver que no calzaba nada.
+        'hay_filtros': bool(q or estado or legado or sin_venc),
         'sort': sort,
         'dir': direction,
         'next_dir': next_dir,

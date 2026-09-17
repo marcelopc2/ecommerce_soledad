@@ -7,22 +7,33 @@
 {% block actions %}
 <div class="d-flex gap-2 mfilter-group">
   <a class="mfilter-pill{% if not estado %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=&amp;legado={% if legado %}1{% endif %}">Todas ({{ total_count }})</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">Todas ({{ total_count }})</a>
   <a class="mfilter-pill green{% if estado == 'activa' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=activa&amp;legado={% if legado %}1{% endif %}">{{ active_count }} activas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=activa&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">{{ active_count }} activas</a>
   <a class="mfilter-pill yellow{% if estado == 'pausada' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pausada&amp;legado={% if legado %}1{% endif %}">{{ paused_count }} pausadas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pausada&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">{{ paused_count }} pausadas</a>
   <a class="mfilter-pill gray{% if estado == 'vencida' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=vencida&amp;legado={% if legado %}1{% endif %}">{{ expired_count }} vencidas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=vencida&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">{{ expired_count }} vencidas</a>
   {% comment %}
     Aparte del grupo de arriba a propósito: "legado" no es un estado, es el
     origen de la cuenta, y puede combinarse con cualquiera de los otros (un
     migrado también puede estar activo, pausado o vencido).
   {% endcomment %}
   <a class="mfilter-pill purple{% if legado %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}{% else %}1{% endif %}">
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}{% else %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">
     <i class="bi bi-archive"></i> {{ legado_count }} legado
   </a>
+  {% comment %}
+    Solo aparece si hay alguna. Son las que el sistema viejo dejaba sin fecha de
+    término; hoy pueden ser cero, pero una re-importación futura puede traer
+    otras y conviene poder aislarlas. Una pastilla fija en 0 sería ruido.
+  {% endcomment %}
+  {% if sin_venc_count %}
+    <a class="mfilter-pill teal{% if sin_venc %} active{% endif %}"
+       href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}{% else %}1{% endif %}">
+      <i class="bi bi-infinity"></i> {{ sin_venc_count }} sin vencimiento
+    </a>
+  {% endif %}
 </div>
 {% endblock %}
 

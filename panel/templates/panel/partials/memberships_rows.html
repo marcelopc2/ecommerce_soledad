@@ -62,8 +62,17 @@
 {% empty %}
   <tr class="no-hover">
     <td colspan="8" class="empty-cell">
-      {% if q %}
-        <i class="bi bi-search"></i> Sin resultados para «{{ q }}».
+      {% if hay_filtros %}
+        {% comment %}
+          Antes decía "aún no hay membresías" aunque hubiera 296: los filtros se
+          combinan entre sí, así que basta venir de "0 pausadas" y marcar otro
+          para quedarse sin resultados. Quien lo veía creía que el filtro estaba
+          roto en vez de entender que no calzaba nada.
+        {% endcomment %}
+        <i class="bi bi-funnel"></i>
+        Ningún alumno cumple con los filtros que están puestos
+        {% if q %}(incluida la búsqueda «{{ q }}»){% endif %}.
+        <a href="{% url 'panel:memberships' %}">Quitar los filtros</a>.
       {% else %}
         Aún no hay membresías. Se crean automáticamente cuando un cliente compra un producto con cursos.
       {% endif %}
