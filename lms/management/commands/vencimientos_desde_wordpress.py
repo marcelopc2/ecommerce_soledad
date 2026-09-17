@@ -1,34 +1,24 @@
-"""Recalcula el vencimiento de cada alumno migrado con su fecha real.
+"""Pone en cada alumno migrado la fecha de término que traía el sistema viejo.
 
-El problema
------------
-El importador le daba 30 días DESDE EL DÍA DE LA IMPORTACIÓN a quien no tenía
-fecha de término en PMPro. Como eso es casi la mitad de los alumnos, quedaban
-todos venciendo el mismo día -el día que se corrió el comando + 30-, que no
-tiene nada que ver con cuándo pagó cada uno. Y peor: cada re-importación movía
-la fecha de todos otra vez.
+De dónde sale
+-------------
+De `_schedule_end` de su suscripción de WooCommerce. Es la fecha que el sitio
+viejo calculaba solo al comprar y es la que ve la clienta en su panel. La traen
+378 de las 387 suscripciones.
 
-De dónde sale la fecha buena
-----------------------------
-En orden de confianza, lo primero que haya para esa persona:
+Por qué costó encontrarla
+-------------------------
+No está donde uno la buscaría. PMPro -que es el sistema de membresías- deja la
+fila activa con `enddate = 0000-00-00`, o sea "no vence". Y
+`_schedule_next_payment`, que sería lo natural de mirar en una suscripción,
+está en 0 para casi todas, porque el cobro recurrente va por Transbank Oneclick
+por fuera de WooCommerce. La fecha buena estaba en el tercer lugar.
 
-1. `_schedule_next_payment` de su suscripción activa de WooCommerce. Es la
-   fecha exacta del próximo cobro. Solo la tienen unos pocos: el cobro va por
-   Transbank Oneclick por fuera de WooCommerce, así que casi todas están en 0.
-
-2. La fecha de su ÚLTIMO PAGO + un mes. Los tres planes de PMPro son de ciclo
-   mensual, así que quien pagó el 11 vence el 11 del mes siguiente. Es la vía
-   que cubre a la mayoría.
-
-3. El `enddate` de PMPro, si lo trae. Es el caso de quien ya se dio de baja.
-
-4. El `startdate` de su fila activa de PMPro + un mes. Último recurso, para
-   quien no tiene ni un pago registrado.
-
-Lo que NO hace
---------------
-No toca a quien ya tiene una fecha que no salió de este error, ni a las
-membresías que no son de la migración. Y por omisión no escribe nada.
+Orden de preferencia
+--------------------
+1. `_schedule_end` de la suscripción; si tiene varias, la más lejana.
+2. El `enddate` de PMPro, que es lo que trae quien ya se dio de baja.
+3. Si no hay ninguna de las dos, se deja "sin vencimiento" y no se inventa nada.
 
     python manage.py vencimientos_desde_wordpress --dump volcado.sql
     python manage.py vencimientos_desde_wordpress --dump volcado.sql --aplicar
@@ -94,7 +84,9 @@ class Command(BaseCommand):
             if nueva is None:
                 sin_dato.append(m)
                 continue
-            if nueva.date() != m.expires_at.date():
+            # Cuenta como cambio también si solo deja de estar abierta: la
+            # fecha puede coincidir por casualidad y el estado igual cambia.
+            if nueva.date() != m.expires_at.date() or m.sin_vencimiento:
                 cambios.append((m, nueva, origen))
 
         self._informar(cambios, sin_dato, op['ver'])
@@ -106,8 +98,10 @@ class Command(BaseCommand):
 
         for m, nueva, _ in cambios:
             m.expires_at = nueva
-        Membership.objects.bulk_update([c[0] for c in cambios], ['expires_at'],
-                                       batch_size=200)
+            # Tener fecha de término es justamente lo contrario de "abierta".
+            m.sin_vencimiento = False
+        Membership.objects.bulk_update(
+            [c[0] for c in cambios], ['expires_at', 'sin_vencimiento'], batch_size=200)
         self.stdout.write(self.style.SUCCESS(
             '\n%d vencimiento(s) corregidos.' % len(cambios)))
 
@@ -115,14 +109,14 @@ class Command(BaseCommand):
 
     def _fechas_por_correo(self, ruta):
         """{correo: (fecha, de_dónde_salió)} con la mejor fuente disponible."""
-        pedidos, meta_prox, correo_de, pmpro = [], {}, {}, []
+        pedidos, fin_sub, correo_de, pmpro = [], {}, {}, []
 
         def f_pedido(f):
             pedidos.append(f)
 
         def f_meta(f):
-            if f.get('meta_key') == '_schedule_next_payment':
-                meta_prox[f.get('order_id')] = f.get('meta_value')
+            if f.get('meta_key') == '_schedule_end':
+                fin_sub[f.get('order_id')] = f.get('meta_value')
 
         def f_usuario(f):
             c = (f.get('user_email') or '').lower().strip()
@@ -139,54 +133,35 @@ class Command(BaseCommand):
             'wp_pmpro_memberships_users': f_pmpro,
         })
 
-        def correo_del_pedido(o):
-            return ((o.get('billing_email') or '').lower().strip()
-                    or correo_de.get(o.get('customer_id'), ''))
-
-        # 1) próximo cobro agendado, lo más confiable que hay
-        prox = {}
+        # 1) el término que puso el sitio viejo al comprar
+        por_sub = {}
         for o in pedidos:
-            if o.get('status') != 'wc-active':
+            if o.get('type') != 'shop_subscription':
                 continue
-            f = _fecha(meta_prox.get(o['id']))
-            c = correo_del_pedido(o)
-            if f and c and (c not in prox or f > prox[c]):
-                prox[c] = f
-
-        # 2) último pago
-        ultimo = {}
-        for o in pedidos:
-            if o.get('status') not in PAGADOS:
+            f = _fecha(fin_sub.get(o['id']))
+            if not f:
                 continue
-            f = _fecha(o.get('date_created_gmt'))
-            c = correo_del_pedido(o)
-            if f and c and (c not in ultimo or f > ultimo[c]):
-                ultimo[c] = f
+            c = ((o.get('billing_email') or '').lower().strip()
+                 or correo_de.get(o.get('customer_id'), ''))
+            # La más lejana: quien renovó tiene varias suscripciones y la que
+            # manda es la última, no la primera.
+            if c and (c not in por_sub or f > por_sub[c]):
+                por_sub[c] = f
 
-        # 3) y 4) lo que diga PMPro
-        fin_pmpro, inicio_activa = {}, {}
+        # 2) lo que declare PMPro, para quien ya se dio de baja
+        fin_pmpro = {}
         for r in pmpro:
             c = correo_de.get(r.get('user_id'))
-            if not c:
-                continue
             f = _fecha(r.get('enddate'))
-            if f and (c not in fin_pmpro or f > fin_pmpro[c]):
+            if c and f and (c not in fin_pmpro or f > fin_pmpro[c]):
                 fin_pmpro[c] = f
-            if r.get('status') == 'active':
-                i = _fecha(r.get('startdate'))
-                if i and (c not in inicio_activa or i > inicio_activa[c]):
-                    inicio_activa[c] = i
 
         fechas = {}
-        for c in set(prox) | set(ultimo) | set(fin_pmpro) | set(inicio_activa):
-            if c in prox:
-                fechas[c] = (prox[c], 'próximo cobro agendado')
-            elif c in ultimo:
-                fechas[c] = (ultimo[c] + PERIODO, 'último pago + 1 mes')
-            elif c in fin_pmpro:
-                fechas[c] = (fin_pmpro[c], 'fin en PMPro')
+        for c in set(por_sub) | set(fin_pmpro):
+            if c in por_sub:
+                fechas[c] = (por_sub[c], 'término de la suscripción')
             else:
-                fechas[c] = (inicio_activa[c] + PERIODO, 'inicio PMPro + 1 mes')
+                fechas[c] = (fin_pmpro[c], 'fin en PMPro')
         return fechas
 
     # -- informe ----------------------------------------------------------
