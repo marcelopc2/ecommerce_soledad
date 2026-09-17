@@ -95,13 +95,13 @@ class Command(BaseCommand):
         self._borrar_lo_migrado()
 
         if not op['sin_fotos']:
-            self.stdout.write(self.style.MIGRATE_HEADING('\n[1/5] Bajando las fotos del sitio viejo'))
+            self.stdout.write(self.style.MIGRATE_HEADING('\n[1/6] Bajando las fotos del sitio viejo'))
             call_command('bajar_fotos_wordpress', dump=ruta, destino=op['medios'])
 
-        self.stdout.write(self.style.MIGRATE_HEADING('\n[2/5] Importando el volcado'))
+        self.stdout.write(self.style.MIGRATE_HEADING('\n[2/6] Importando el volcado'))
         call_command('importar_wordpress', dump=ruta, medios=op['medios'], aplicar=True)
 
-        self.stdout.write(self.style.MIGRATE_HEADING('\n[3/5] Cruzando los trailers de YouTube'))
+        self.stdout.write(self.style.MIGRATE_HEADING('\n[3/6] Cruzando los trailers de YouTube'))
         try:
             call_command('trailers_desde_youtube', aplicar=True)
         except Exception as e:
@@ -112,11 +112,20 @@ class Command(BaseCommand):
                 '  Falló y se sigue: %s\n  Reintenta después con: '
                 'manage.py trailers_desde_youtube --aplicar' % e))
 
-        self.stdout.write(self.style.MIGRATE_HEADING('\n[4/5] Protegiendo los videos subidos'))
+        self.stdout.write(self.style.MIGRATE_HEADING('\n[4/6] Protegiendo los videos subidos'))
         call_command('proteger_videos', aplicar=True, borrar_original=True)
 
-        self.stdout.write(self.style.MIGRATE_HEADING('\n[5/5] Trayendo los teléfonos'))
+        self.stdout.write(self.style.MIGRATE_HEADING('\n[5/6] Trayendo los teléfonos'))
         call_command('telefonos_desde_wordpress', ruta, aplicar=True)
+
+        # Va como paso aparte y no dentro del importador porque la fecha de
+        # término no está en PMPro -que es de donde el importador saca las
+        # membresías- sino en `_schedule_end` de la suscripción de WooCommerce.
+        # Cruzar las dos tablas allá adentro habría duplicado la regla; acá vive
+        # en un solo lugar y con sus propias pruebas.
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            '\n[6/6] Poniendo las fechas de vencimiento reales'))
+        call_command('vencimientos_desde_wordpress', dump=ruta, aplicar=True, ver=0)
 
         self._restaurar_cuentas_de_gestion(staff)
         self._resumen_final()
@@ -243,6 +252,9 @@ class Command(BaseCommand):
         self.stdout.write('  %4d alumnos (%d con teléfono)'
                           % (Membership.objects.count(),
                              Membership.objects.exclude(phone='').count()))
+        self.stdout.write('  %4d vigentes, %d sin fecha de término'
+                          % (Membership.objects.filter(Membership.VIGENTE).count(),
+                             Membership.objects.filter(sin_vencimiento=True).count()))
         self.stdout.write('  %4d avances de curso, %d de paso'
                           % (CourseProgress.objects.count(), LessonProgress.objects.count()))
         self.stdout.write('  %4d cuentas de gestión'
