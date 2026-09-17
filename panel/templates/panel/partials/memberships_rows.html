@@ -26,8 +26,14 @@
       {% if m.is_paused %}
         <span class="text-muted">En pausa</span>
       {% elif m.sin_vencimiento %}
-        {# Contar días hacia una fecha que no se usa daba "30 días" para
-           siempre, contradiciendo la columna de al lado. #}
+        {% comment %}
+        Contar días hacia una fecha que no se usa daba "30 días" para siempre,
+        contradiciendo la columna de al lado.
+
+        Etiqueta larga y no {# #}: el comentario corto NO admite varias líneas
+        -su regex de tokenización no reconoce el salto- y Django lo imprime tal
+        cual, en medio de la tabla.
+      {% endcomment %}
         <span class="text-muted">—</span>
       {% elif row.dias_restantes < 0 %}
         <span style="color:var(--coral);font-weight:600">Vencida hace {{ row.dias_vencida }} día{{ row.dias_vencida|pluralize }}</span>
