@@ -56,11 +56,12 @@ class FiltrosTests(TestCase):
     def test_el_filtro_sin_vencimiento_aisla_las_abiertas(self):
         self.assertEqual(self._correos(sin_venc='1'), {'abierto@b.cl'})
 
-    def test_la_pastilla_no_aparece_si_no_hay_ninguna(self):
-        """Una pastilla clavada en 0 es ruido: solo se muestra si sirve."""
+    def test_la_pastilla_se_muestra_aunque_no_haya_ninguna(self):
+        """La de "pausadas" también aparece en 0. Esconderla cuando no hay
+        ninguna deja a quien la busca pensando que el filtro no existe."""
         Membership.objects.update(sin_vencimiento=False)
         r = self.client.get(reverse('panel:memberships'))
-        self.assertNotContains(r, 'sin vencimiento')
+        self.assertContains(r, 'sin vencimiento')
 
     def test_la_pastilla_aparece_si_hay_alguna(self):
         r = self.client.get(reverse('panel:memberships'))

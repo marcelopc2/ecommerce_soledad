@@ -24,16 +24,15 @@
     <i class="bi bi-archive"></i> {{ legado_count }} legado
   </a>
   {% comment %}
-    Solo aparece si hay alguna. Son las que el sistema viejo dejaba sin fecha de
-    término; hoy pueden ser cero, pero una re-importación futura puede traer
-    otras y conviene poder aislarlas. Una pastilla fija en 0 sería ruido.
+    Son las que el sistema viejo dejaba sin fecha de término. Hoy pueden ser
+    cero, y la pastilla se muestra igual: la de "pausadas" también aparece en 0,
+    y esconderla cuando no hay ninguna deja a quien la busca pensando que el
+    filtro no existe.
   {% endcomment %}
-  {% if sin_venc_count %}
-    <a class="mfilter-pill teal{% if sin_venc %} active{% endif %}"
-       href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}{% else %}1{% endif %}">
-      <i class="bi bi-infinity"></i> {{ sin_venc_count }} sin vencimiento
-    </a>
-  {% endif %}
+  <a class="mfilter-pill teal{% if sin_venc %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}{% else %}1{% endif %}">
+    <i class="bi bi-infinity"></i> {{ sin_venc_count }} sin vencimiento
+  </a>
 </div>
 {% endblock %}
 
