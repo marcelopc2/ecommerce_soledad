@@ -83,7 +83,23 @@
       <div class="form-section-title"><i class="bi bi-calendar-check"></i> Suscripción</div>
       <div class="mdetail-kv"><span>Estado</span><strong>{% include 'panel/partials/membership_status_badge.html' with m=m %}</strong></div>
       <div class="mdetail-kv"><span>Activación</span><strong>{{ m.created_at|date:'d M Y' }}</strong></div>
-      <div class="mdetail-kv"><span>Vencimiento</span><strong>{{ m.expires_at|date:'d M Y' }}</strong></div>
+      <div class="mdetail-kv">
+        <span>Vencimiento</span>
+        <strong>
+          {% if m.sin_vencimiento %}
+            <span class="badge-soft teal">Sin vencimiento</span>
+          {% else %}{{ m.expires_at|date:'d M Y' }}{% endif %}
+        </strong>
+      </div>
+      {% if m.sin_vencimiento %}
+        {# Se explica de dónde viene: si no, parece un error de la migración. #}
+        <p class="mdetail-note mb-0"><i class="bi bi-info-circle"></i>
+          Viene del sistema viejo, donde las suscripciones mensuales no caducaban.
+          Se mantiene activa hasta que se dé de baja, y con su próximo pago pasa
+          a funcionar por fecha como el resto. Si le pones una fecha abajo, deja
+          de estar abierta.
+        </p>
+      {% endif %}
       {% if granting_products %}
         <div class="mdetail-kv">
           <span>Otorgado por</span>

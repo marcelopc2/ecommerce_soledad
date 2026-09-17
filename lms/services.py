@@ -677,9 +677,17 @@ def _grant(order):
 
     # Se mira ANTES de extender: si estaba vencida, esta compra es una
     # reactivación y el goteo tiene que volver a anclarse (ver reanudar_goteo).
-    venia_vencida = membership.expires_at <= timezone.now()
+    venia_vencida = membership.expires_at <= timezone.now() and not membership.sin_vencimiento
 
-    base = membership.expires_at if membership.expires_at > timezone.now() else timezone.now()
+    # Una membresía migrada "sin vencimiento" pasa a funcionar por fecha en
+    # cuanto paga por acá: desde ese pago ya somos nosotros los que cobramos, y
+    # dejarla abierta sería regalarle el acceso para siempre. Se cuenta desde
+    # HOY y no desde su expires_at viejo, que es una fecha que nunca se usó.
+    if membership.sin_vencimiento:
+        membership.sin_vencimiento = False
+        base = timezone.now()
+    else:
+        base = membership.expires_at if membership.expires_at > timezone.now() else timezone.now()
     membership.expires_at = base + relativedelta(months=months)
     membership.save()
     membership.courses.add(*courses)

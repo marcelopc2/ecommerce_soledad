@@ -1,5 +1,7 @@
 from datetime import timedelta
 from django.db import models
+from django.db.models import Q
+from django.db.models.functions import Now
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 from django.core.validators import FileExtensionValidator
@@ -256,6 +258,25 @@ class Membership(models.Model):
     # --- Pausa de suscripción: congela el acceso y el calendario semanal de
     # cursos sin cerrar la cuenta. Al reanudar, se le devuelven los días
     # pausados (tanto al vencimiento como al desbloqueo de cursos). ---
+    #: Acceso abierto, sin fecha de término.
+    #:
+    #: Existe porque en el sistema viejo las suscripciones mensuales NO vencían:
+    #: PMPro las deja activas con `0000-00-00` y el cobro va por Transbank
+    #: Oneclick por fuera, hasta que alguien se da de baja. Al migrarlas había
+    #: que inventarles una fecha, y cualquier fecha inventada o dejaba gente
+    #: afuera o regalaba meses.
+    #:
+    #: `expires_at` sigue teniendo un valor (es obligatorio y lo leen muchas
+    #: partes); lo que cambia es que con esto encendido no se mira. Al llegar el
+    #: primer pago desde el sitio nuevo se apaga solo y la membresía vuelve a
+    #: funcionar por fecha, como cualquier otra.
+    sin_vencimiento = models.BooleanField(
+        default=False,
+        verbose_name='Sin fecha de vencimiento',
+        help_text='La membresía no caduca: se mantiene activa hasta que se dé '
+                  'de baja. Se apaga sola con el próximo pago.',
+    )
+
     paused_at = models.DateTimeField(null=True, blank=True, help_text="Si está pausada, desde cuándo")
     total_paused_days = models.PositiveIntegerField(
         default=0, help_text="Días acumulados en pausa (se usan para correr las fechas al reanudar)",
@@ -265,10 +286,20 @@ class Membership(models.Model):
     def is_paused(self):
         return self.paused_at is not None
 
+    #: Condición de "vigente" para usar en consultas, para que la base y la
+    #: propiedad de abajo no puedan contradecirse. Sin esto había que repetir
+    #: `expires_at__gt=now` en seis lugares y acordarse de sumarle el caso nuevo
+    #: en todos.
+    VIGENTE = Q(paused_at__isnull=True) & (
+        Q(sin_vencimiento=True) | Q(expires_at__gt=Now())
+    )
+
     @property
     def is_active(self):
         if self.is_paused:
             return False
+        if self.sin_vencimiento:
+            return True
         return self.expires_at > timezone.now()
 
     def pause(self):

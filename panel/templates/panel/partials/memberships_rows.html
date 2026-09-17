@@ -12,7 +12,11 @@
     </td>
     <td class="cell-sub">{{ m.parent_name|default:"—" }}</td>
     <td class="cell-sub">{{ m.created_at|date:'d M Y' }}</td>
-    <td class="cell-sub">{{ m.expires_at|date:'d M Y' }}</td>
+    <td class="cell-sub">
+      {% if m.sin_vencimiento %}
+        <span class="badge-soft teal" title="Viene del sistema viejo: se mantiene activa hasta que se dé de baja. Se apaga sola con el próximo pago.">Sin vencimiento</span>
+      {% else %}{{ m.expires_at|date:'d M Y' }}{% endif %}
+    </td>
     {% comment %}
       Colores solo para lo que necesita atención -vencida o por vencer-; el resto
       queda en texto normal para no llenar la tabla de pastillas de colores

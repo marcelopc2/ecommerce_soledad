@@ -164,7 +164,7 @@ def dashboard(request):
         'courses': Course.objects.count(),
         'lessons': Lesson.objects.count(),
         'students': Membership.objects.count(),
-        'active_memberships': Membership.objects.filter(expires_at__gt=now).count(),
+        'active_memberships': Membership.objects.filter(Membership.VIGENTE).count(),
         'paid_orders': paid_orders.count(),
         'revenue': paid_orders.aggregate(total=Sum('total_amount'))['total'] or 0,
     }
@@ -663,18 +663,18 @@ def memberships(request):
 
     now = timezone.now()
     total_count = base.count()
-    active_count = base.filter(paused_at__isnull=True, expires_at__gt=now).count()
+    active_count = base.filter(Membership.VIGENTE).count()
     paused_count = base.filter(paused_at__isnull=False).count()
-    expired_count = base.filter(paused_at__isnull=True, expires_at__lte=now).count()
+    expired_count = base.filter(paused_at__isnull=True).exclude(Membership.VIGENTE).count()
     legado_count = base.filter(es_legado=True).count()
 
     items = base
     if estado == 'activa':
-        items = items.filter(paused_at__isnull=True, expires_at__gt=now)
+        items = items.filter(Membership.VIGENTE)
     elif estado == 'pausada':
         items = items.filter(paused_at__isnull=False)
     elif estado == 'vencida':
-        items = items.filter(paused_at__isnull=True, expires_at__lte=now)
+        items = items.filter(paused_at__isnull=True).exclude(Membership.VIGENTE)
     if legado:
         items = items.filter(es_legado=True)
 
@@ -901,7 +901,11 @@ def membership_expiry_update(request, pk):
         datetime.combine(hasta, time(23, 59, 59)),
         timezone.get_current_timezone(),
     )
-    m.save(update_fields=['expires_at'])
+    # Poner una fecha a mano es decir "esta sí vence": si venía abierta desde la
+    # migración, deja de estarlo. Si no, se guardaba la fecha y seguía activa
+    # para siempre, sin ninguna señal de por qué.
+    m.sin_vencimiento = False
+    m.save(update_fields=['expires_at', 'sin_vencimiento'])
 
     # Reanclar el calendario semanal solo al revivir una cuenta vencida: si no,
     # recibe de golpe todos los modelos cuya fecha pasó mientras no pagaba, y el

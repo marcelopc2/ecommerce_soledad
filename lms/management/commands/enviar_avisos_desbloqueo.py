@@ -57,7 +57,7 @@ class Command(BaseCommand):
         # Solo membresías vigentes: no tiene sentido avisarle de un modelo nuevo
         # a alguien cuyo acceso ya venció.
         membresias = (Membership.objects
-                      .filter(expires_at__gt=timezone.now(), user__is_active=True)
+                      .filter(Membership.VIGENTE, user__is_active=True)
                       .select_related('user')
                       .prefetch_related('courses'))
 

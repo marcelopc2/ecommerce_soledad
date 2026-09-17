@@ -471,10 +471,18 @@ class Command(BaseCommand):
             if not usuario:
                 continue
             inicio = info['inicio'] or ahora
+            abierta = False
             if info['activa']:
-                # Quien pagaba mes a mes no tiene fecha de término en PMPro: se
-                # le da la vigencia por omisión y su próximo pago la extiende,
-                # igual que a cualquier cliente nuevo.
+                # Quien paga mes a mes NO tiene fecha de término en PMPro: su
+                # suscripción sigue viva hasta que se dé de baja, y el cobro va
+                # por Transbank Oneclick por fuera de WordPress.
+                #
+                # Antes se le daba una vigencia por omisión contada desde el día
+                # de la importación. Eso dejaba a 128 de 296 alumnos venciendo
+                # todos el mismo día -uno que no tiene nada que ver con cuándo
+                # pagó cada uno- y cada re-importación los movía otra vez. Se
+                # respeta lo que dice el sistema viejo: no vencen.
+                abierta = not info['fin']
                 fin = info['fin'] or (ahora + timedelta(days=op['dias_vigencia']))
             else:
                 # Ya no paga: se respeta su fecha real de término (siempre la
@@ -492,6 +500,7 @@ class Command(BaseCommand):
                 user=usuario,
                 defaults={
                     'expires_at': fin,
+                    'sin_vencimiento': abierta,
                     'parent_name': ('%s %s' % (usuario.first_name, usuario.last_name)).strip()[:200],
                     'student_name': nombre_alumno[:200],
                     'es_legado': True,
