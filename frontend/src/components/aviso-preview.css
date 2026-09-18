@@ -1,0 +1,104 @@
+/* Aviso de "sitio en construcción". Ver AvisoPreview.jsx para el porqué.
+   Usa los tokens de la landing para que se lea como parte del sitio y no como
+   una alerta del navegador. */
+
+.apv-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;              /* por encima de los botones flotantes (z 900) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(21, 0, 38, 0.72);
+  backdrop-filter: blur(3px);
+  animation: apv-entra 0.25s ease-out;
+}
+
+.apv-tarjeta {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: #fff;
+  border-radius: 22px;
+  padding: 34px 32px 28px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(15, 0, 30, 0.35);
+  animation: apv-sube 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+  /* En pantallas bajas el contenido no cabe y no hay forma de llegar al botón:
+     con esto la tarjeta scrollea por dentro en vez de cortarse. */
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+
+.apv-logo { width: 116px; height: auto; display: block; margin: 0 auto 18px; }
+
+.apv-chip {
+  display: inline-block;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: var(--lp-yellow-soft, #ffe47f);
+  color: #8a6d00;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.apv-tarjeta h2 {
+  margin: 14px 0 10px;
+  font-family: var(--lp-heading, inherit);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.25;
+  color: var(--lp-ink, #0f172b);
+}
+
+.apv-tarjeta p {
+  margin: 0 0 22px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--lp-body-c, #314158);
+}
+
+.apv-btn-principal {
+  display: block;
+  padding: 13px 22px;
+  border-radius: 999px;
+  background: var(--lp-yellow, #ffcb00);
+  color: var(--lp-ink, #0f172b);
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  transition: background-color 0.15s, transform 0.15s;
+}
+.apv-btn-principal:hover {
+  background: var(--lp-yellow-dark, #f0b100);
+  transform: translateY(-1px);
+}
+
+.apv-btn-seguir {
+  margin-top: 12px;
+  padding: 8px;
+  width: 100%;
+  border: 0;
+  background: none;
+  font-size: 13.5px;
+  color: #94a3b8;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.apv-btn-seguir:hover { color: var(--lp-body-c, #314158); }
+
+@keyframes apv-entra { from { opacity: 0; } to { opacity: 1; } }
+@keyframes apv-sube {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Quien pide menos movimiento recibe la tarjeta sin animación: el aviso es
+   funcional, no decorativo, y no vale la pena marearlo por una entrada. */
+@media (prefers-reduced-motion: reduce) {
+  .apv-fondo, .apv-tarjeta { animation: none; }
+  .apv-btn-principal:hover { transform: none; }
+}

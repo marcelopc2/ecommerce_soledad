@@ -17,6 +17,7 @@ import NotFound from './pages/NotFound'
 import RequireAuth from './components/RequireAuth'
 import ScrollTopButton from './components/ScrollTopButton'
 import WhatsAppButton from './components/WhatsAppButton'
+import AvisoPreview from './components/AvisoPreview'
 
 // Al cambiar de ruta la página nueva parte arriba (sin animar el salto,
 // para no interferir con el scroll suave de las anclas de la landing).
@@ -88,6 +89,9 @@ function App() {
       <ScrollToTop />
       <OcultarPreloaderSiNoEsLanding />
       <ContarVisita />
+      {/* Solo se ve en las direcciones de prueba; se apaga solo el día que el
+          dominio definitivo apunte acá. Ver AvisoPreview.jsx. */}
+      <AvisoPreview />
       <Routes>
       <Route path="/" element={<Landing />} />
       {/* /tienda era el catálogo del prototipo anterior: gris, sin el sistema
