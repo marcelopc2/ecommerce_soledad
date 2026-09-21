@@ -9,9 +9,12 @@ Por qué el texto plano no es opcional:
 - Los relojes, lectores de pantalla y clientes en modo texto muestran esa parte.
 - Si el HTML no carga, el mensaje igual se entiende.
 """
+import logging
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+
+log = logging.getLogger('ingenioblocks.pagos')
 
 _IMG_DIR = settings.BASE_DIR / 'core' / 'static' / 'emails'
 
@@ -111,6 +114,16 @@ def enviar_email(plantilla, asunto, destinatarios, contexto=None,
     Los casos donde sí importa saberlo (formulario de contacto) lo llaman con
     fail_silently=False y manejan el error.
     """
+    # Freno de mano: fuera del sitio de verdad no sale NADA. Va acá, en el único
+    # punto por donde pasan todos los correos, y no en cada comando: basta que
+    # alguien agregue un envío nuevo sin acordarse del freno para repetir el
+    # accidente. Ver settings.ENVIAR_CORREOS.
+    if not settings.ENVIAR_CORREOS:
+        log.warning(
+            'CORREO NO ENVIADO (servidor de pruebas): plantilla=%s asunto=%r '
+            'destinatarios=%s', plantilla, asunto, destinatarios)
+        return None
+
     ctx = _contexto_base(contexto)
     cuerpo_txt = render_to_string(f'emails/{plantilla}.txt', ctx)
     cuerpo_html = render_to_string(f'emails/{plantilla}.html', ctx)

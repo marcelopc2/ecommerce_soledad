@@ -364,6 +364,34 @@ EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 # lento bloquea al cliente que acaba de pagar.
 EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'IngenioBlocks <no-reply@ingenioblocks.cl>')
+
+# --- Freno de mano de los correos ---------------------------------------
+#
+# Los correos SOLO salen desde el sitio de verdad. Esto existe porque ya pasó
+# lo contrario: el servidor de pruebas tenía las credenciales SMTP reales y la
+# base con los 296 clientes migrados, así que la tarea diaria de avisos les
+# mandó correos a clientes REALES con un enlace al sitio en construcción.
+#
+# Se deduce de FRONTEND_URL y no de una variable aparte a propósito: esa URL se
+# cambia igual el día del lanzamiento, así que el freno se suelta solo y nadie
+# tiene que acordarse. Una variable dedicada se olvida en los dos sentidos:
+# encendida en pruebas manda correos que no debía, y apagada en producción deja
+# a un cliente que pagó sin su confirmación.
+DOMINIOS_DE_PRODUCCION = ('ingenioblocks.com', 'www.ingenioblocks.com')
+
+def _correos_habilitados():
+    # Escotilla para probar el envío a mano desde un servidor de pruebas.
+    if os.environ.get('FORZAR_ENVIO_DE_CORREOS') == '1':
+        return True
+    from urllib.parse import urlparse
+    host = (urlparse(FRONTEND_URL).hostname or '').lower()
+    # En desarrollo el backend es el de consola: no sale nada a la red, así que
+    # se dejan pasar para poder ver el correo en la terminal.
+    if host in ('localhost', '127.0.0.1'):
+        return True
+    return host in DOMINIOS_DE_PRODUCCION
+
+ENVIAR_CORREOS = _correos_habilitados()
 # Bandeja que recibe los mensajes del formulario de contacto de la landing.
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'contacto@ingenioblocks.com')
 

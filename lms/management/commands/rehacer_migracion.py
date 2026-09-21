@@ -127,6 +127,7 @@ class Command(BaseCommand):
             '\n[6/6] Poniendo las fechas de vencimiento reales'))
         call_command('vencimientos_desde_wordpress', dump=ruta, aplicar=True, ver=0)
 
+        self._marcar_avisos_como_ya_enviados()
         self._restaurar_cuentas_de_gestion(staff)
         self._resumen_final()
 
@@ -226,6 +227,33 @@ class Command(BaseCommand):
             borrados, _ = User.objects.filter(is_staff=False, is_superuser=False).delete()
 
         self.stdout.write('  listo (%d filas de usuario y lo que colgaba de ellas)' % borrados)
+
+    def _marcar_avisos_como_ya_enviados(self):
+        """Da por avisado todo lo que ya está desbloqueado.
+
+        Esto arregla un accidente real: `UnlockNotice` es la memoria de "a este
+        alumno ya le avisamos de este modelo", y se borra junto con las
+        membresías al rehacer la migración. La tarea diaria de avisos amanecía
+        entonces creyendo que TODO era nuevo y le mandaba un correo a cada
+        alumno por cada modelo que ya tenía abierto: 145 y 132 correos las dos
+        mañanas siguientes, a clientes de verdad.
+
+        Se registran sin enviar nada. Lo que ya estaba abierto no es novedad
+        para nadie: el alumno lo viene viendo hace semanas en el sitio viejo.
+        De acá en adelante solo se avisa lo que se abra de verdad.
+        """
+        from lms.models import UnlockNotice
+        from lms.services import get_course_access
+
+        avisos = []
+        for m in Membership.objects.all().iterator():
+            for entrada in get_course_access(m):
+                if entrada['unlocked']:
+                    avisos.append(UnlockNotice(membership=m, course=entrada['course']))
+        UnlockNotice.objects.bulk_create(avisos, ignore_conflicts=True, batch_size=500)
+        self.stdout.write(self.style.SUCCESS(
+            '\n%d desbloqueo(s) quedan marcados como ya avisados '
+            '(no se manda ningún correo).' % len(avisos)))
 
     def _restaurar_cuentas_de_gestion(self, staff):
         """Devuelve los permisos y la clave a quien administra.
