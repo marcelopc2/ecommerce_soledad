@@ -352,7 +352,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .lms-course-cover.velada::after { animation: none; opacity: 0; }
-  .lms-candado-ico { animation: none; }
+  .lms-candado { animation: none; }
 }
 
 /* Una tarjeta cerrada no se agrisa entera: se quiere que luzca atractiva, no
@@ -362,46 +362,27 @@
 .lms-course-card.bloqueado { filter: none; cursor: default; }
 .lms-course-card.bloqueado:hover { transform: none; box-shadow: var(--lms-shadow); }
 
-/* --- Candado al centro: la fecha llegó, falta terminar el anterior --------
-   Sin velo oscuro encima: el modelo ya le corresponde y verlo a todo color es
-   justamente el premio que lo empuja a terminar el que tiene abierto. */
+/* --- Candado: la fecha llegó, le falta terminar el anterior --------------
+   Grande y al centro, sin velo ni pastilla encima. El modelo ya le
+   corresponde y verlo a todo color es el premio que lo empuja a terminar el
+   que tiene abierto; taparlo con texto arruinaba justo eso. El motivo se
+   explica abajo, en la línea de estado. */
 .lms-candado {
   position: absolute;
   inset: 0;
   z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px;
-  text-align: center;
-}
-.lms-candado-ico {
-  font-size: 42px;
+  display: grid;
+  place-items: center;
+  font-size: 64px;
   line-height: 1;
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
   animation: candado-late 2.8s ease-in-out infinite;
-}
-/* El texto en pastilla y no sobre la foto pelada: encima de una portada clara
-   el blanco desaparecía. */
-.lms-candado-txt {
-  max-width: 100%;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: rgba(15, 23, 43, 0.74);
-  backdrop-filter: blur(3px);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 @keyframes candado-late {
   0%, 100% { transform: scale(1) rotate(0deg); }
-  50%      { transform: scale(1.14) rotate(-7deg); }
+  50%      { transform: scale(1.12) rotate(-7deg); }
 }
+
 .lms-lessons-chip.muted {
   background: transparent;
   color: var(--lms-muted, #6b7280);
@@ -1009,22 +990,20 @@
   .lms-pasos-pos { order: 3; width: 100%; text-align: center; }
 }
 
-/* --- "Lo que sigue": cuándo se abre el próximo modelo -------------------
-   Va solo en la primera tarjeta cerrada. Antes el alumno veía 43 candados que
-   decían lo mismo y ninguna pista de cuándo cambia algo. */
-.lms-que-sigue {
+/* --- Línea de estado: descripción, motivo del candado o cuenta regresiva ---
+   Siempre ocupa el mismo alto, vaya llena o vacía. Es lo que mantiene las 44
+   tarjetas alineadas: antes el contador traía su propio recuadro y la tarjeta
+   que lo llevaba crecía, rompiendo la grilla. */
+.lms-estado {
+  min-height: 40px;      /* dos líneas a 14px: el tope del recorte de texto */
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 10px 0 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--lms-purple-50);
-  border: 1px solid var(--lms-purple-100);
+  gap: 1px;
 }
+.lms-estado strong { color: var(--lms-purple); font-weight: 700; }
 
 /* El contador es lo único que se mueve en la pantalla: que se lea de lejos. */
-.lms-que-sigue .cuenta {
+.lms-estado .cuenta {
   font-family: var(--lms-heading);
   font-weight: 700;
   font-size: 15px;
@@ -1032,11 +1011,11 @@
   font-variant-numeric: tabular-nums;   /* sin esto los números bailan al bajar */
 }
 
-/* El día concreto, para quien quiera anotarlo. Secundario: la cuenta regresiva
-   es lo que se lee de un vistazo. */
-.lms-que-sigue .dia {
+/* El día concreto, para quien quiera anotarlo. */
+.lms-estado .dia {
   font-size: 12.5px;
   color: var(--lms-muted);
   text-transform: capitalize;
 }
+
 

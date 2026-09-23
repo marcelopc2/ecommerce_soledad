@@ -262,7 +262,6 @@ def _estado_en_categoria(mc, comp, today):
     entregados = mc.entregados_al_reanudar if mc.reanudada_en else 0
 
     bloqueado = False
-    curso_previo = None      # el que hay que terminar para abrir el siguiente
     for i, curso in enumerate(cursos):
         fecha = (inicio if i < entregados
                  else _unlock_date(inicio, i - entregados, categoria.cursos_iniciales))
@@ -277,7 +276,12 @@ def _estado_en_categoria(mc, comp, today):
         if abierto:
             motivo, requerido = None, None
         elif bloqueado:
-            motivo, requerido = 'previo', curso_previo
+            # El INMEDIATAMENTE anterior, no el primero de la cadena que está
+            # sin terminar. Antes se guardaba ese primero y se repetía en todos
+            # los que venían detrás: los 43 modelos decían "termina Bienvenida",
+            # que no es la regla y encima sonaba a que la plataforma fallaba.
+            # La regla es "para entrar a este, termina el de antes".
+            motivo, requerido = 'previo', (cursos[i - 1] if i else None)
         else:
             motivo, requerido = 'fecha', None
 
@@ -285,8 +289,6 @@ def _estado_en_categoria(mc, comp, today):
 
         completado = info['completed'] if info else False
         if not abierto or not completado:
-            if not bloqueado:
-                curso_previo = curso
             bloqueado = True
 
     return estados
@@ -324,7 +326,6 @@ def get_course_access(membership, precarga=None):
         iniciales = ajustes.cursos_iniciales
         estados_sueltos = {}
         bloqueado = False
-        previo = None
         for i, curso in enumerate(sueltos):
             fecha = _unlock_date(inicio, i, iniciales)
             info = comp.get(curso.id)
@@ -332,13 +333,12 @@ def get_course_access(membership, precarga=None):
             if abierto:
                 motivo, requerido = None, None
             elif bloqueado:
-                motivo, requerido = 'previo', previo
+                # El de justo antes, igual que en `_estado_en_categoria`.
+                motivo, requerido = 'previo', (sueltos[i - 1] if i else None)
             else:
                 motivo, requerido = 'fecha', None
             estados_sueltos[curso.id] = (abierto, fecha, motivo, requerido)
             if not abierto or not (info['completed'] if info else False):
-                if not bloqueado:
-                    previo = curso
                 bloqueado = True
         por_categoria.append(estados_sueltos)
 

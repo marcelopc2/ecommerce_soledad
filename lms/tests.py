@@ -91,6 +91,24 @@ class DesbloqueoTests(TestCase):
         self.assertEqual(acceso[1]['lock_reason'], 'previo')
         self.assertEqual(acceso[1]['required_course'], self.cursos[0])
 
+    def test_cada_modelo_pide_el_INMEDIATAMENTE_anterior(self):
+        """No el primero de la cadena sin terminar.
+
+        Antes se guardaba ese primero y se repetía en todos los que venían
+        detrás: con 44 modelos, los 43 cerrados decían "termina Bienvenida".
+        Además de no ser la regla, sonaba a que la plataforma estaba rota.
+        """
+        self._retroceder_compra(30)
+        acceso = get_course_access(self.membresia)
+        self.assertEqual(acceso[1]['required_course'], self.cursos[0])
+        self.assertEqual(acceso[2]['required_course'], self.cursos[1])
+
+    def test_el_primero_nunca_pide_un_anterior(self):
+        """No hay ninguno antes que él: pedirlo reventaría por el índice -1,
+        que en Python cuenta desde el final y devolvería el ÚLTIMO modelo."""
+        acceso = get_course_access(self.membresia)
+        self.assertIsNone(acceso[0]['required_course'])
+
     def test_pasada_la_semana_y_completado_el_anterior_se_abre(self):
         self._retroceder_compra(8)
         mark_lesson_completed(self.membresia, self.cursos[0].lessons.first())

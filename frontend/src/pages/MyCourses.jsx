@@ -260,17 +260,11 @@ function CourseCard({ course: c, active, onReady, esElProximo, ahora }) {
           ? <img src={c.image_url} alt={c.title} />
           : <span className="fallback">🧱</span>}
 
-        {/* Se ganó la fecha pero le falta el anterior: la portada va a todo
-            color -ya le corresponde- y el candado encima explica por qué no
-            entra todavía. Sin contador: no hay nada que esperar, depende de él. */}
+        {/* Se ganó la fecha pero le falta el anterior. Solo el candado, grande
+            y al centro: el texto va abajo, con el resto del texto. Encima de la
+            foto tapaba el modelo, que es justo lo que da ganas de terminar. */}
         {porTerminar && (
-          <div className="lms-candado">
-            <span className="lms-candado-ico" aria-hidden="true">🔒</span>
-            <span className="lms-candado-txt">
-              Termina {c.required_course_title
-                ? `«${c.required_course_title}»` : 'el modelo anterior'}
-            </span>
-          </div>
+          <span className="lms-candado" aria-hidden="true">🔒</span>
         )}
 
         {c.completed ? (
@@ -284,17 +278,23 @@ function CourseCard({ course: c, active, onReady, esElProximo, ahora }) {
 
       <div className="lms-course-body">
         <h3>{c.title}</h3>
-        <p>{c.description}</p>
+        {/* UNA sola línea de estado, siempre presente aunque vaya vacía: es
+            lo que mantiene todas las tarjetas del mismo alto. Antes el contador
+            venía en su propio recuadro y la tarjeta que lo llevaba crecía,
+            desalineando la grilla entera.
 
-        {/* El contador va SOLO en el próximo por llegar: es la única espera que
-            le sirve de algo. En los de más atrás serían fechas cada vez más
-            lejanas, y cuarenta relojes no emocionan a nadie. */}
-        {esElProximo && esperando && (
-          <p className="lms-que-sigue">
-            <span className="cuenta">{cuentaRegresiva(c.unlock_date, momento)}</span>
-            <span className="dia">{fechaEnPalabras(c.unlock_date)}</span>
-          </p>
-        )}
+            El contador va solo en el próximo por llegar: es la única espera que
+            le sirve de algo. Cuarenta relojes no emocionan a nadie. */}
+        <p className="lms-estado">
+          {porTerminar ? (
+            <>Termina <strong>{c.required_course_title || 'el modelo anterior'}</strong> para abrir este</>
+          ) : esElProximo && esperando ? (
+            <>
+              <span className="cuenta">{cuentaRegresiva(c.unlock_date, momento)}</span>
+              <span className="dia">{fechaEnPalabras(c.unlock_date)}</span>
+            </>
+          ) : c.description}
+        </p>
 
         {abierto && c.total > 0 && (
           <div className="lms-progress">
