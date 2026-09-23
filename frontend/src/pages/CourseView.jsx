@@ -213,11 +213,21 @@ export default function CourseView() {
                     <span className="lms-pasos-pos">
                       Paso {idx + 1} de {course.lessons.length}
                     </span>
-                    <button type="button" className="lms-btn yellow"
-                            onClick={() => irAlPaso(siguiente)}
-                            disabled={!siguiente}>
-                      Siguiente →
-                    </button>
+                    {/* En el último paso "Siguiente" queda apagado y no lleva
+                        a ninguna parte: justo cuando el niño terminó el modelo,
+                        el único botón encendido lo manda hacia atrás. Ahí se
+                        cambia por la salida natural, que es volver a la lista a
+                        buscar el modelo que sigue. */}
+                    {siguiente ? (
+                      <button type="button" className="lms-btn yellow"
+                              onClick={() => irAlPaso(siguiente)}>
+                        Siguiente →
+                      </button>
+                    ) : (
+                      <Link to="/mis-cursos" className="lms-btn yellow">
+                        {course.completed ? '🎉 Volver a mis modelos' : 'Volver a mis modelos'}
+                      </Link>
+                    )}
                   </nav>
                 )}
               </>
