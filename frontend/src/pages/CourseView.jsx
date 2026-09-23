@@ -94,6 +94,29 @@ export default function CourseView() {
   const membershipActive = course.membership_active
   const active = course.lessons.find(l => l.id === activeId) || null
 
+  // Recorrido paso a paso. La lista del costado sirve para saltar a cualquiera,
+  // pero el camino normal es lineal, y sin estos botones hay que volver a la
+  // barra lateral a buscar cuál seguía. En el teléfono esa barra queda arriba
+  // del todo, así que el alumno tenía que subir, elegir y bajar en cada paso.
+  const idx = course.lessons.findIndex(l => l.id === activeId)
+  const anterior = idx > 0 ? course.lessons[idx - 1] : null
+  const siguiente = idx >= 0 && idx < course.lessons.length - 1
+    ? course.lessons[idx + 1]
+    : null
+
+  const irAlPaso = (leccion) => {
+    if (!leccion) return
+    setActiveId(leccion.id)
+    setAviso('')
+    // Solo en pantalla angosta: ahí la barra lateral va arriba y el contenido
+    // nuevo queda fuera de la vista. En el escritorio el panel ya se ve, y
+    // moverlo sería un salto sin motivo.
+    if (window.innerWidth <= 900) {
+      document.querySelector('.lms-lesson-panel')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   return (
     <div className="lms">
       <LmsHeader />
@@ -176,6 +199,26 @@ export default function CourseView() {
                     : <button className="lms-btn yellow lms-mark-btn" onClick={() => markSeen(active)} disabled={busy}>
                         {busy ? <><Cargando />Guardando…</> : '✓ Marcar como visto'}
                       </button>
+                )}
+
+                {/* Un solo paso no necesita navegación: los dos botones
+                    saldrían apagados y solo ocuparían lugar. */}
+                {course.lessons.length > 1 && (
+                  <nav className="lms-pasos-nav" aria-label="Pasos del curso">
+                    <button type="button" className="lms-btn ghost"
+                            onClick={() => irAlPaso(anterior)}
+                            disabled={!anterior}>
+                      ← Anterior
+                    </button>
+                    <span className="lms-pasos-pos">
+                      Paso {idx + 1} de {course.lessons.length}
+                    </span>
+                    <button type="button" className="lms-btn yellow"
+                            onClick={() => irAlPaso(siguiente)}
+                            disabled={!siguiente}>
+                      Siguiente →
+                    </button>
+                  </nav>
                 )}
               </>
             )}

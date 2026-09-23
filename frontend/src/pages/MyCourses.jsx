@@ -171,9 +171,11 @@ function CourseCard({ course: c, active, onReady }) {
   // `active`, que solo sirve para saber si además hay que invitar a renovar.
   const vencido = c.lock_reason === 'vencida'
   const locked = !c.unlocked
-  // Misterio: un curso que el goteo todavía no libera. Se oculta nombre, foto y
-  // descripción para dar expectativa; queda solo el contador. Un modelo cerrado
-  // por vencimiento NO es misterio: el alumno ya lo tenía a la vista.
+  // Un curso que el goteo todavía no libera. NO se puede entrar, pero sí se
+  // muestra: antes se ocultaban foto y nombre para dar expectativa, y el efecto
+  // era el contrario. Con 44 modelos el alumno veía 43 tarjetas idénticas que
+  // decían lo mismo, sin ninguna señal de qué se viene ni por qué esperar. Ahora
+  // se ve la foto atenuada y el nombre: una vitrina de lo que falta.
   const misterio = locked && !vencido && !c.completed
   const porFecha = c.lock_reason !== 'previo'
 
@@ -190,10 +192,10 @@ function CourseCard({ course: c, active, onReady }) {
 
   const cuerpo = (
     <>
-      <div className="lms-course-cover">
-        {misterio
-          ? <span className="fallback misterio-ojos" aria-hidden="true">👀</span>
-          : (c.image_url ? <img src={c.image_url} alt={c.title} /> : <span className="fallback">🧱</span>)}
+      <div className={'lms-course-cover' + (misterio ? ' velada' : '')}>
+        {c.image_url
+          ? <img src={c.image_url} alt={c.title} />
+          : <span className="fallback">🧱</span>}
         {c.completed ? (
           <span className="lock-badge done">✓ Completado</span>
         ) : vencido ? (
@@ -210,12 +212,17 @@ function CourseCard({ course: c, active, onReady }) {
         ) : null}
       </div>
       <div className="lms-course-body">
-        <h3>{misterio ? 'Un modelo nuevo 👀' : c.title}</h3>
-        <p>{misterio
-          ? (porFecha
-              ? 'Se viene algo nuevo. Te avisamos por correo apenas se abra.'
-              : 'Termina el modelo anterior para descubrir cuál es.')
-          : c.description}</p>
+        <h3>{c.title}</h3>
+        {/* La descripción de los modelos migrados viene vacía, así que en vez
+            de dejar un hueco se explica la espera, que es lo que el alumno se
+            está preguntando al mirar una tarjeta con candado. */}
+        <p>{c.description
+          ? c.description
+          : misterio
+            ? (porFecha
+                ? 'Todavía no se abre. Te avisamos por correo apenas esté listo.'
+                : 'Termina el modelo anterior y este se abre.')
+            : ''}</p>
         {c.unlocked && c.total > 0 && (
           <div className="lms-progress">
             <div className="lms-progress-track"><div className="lms-progress-bar" style={{ width: `${c.pct}%` }} /></div>

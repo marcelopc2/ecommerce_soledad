@@ -311,21 +311,28 @@
   background: rgba(0, 166, 62, 0.88);
 }
 
-/* Modelo "misterio": bloqueado por el goteo y todavía sin revelar. No se
-   agrisa como los otros bloqueados (queremos que se vea atractivo, no apagado)
-   y los ojos laten suave para invitar a volver. */
+/* Portada de un modelo que el goteo todavía no libera.
+   Se ve, pero atenuada: la idea es que el alumno reconozca qué se viene sin
+   que parezca disponible. Antes se tapaba con un emoji y el resultado era el
+   contrario: 43 tarjetas idénticas que no decían nada.
+
+   Sin desenfoque ni velo oscuro encima. La pastilla del candado ya trae su
+   propio fondo y su blur, así que oscurecer de nuevo solo apagaba la foto, que
+   es justo lo que se quiere mostrar. El fondo morado de la tarjeta se asoma por
+   debajo y tiñe la imagen, que de paso la marca como bloqueada. */
+.lms-course-cover.velada img {
+  opacity: 0.5;
+  filter: grayscale(0.4);
+}
+
+/* Quieta al pasar por encima: la tarjeta no se puede abrir, y moverse como las
+   demás prometería un clic que no hace nada. */
+.lms-course-card.misterio:hover .lms-course-cover.velada img { transform: none; }
+
+/* La tarjeta de un modelo que el goteo no libera no se agrisa como los otros
+   bloqueados: se quiere que luzca atractiva, no apagada. Lo que la atenua es
+   la portada velada de mas arriba. */
 .lms-course-card.misterio { filter: none; cursor: default; }
-.lms-course-cover .fallback.misterio-ojos {
-  font-size: 52px;
-  animation: misterio-late 2.4s ease-in-out infinite;
-}
-@keyframes misterio-late {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50%      { transform: scale(1.12); opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .lms-course-cover .fallback.misterio-ojos { animation: none; }
-}
 .lms-lessons-chip.muted {
   background: transparent;
   color: var(--lms-muted, #6b7280);
@@ -897,3 +904,38 @@
 
 /* La foto reemplaza a la inicial en el chip de la cuenta del encabezado. */
 .lms-user-chip .avatar-foto { object-fit: cover; padding: 0; }
+
+/* --- Navegación entre pasos ---------------------------------------------
+   Consuelo la pidió por lo obvio: el recorrido de un modelo es lineal y sin
+   esto había que volver a la barra lateral en cada paso. Va debajo del botón
+   de "marcar como visto", que sigue siendo la acción principal. */
+.lms-pasos-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--lms-border);
+}
+
+/* Los botones no se estiran: con uno solo activo, un `flex: 1` dejaba al que
+   quedaba ocupando media pantalla. */
+.lms-pasos-nav .lms-btn { flex: 0 0 auto; }
+
+.lms-pasos-pos {
+  font-size: 13.5px;
+  color: var(--lms-muted);
+  white-space: nowrap;
+}
+
+/* El botón apagado se deja visible en vez de esconderlo: si apareciera y
+   desapareciera, el resto se correría de lugar en cada paso. */
+.lms-pasos-nav .lms-btn:disabled { opacity: 0.35; }
+
+@media (max-width: 560px) {
+  /* El contador se va abajo y los botones quedan a los lados, que es donde
+     el pulgar llega sin estirarse. */
+  .lms-pasos-nav { flex-wrap: wrap; justify-content: space-between; }
+  .lms-pasos-pos { order: 3; width: 100%; text-align: center; }
+}
