@@ -396,10 +396,36 @@ def create_shipit_shipment(shipment):
         raise RuntimeError(f"Shipit respondió {resp.status_code}: {resp.text[:300]}")
 
     data = resp.json()
+    return _leer_respuesta_shipit(data)
+
+
+def _leer_respuesta_shipit(data):
+    """Saca referencia, seguimiento y etiqueta de lo que devuelve Shipit.
+
+    Los nombres salen de mirar la cuenta de verdad (GET /v/packages), no de
+    suponerlos: `label_url` NO existe en Shipit. La etiqueta viene en
+    `ticket_shipit_pdf_url` / `ticket_url`, así que el código anterior guardaba
+    siempre una etiqueta vacía y el envío quedaba sin PDF que imprimir.
+
+    Se prueban varios nombres y en orden porque la respuesta del POST puede no
+    traer exactamente los mismos campos que el listado.
+    """
+    def primero(*claves):
+        for k in claves:
+            v = data.get(k)
+            if v:
+                return v
+        return ''
+
     return {
-        'reference': str(data.get('id') or data.get('reference', '')),
-        'tracking_number': data.get('tracking_number') or data.get('tracking', ''),
-        'label_url': data.get('label_url') or data.get('labels', '') or data.get('label', ''),
+        'reference': str(primero('id', 'reference')),
+        'tracking_number': str(primero('tracking_number', 'tracking')),
+        'label_url': str(primero(
+            'ticket_shipit_pdf_url',   # el PDF de Shipit: el que se imprime
+            'ticket_url',              # la etiqueta del courier
+            'old_ticket_url_courier',
+            'label_url', 'label',      # por si algún día lo renombran
+        )),
     }
 
 
