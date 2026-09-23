@@ -26,7 +26,7 @@
     idéntica, así que lleva un poco de separación entre letras, que fue el mismo
     ajuste que hizo la clienta a mano.
   {% endcomment %}
-  <link href="https://fonts.googleapis.com/css2?family=Questrial&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Questrial&family=Poppins:wght@700&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
 
   <style>
     :root { --purple: #6a3093;   /* el morado exacto de la plantilla, muestreado del PNG */ --purple-dark: #2f0053; --yellow: #ffcb00; }
@@ -97,10 +97,18 @@
       letter-spacing: 0.02em;
     }
 
-    /* "10 desafíos", en el hueco de la frase. Centro x=1047/1920, base y=651. */
+    /* "10 desafíos", en el hueco de la frase. Centro x=1047/1920, base y=651.
+
+       Va en Poppins y no en Questrial porque es el único dato que la clienta
+       quiso destacado, y Questrial trae un solo grosor: pedirle negrita hace
+       que el navegador la engorde a la fuerza y las letras con tilde salen
+       deformes. Poppins en 700 es igual de geométrica y redonda, así que
+       convive con el resto sin que se note el cambio. */
     .desafios {
       left: 54.5%;
       top: 58.6%;
+      font-family: 'Poppins', 'Century Gothic', system-ui, sans-serif;
+      font-weight: 700;
       font-size: 32px;
       font-size: 2.65cqw;
       letter-spacing: 0.01em;
