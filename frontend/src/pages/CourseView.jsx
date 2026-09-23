@@ -9,6 +9,44 @@ const fmtDate = (d) => d
   ? new Date(d + 'T00:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
   : ''
 
+//: Los colores de la marca. Los bloques caen en estos y no en un arcoíris
+//: cualquiera, para que la celebración se vea parte del sitio.
+const COLORES = ['#ffcb00', '#8200db', '#00b8a9', '#ff6b6b', '#00a63e', '#590599']
+
+//: Las piezas se calculan UNA vez al cargar el módulo y no en cada repintado.
+//: Con `Math.random()` adentro del render, cada repintado movía todo el confeti
+//: de lugar; además React pide que pintar sea predecible. La variedad sale de
+//: multiplicar el índice por números primos: se ve desordenado y es siempre igual.
+const PIEZAS = Array.from({ length: 34 }, (_, i) => ({
+  izq: (i * 37) % 100,
+  demora: ((i * 13) % 9) / 10,
+  duracion: 2.4 + ((i * 7) % 16) / 10,
+  giro: ((i * 97) % 720) - 360,
+  tam: 8 + ((i * 5) % 9),
+  color: COLORES[i % COLORES.length],
+}))
+
+/* Bloquecitos cayendo. Cuadrados y no estrellitas ni emojis: lo que el niño
+ * acaba de armar son bloques, y la celebración habla el mismo idioma. Va por
+ * encima de todo pero sin capturar el mouse, así puede seguir navegando. */
+function Confeti() {
+  return (
+    <div className="lms-confeti" aria-hidden="true">
+      {PIEZAS.map((p, i) => (
+        <span key={i} style={{
+          left: `${p.izq}%`,
+          width: `${p.tam}px`,
+          height: `${p.tam}px`,
+          background: p.color,
+          animationDelay: `${p.demora}s`,
+          animationDuration: `${p.duracion}s`,
+          '--giro': `${p.giro}deg`,
+        }} />
+      ))}
+    </div>
+  )
+}
+
 export default function CourseView() {
   const { slug } = useParams()
   const [course, setCourse] = useState(null)
@@ -19,6 +57,9 @@ export default function CourseView() {
   const [expiresAt, setExpiresAt] = useState(null)
   const [busy, setBusy] = useState(false)
   const [aviso, setAviso] = useState('')   // errores puntuales, en la propia página
+  // Se enciende SOLO en el momento de terminar el modelo, no al volver a
+  // entrar: una fiesta que se repite cada visita deja de ser un premio.
+  const [celebrar, setCelebrar] = useState(false)
 
   useEffect(() => {
     api.get(`/lms/courses/${slug}/`)
@@ -48,12 +89,14 @@ export default function CourseView() {
     setAviso('')
     try {
       const res = await api.post(`/lms/lessons/${lesson.id}/complete/`)
+      const reciencompletado = res.data.course_completed && !course.completed
       setCourse(c => ({
         ...c,
         pct: res.data.pct, done: res.data.done, total: res.data.total,
         completed: res.data.course_completed,
         lessons: c.lessons.map(l => l.id === lesson.id ? { ...l, completed: true } : l),
       }))
+      if (reciencompletado) setCelebrar(true)
     } catch {
       setAviso('No pudimos guardar tu avance. Revisa tu conexión e intenta de nuevo.')
     } finally { setBusy(false) }
@@ -129,8 +172,8 @@ export default function CourseView() {
         {course.total > 0 && (
           <div className="lms-course-progress">
             <div className="lms-progress-track big"><div className="lms-progress-bar" style={{ width: `${course.pct}%` }} /></div>
-            <span className="lms-course-progress-label">
-              {course.completed ? '✓ Curso completado' : `${course.pct}% · ${course.done} de ${course.total} pasos`}
+            <span className={'lms-course-progress-label' + (course.completed ? ' logrado' : '')}>
+              {course.completed ? '✓ Modelo terminado' : `${course.pct}% · ${course.done} de ${course.total} pasos`}
             </span>
           </div>
         )}
@@ -150,6 +193,22 @@ export default function CourseView() {
           <div className="lms-aviso" role="alert">
             <span>{aviso}</span>
             <button type="button" onClick={() => setAviso('')} aria-label="Cerrar aviso">✕</button>
+          </div>
+        )}
+
+        {/* El momento del logro. No se cierra solo a los pocos segundos a
+            propósito: el niño acaba de terminar algo que le tomó semanas y
+            merece quedarse mirándolo el rato que quiera. */}
+        {celebrar && (
+          <div className="lms-logro" role="status">
+            <span className="lms-logro-marca" aria-hidden="true">✓</span>
+            <div className="lms-logro-txt">
+              <strong>¡Terminaste {course.title}!</strong>
+              <span>Tu avance quedó guardado.</span>
+            </div>
+            <Link to="/mis-cursos" className="lms-btn yellow">Ver mis modelos</Link>
+            <button type="button" className="lms-logro-cerrar"
+                    onClick={() => setCelebrar(false)} aria-label="Cerrar">✕</button>
           </div>
         )}
 
@@ -225,7 +284,7 @@ export default function CourseView() {
                       </button>
                     ) : (
                       <Link to="/mis-cursos" className="lms-btn yellow">
-                        {course.completed ? '🎉 Volver a mis modelos' : 'Volver a mis modelos'}
+                        Volver a mis modelos
                       </Link>
                     )}
                   </nav>
@@ -235,6 +294,8 @@ export default function CourseView() {
           </div>
         </div>
       </div>
+
+      {celebrar && <Confeti />}
     </div>
   )
 }

@@ -1026,3 +1026,105 @@
 .lms-estado .dia::first-letter { text-transform: uppercase; }
 
 
+
+/* --- El momento de terminar un modelo -----------------------------------
+   Sin emojis: el sitio ya tiene varios y uno más no se siente como un premio,
+   se siente como ruido. La celebración son bloques cayendo, que es lo que el
+   niño acaba de armar. */
+
+.lms-confeti {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;   /* puede seguir navegando mientras cae */
+}
+.lms-confeti span {
+  position: absolute;
+  top: -24px;
+  border-radius: 2px;     /* cuadrados con la esquina apenas comida, como un bloque */
+  animation-name: confeti-cae;
+  animation-timing-function: cubic-bezier(0.3, 0.1, 0.5, 1);
+  animation-fill-mode: forwards;
+}
+@keyframes confeti-cae {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(104vh) rotate(var(--giro)); opacity: 0; }
+}
+
+.lms-logro {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 22px;
+  padding: 16px 18px;
+  border-radius: var(--lms-radius);
+  background: linear-gradient(120deg, var(--lms-purple-50), #fff 60%);
+  border: 2px solid var(--lms-yellow);
+  box-shadow: var(--lms-shadow);
+  animation: logro-entra 0.4s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes logro-entra {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* La marca de visto, en grande. Late dos veces y se queda quieta: llamar la
+   atención una vez es premio, hacerlo para siempre es una alarma. */
+.lms-logro-marca {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--lms-green);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 900;
+  animation: logro-late 0.5s ease-in-out 2;
+}
+@keyframes logro-late {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.18); }
+}
+
+.lms-logro-txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.lms-logro-txt strong {
+  font-family: var(--lms-heading);
+  font-size: 17px;
+  color: var(--lms-purple-dark);
+}
+.lms-logro-txt span { font-size: 13.5px; color: var(--lms-body-c); }
+
+.lms-logro-cerrar {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  font-size: 16px;
+  color: var(--lms-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+}
+.lms-logro-cerrar:hover { color: var(--lms-ink); }
+
+/* La pastilla del encabezado cuando el modelo ya está terminado: se queda
+   puesta para siempre, así que va discreta, no festiva. */
+.lms-course-progress-label.logrado {
+  color: var(--lms-green);
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  /* El botón se va abajo y ocupa el ancho: en el teléfono, apretado al lado
+     del texto quedaba de dos letras. */
+  .lms-logro { flex-wrap: wrap; }
+  .lms-logro .lms-btn { width: 100%; order: 4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-confeti { display: none; }
+  .lms-logro, .lms-logro-marca { animation: none; }
+}
