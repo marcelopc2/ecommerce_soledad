@@ -994,11 +994,14 @@
    Siempre ocupa el mismo alto, vaya llena o vacía. Es lo que mantiene las 44
    tarjetas alineadas: antes el contador traía su propio recuadro y la tarjeta
    que lo llevaba crecía, rompiendo la grilla. */
-.lms-estado {
+/* `.lms-course-body p` vale más que `.lms-estado` a secas y le imponía el
+   `display: -webkit-box` del recorte de dos líneas, que dejaba el contador y la
+   fecha pegados en el mismo renglón. Se nombra el elemento para ganarle. */
+.lms-course-body p.lms-estado {
   min-height: 40px;      /* dos líneas a 14px: el tope del recorte de texto */
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 .lms-estado strong { color: var(--lms-purple); font-weight: 700; }
 
@@ -1011,11 +1014,15 @@
   font-variant-numeric: tabular-nums;   /* sin esto los números bailan al bajar */
 }
 
-/* El día concreto, para quien quiera anotarlo. */
+/* El día concreto, para quien quiera anotarlo.
+   Sin `capitalize`: en es-CL la fecha viene "miércoles, 30 de septiembre" y
+   esa regla ponía mayúscula en CADA palabra -"30 De Septiembre"-. Solo la
+   primera letra, que es lo que se quería. */
 .lms-estado .dia {
+  display: block;
   font-size: 12.5px;
   color: var(--lms-muted);
-  text-transform: capitalize;
 }
+.lms-estado .dia::first-letter { text-transform: uppercase; }
 
 
