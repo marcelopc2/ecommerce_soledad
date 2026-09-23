@@ -44,6 +44,7 @@ hay que agregar `--aplicar`.
 import os
 import re
 import unicodedata
+import unicodedata
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -64,6 +65,18 @@ from ._wp_dump import una_pasada
 
 #: El número que encabeza el título en WordPress ("005-Caleidoscopio").
 RE_NUMERO = re.compile(r'^(\d{1,3})\s*-\s*(.+)$')
+
+
+def _norm_titulo(texto):
+    """Título comparable: sin acentos, sin mayúsculas y sin espacios de más.
+
+    Se usa para reencontrar un modelo del volcado entre los que ya existen. El
+    título es la única llave común: los id de WordPress no se guardaron, y
+    guardarlos ahora no ayudaría con los que ya están.
+    """
+    t = unicodedata.normalize('NFKD', (texto or '').strip().lower())
+    t = ''.join(c for c in t if not unicodedata.combining(c))
+    return ' '.join(t.split())
 #: La imagen que lleva adentro el cuerpo de una lección.
 RE_IMG = re.compile(r'(?:src|href)=["\'](https?://[^"\']+?\.(?:jpe?g|png|webp|gif))["\']', re.I)
 
@@ -109,6 +122,10 @@ class Command(BaseCommand):
         parser.add_argument('--sobre-lo-que-hay', action='store_true',
                             help='Deja importar aunque ya existan cursos o alumnos. '
                                  'Ojo: no fusiona, agrega, así que deja todo duplicado.')
+        parser.add_argument('--sin-cursos', action='store_true',
+                            help='No toca los modelos ni los pasos: los busca entre '
+                                 'los que ya existen para poder ubicar el progreso, '
+                                 'y trae solo alumnos, membresías y avance.')
 
     # -- lectura -----------------------------------------------------------
 
@@ -188,7 +205,9 @@ class Command(BaseCommand):
         ruta, medios = op['dump'], op['medios']
         if not os.path.exists(ruta):
             raise CommandError('No encuentro el volcado: %s' % ruta)
-        if not os.path.isdir(medios):
+        # Con --sin-cursos no se copia ninguna foto: la carpeta deja de
+        # hacer falta y exigirla solo estorbaria.
+        if not op['sin_cursos'] and not os.path.isdir(medios):
             raise CommandError('No encuentro la carpeta de fotos: %s' % medios)
 
         de_verdad = op['aplicar']
@@ -196,8 +215,15 @@ class Command(BaseCommand):
         # El importador agrega, no fusiona: correrlo dos veces, o sobre la base
         # con los cursos de demo, deja cada modelo repetido y con el orden
         # pisado. Se avisa antes de escribir y no después.
+        if de_verdad and op['sin_cursos'] and not Course.objects.exists():
+            raise CommandError(
+                'Con --sin-cursos los modelos tienen que existir ya, y no hay '
+                'ninguno. Corre el importador sin esa opción para crearlos.')
+
         if de_verdad and not op['sobre_lo_que_hay']:
-            cursos_ya = Course.objects.count()
+            # Con --sin-cursos que ya existan modelos no es un problema: es el
+            # requisito. Lo que no puede haber son membresías, que sí se crean.
+            cursos_ya = 0 if op['sin_cursos'] else Course.objects.count()
             alumnos_ya = Membership.objects.count()
             if cursos_ya or alumnos_ya:
                 raise CommandError(
@@ -324,6 +350,53 @@ class Command(BaseCommand):
         rel = url.split('/wp-content/uploads/', 1)[-1]
         return os.path.join(medios, rel.replace('/', os.sep))
 
+    def _emparejar_con_lo_que_hay(self, ordenados, pasos_de, d):
+        """Ubica cada modelo del volcado entre los que YA existen, sin tocarlos.
+
+        Con --sin-cursos el contenido lo manda el panel y no WordPress, así que
+        no se crea ni se pisa nada. Pero el avance del alumno viene identificado
+        con los id de WordPress, y sin traducirlos a las filas de acá se
+        perdería quién había terminado qué.
+
+        Los modelos se emparejan por título y los pasos por su posición dentro
+        del modelo, que es la que el importador les puso al crearlos. Si alguien
+        reordenó los pasos en el panel, cae al título como segundo intento.
+        """
+        por_titulo = {}
+        for c in Course.objects.all():
+            por_titulo.setdefault(_norm_titulo(c.title), c)
+
+        curso_de_wp, leccion_de_wp = {}, {}
+        cursos_sin_par, pasos_sin_par = [], 0
+
+        for cid, post_curso in ordenados:
+            m = RE_NUMERO.match((post_curso.get('post_title') or '').strip())
+            titulo = (m.group(2) if m else post_curso.get('post_title') or 'Modelo').strip()
+            curso = por_titulo.get(_norm_titulo(titulo))
+            if curso is None:
+                cursos_sin_par.append(titulo)
+                continue
+            curso_de_wp[cid] = curso
+
+            pasos = list(curso.lessons.all())
+            por_orden = {l.order: l for l in pasos}
+            por_nombre = {}
+            for l in pasos:
+                por_nombre.setdefault(_norm_titulo(l.title), l)
+
+            for orden, lid in pasos_de.get(cid, []):
+                post = d['posts'].get(lid)
+                if not post:
+                    continue
+                leccion = (por_orden.get(orden or 1)
+                           or por_nombre.get(_norm_titulo(post.get('post_title') or '')))
+                if leccion is None:
+                    pasos_sin_par += 1
+                    continue
+                leccion_de_wp[lid] = leccion
+
+        return curso_de_wp, leccion_de_wp, cursos_sin_par, pasos_sin_par
+
     def _escribir(self, d, ordenados, pasos_de, membresias, medios, op):
         try:
             categoria = CourseCategory.objects.get(nombre=op['categoria'])
@@ -340,7 +413,26 @@ class Command(BaseCommand):
         sin_foto = 0
         videos_wp_temporales = 0
 
-        for pos, (cid, p) in enumerate(ordenados, 1):
+        # Con --sin-cursos no se crea ningún modelo: se ubican los que ya están
+        # y la lista de creación queda vacía. El contenido es del panel.
+        a_crear = ordenados
+        if op['sin_cursos']:
+            a_crear = []
+            curso_de_wp, leccion_de_wp, sin_par, pasos_sin_par =                 self._emparejar_con_lo_que_hay(ordenados, pasos_de, d)
+            self.stdout.write(
+                '  %d modelos y %d pasos ubicados entre los que ya hay '
+                '(no se toca el contenido)' % (len(curso_de_wp), len(leccion_de_wp)))
+            if sin_par:
+                muestra = ', '.join(sin_par[:5]) + ('...' if len(sin_par) > 5 else '')
+                self.stdout.write(self.style.WARNING(
+                    '  %d modelo(s) del volcado no existen acá y se ignoran: %s'
+                    % (len(sin_par), muestra)))
+            if pasos_sin_par:
+                self.stdout.write(self.style.WARNING(
+                    '  %d paso(s) sin equivalente acá: ese avance no se traslada'
+                    % pasos_sin_par))
+
+        for pos, (cid, p) in enumerate(a_crear, 1):
             m = RE_NUMERO.match((p.get('post_title') or '').strip())
             titulo = (m.group(2) if m else p.get('post_title') or 'Modelo').strip()
             # La bienvenida NO es un modelo armable: es la introducción al
@@ -416,9 +508,10 @@ class Command(BaseCommand):
                 leccion.save()
                 leccion_de_wp[lid] = leccion
 
-        self.stdout.write('  %d modelos y %d pasos creados%s' % (
-            len(curso_de_wp), len(leccion_de_wp),
-            (' (%d sin foto)' % sin_foto) if sin_foto else ''))
+        if not op['sin_cursos']:
+            self.stdout.write('  %d modelos y %d pasos creados%s' % (
+                len(curso_de_wp), len(leccion_de_wp),
+                (' (%d sin foto)' % sin_foto) if sin_foto else ''))
         if videos_wp_temporales:
             self.stdout.write(self.style.WARNING(
                 '  %d video(s) apuntan todavía al WordPress viejo (curso Bienvenida): '

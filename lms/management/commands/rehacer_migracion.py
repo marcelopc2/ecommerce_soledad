@@ -1,16 +1,23 @@
-"""Borra lo migrado y lo vuelve a traer desde un volcado más nuevo de WordPress.
+"""Actualiza los alumnos desde un volcado más nuevo de WordPress.
 
 Por qué existe
 --------------
-La migración no es un acto único: mientras el sitio viejo siga vendiendo, cada
-volcado nuevo trae alumnos, renovaciones y modelos que el anterior no tenía. El
-importador NO fusiona -se niega a correr si ya hay datos, porque agregar encima
-deja cada modelo duplicado-, así que actualizar significa borrar y rehacer.
+Mientras el sitio viejo siga vendiendo, cada volcado nuevo trae alumnos y
+renovaciones que el anterior no tenía. El importador NO fusiona -agregar
+encima duplicaría todo-, así que actualizar significa borrar los alumnos y
+volver a traerlos.
 
-Y rehacer son siete pasos en orden, cada uno con su comando: bajar las fotos,
-importar, cruzar los trailers, proteger los videos, traer los teléfonos, y
-devolverle el acceso de gestión a quien lo tenía. Hacerlos a mano cada vez es
-una invitación a saltarse uno y no notarlo hasta que una alumna reclame.
+Qué NO toca, y es lo importante
+-------------------------------
+Los modelos y sus pasos. **El contenido lo manda el panel, no WordPress.**
+Antes este comando los borraba y los reimportaba, y eso destruyó tres veces
+seguidas el trabajo que la administradora había hecho a mano: el curso de
+bienvenida armado paso a paso, las portadas subidas, el orden acomodado. La
+tercera vez fue el 17 de septiembre de 2026 y ella lo rehizo por completo.
+
+Si algún día hiciera falta rehacer también el contenido -una instalación
+nueva, por ejemplo- existe `--con-cursos`. En el sitio que ya está andando
+esa opción BORRA trabajo y no hay que usarla.
 
 Qué se conserva
 ---------------
@@ -23,10 +30,10 @@ Qué se conserva
 
 Qué se pierde, y hay que saberlo
 --------------------------------
-- Las correcciones hechas A MANO sobre los modelos: un título arreglado, un paso
-  reordenado, una foto subida desde el panel. El volcado manda.
 - Las claves que un alumno ya se haya definido: vuelve la de WordPress.
 - Las fechas de vencimiento editadas a mano en el panel.
+- El avance de un alumno en un paso que ya no existe con el mismo nombre ni
+  en la misma posición: se avisa cuántos quedaron sin pareja.
 
 Por eso el comando saca un respaldo ANTES de tocar nada, y por omisión no hace
 nada: hay que pasarle `--aplicar`.
@@ -70,6 +77,10 @@ class Command(BaseCommand):
         parser.add_argument('--sin-respaldo', action='store_true',
                             help='No saca respaldo de la base antes de borrar. '
                                  'No usar salvo que ya tengas uno reciente.')
+        parser.add_argument('--con-cursos', action='store_true',
+                            help='También rehace los modelos y los pasos desde '
+                                 'WordPress. POR OMISIÓN NO: el contenido se '
+                                 'edita en el panel y rehacerlo lo borraría.')
         parser.add_argument('--sin-fotos', action='store_true',
                             help='Salta la descarga de fotos del sitio viejo. '
                                  'Úsalo solo si la carpeta ya está completa.')
@@ -81,7 +92,7 @@ class Command(BaseCommand):
         if not os.path.exists(ruta):
             raise CommandError('No encuentro el volcado: %s' % ruta)
 
-        self._resumen_de_lo_que_hay()
+        self._resumen_de_lo_que_hay(op['con_cursos'])
 
         if not op['aplicar']:
             self.stdout.write(self.style.WARNING(
@@ -92,18 +103,28 @@ class Command(BaseCommand):
             self._respaldar()
 
         staff = self._guardar_cuentas_de_gestion()
-        self._borrar_lo_migrado()
+        con_cursos = op['con_cursos']
+        self._borrar_lo_migrado(con_cursos)
 
-        if not op['sin_fotos']:
-            self.stdout.write(self.style.MIGRATE_HEADING('\n[1/6] Bajando las fotos del sitio viejo'))
+        # Los pasos cambian segun si se rehace el contenido o no: sin cursos
+        # sobran bajar fotos, cruzar trailers y proteger videos.
+        bajar = con_cursos and not op['sin_fotos']
+        total = (1 if bajar else 0) + 1 + (2 if con_cursos else 0) + 2
+        self._n = 0
+
+        if bajar:
+            self._paso(total, 'Bajando las fotos del sitio viejo')
             call_command('bajar_fotos_wordpress', dump=ruta, destino=op['medios'])
 
-        self.stdout.write(self.style.MIGRATE_HEADING('\n[2/6] Importando el volcado'))
-        call_command('importar_wordpress', dump=ruta, medios=op['medios'], aplicar=True)
+        self._paso(total, 'Importando el volcado')
+        call_command('importar_wordpress', dump=ruta, medios=op['medios'],
+                     aplicar=True, sin_cursos=not con_cursos)
 
-        self.stdout.write(self.style.MIGRATE_HEADING('\n[3/6] Cruzando los trailers de YouTube'))
+        if con_cursos:
+            self._paso(total, 'Cruzando los trailers de YouTube')
         try:
-            call_command('trailers_desde_youtube', aplicar=True)
+            if con_cursos:
+                call_command('trailers_desde_youtube', aplicar=True)
         except Exception as e:
             # YouTube se lee raspando la página pública: si cambian el HTML o no
             # hay red, es lo ÚNICO de esta lista que se puede reintentar después
@@ -112,10 +133,11 @@ class Command(BaseCommand):
                 '  Falló y se sigue: %s\n  Reintenta después con: '
                 'manage.py trailers_desde_youtube --aplicar' % e))
 
-        self.stdout.write(self.style.MIGRATE_HEADING('\n[4/6] Protegiendo los videos subidos'))
-        call_command('proteger_videos', aplicar=True, borrar_original=True)
+        if con_cursos:
+            self._paso(total, 'Protegiendo los videos subidos')
+            call_command('proteger_videos', aplicar=True, borrar_original=True)
 
-        self.stdout.write(self.style.MIGRATE_HEADING('\n[5/6] Trayendo los teléfonos'))
+        self._paso(total, 'Trayendo los teléfonos')
         call_command('telefonos_desde_wordpress', ruta, aplicar=True)
 
         # Va como paso aparte y no dentro del importador porque la fecha de
@@ -123,8 +145,7 @@ class Command(BaseCommand):
         # membresías- sino en `_schedule_end` de la suscripción de WooCommerce.
         # Cruzar las dos tablas allá adentro habría duplicado la regla; acá vive
         # en un solo lugar y con sus propias pruebas.
-        self.stdout.write(self.style.MIGRATE_HEADING(
-            '\n[6/6] Poniendo las fechas de vencimiento reales'))
+        self._paso(total, 'Poniendo las fechas de vencimiento reales')
         call_command('vencimientos_desde_wordpress', dump=ruta, aplicar=True, ver=0)
 
         self._marcar_avisos_como_ya_enviados()
@@ -133,7 +154,14 @@ class Command(BaseCommand):
 
     # -- utilidades -------------------------------------------------------
 
-    def _resumen_de_lo_que_hay(self):
+    def _paso(self, total, titulo):
+        """Numera los pasos solo. Antes iban escritos a mano como [3/6] y
+        al agregar o sacar uno quedaban mintiendo."""
+        self._n += 1
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            chr(10) + '[%d/%d] %s' % (self._n, total, titulo)))
+
+    def _resumen_de_lo_que_hay(self, con_cursos):
         self.stdout.write(self.style.MIGRATE_HEADING('Lo que hay hoy y se va a rehacer'))
         self.stdout.write('  %4d modelos (%d con trailer)'
                           % (Course.objects.count(),
@@ -149,10 +177,18 @@ class Command(BaseCommand):
             '\n  Se CONSERVAN %d cuenta(s) de gestión: %s'
             % (staff.count(), ', '.join(u.username for u in staff))))
         self.stdout.write('  Se conserva la tienda (productos, cupones, retiro) y los diplomas.')
+        if con_cursos:
+            self.stdout.write(self.style.ERROR(
+                '  --con-cursos: se BORRAN los %d modelos y los %d pasos, con las '
+                'fotos y el orden que se hayan arreglado en el panel.'
+                % (Course.objects.count(), Lesson.objects.count())))
+        else:
+            self.stdout.write(self.style.SUCCESS(
+                '  Los %d modelos y los %d pasos NO se tocan: el contenido es del panel.'
+                % (Course.objects.count(), Lesson.objects.count())))
         self.stdout.write(self.style.WARNING(
-            '  Se PIERDEN las correcciones hechas a mano sobre los modelos, '
-            'las claves que los alumnos ya se definieron y los vencimientos '
-            'editados en el panel.'))
+            '  Se PIERDEN las claves que los alumnos ya se definieron y los '
+            'vencimientos editados a mano en el panel.'))
 
     def _respaldar(self):
         """Copia la base antes de borrar. Es la única vuelta atrás que hay."""
@@ -194,7 +230,7 @@ class Command(BaseCommand):
                           % len(staff))
         return staff
 
-    def _borrar_lo_migrado(self):
+    def _borrar_lo_migrado(self, con_cursos):
         """Borra el contenido y los alumnos, no la tienda.
 
         El orden importa: primero el progreso, que apunta a los cursos, y al
@@ -206,20 +242,24 @@ class Command(BaseCommand):
             CourseProgress.objects.all().delete()
             MembershipCategory.objects.all().delete()
 
-            # Los archivos de cada paso viven en protected_media/ y NO se van
-            # solos al borrar la fila: Django nunca borra archivos. Sin esto,
-            # cada re-importación dejaba otra copia completa de las 1.277 fotos.
-            for leccion in Lesson.objects.all().iterator():
-                for campo in (leccion.image_file, leccion.pdf_file, leccion.video_file):
-                    if campo:
-                        campo.delete(save=False)
-            Lesson.objects.all().delete()
+            # El contenido solo se rehace si se pide expresamente. Por omision
+            # NO: los modelos y los pasos se editan en el panel, y borrarlos
+            # aca ya destruyo tres veces el trabajo hecho a mano.
+            if con_cursos:
+                # Los archivos de cada paso viven en protected_media/ y NO se van
+                # solos al borrar la fila: Django nunca borra archivos. Sin esto,
+                # cada re-importación dejaba otra copia completa de las 1.277 fotos.
+                for leccion in Lesson.objects.all().iterator():
+                    for campo in (leccion.image_file, leccion.pdf_file, leccion.video_file):
+                        if campo:
+                            campo.delete(save=False)
+                Lesson.objects.all().delete()
 
-            CategoryCourse.objects.all().delete()
-            for curso in Course.objects.all().iterator():
-                if curso.image_file:
-                    curso.image_file.delete(save=False)
-            Course.objects.all().delete()
+                CategoryCourse.objects.all().delete()
+                for curso in Course.objects.all().iterator():
+                    if curso.image_file:
+                        curso.image_file.delete(save=False)
+                Course.objects.all().delete()
 
             # Las membresías se van con su usuario (CASCADE), pero se borran
             # explícito para que el conteo del resumen sea honesto.
