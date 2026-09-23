@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import logo from '../assets/landing/logo-ingenioblocks.svg'
+// El logo a COLOR y no el de la landing: ese trae el "ingenio blocks"
+// en BLANCO -esta pensado para la cabecera morada- y sobre fondo claro
+// desaparecia, dejando solo el bloquecito suelto.
+import logo from '../assets/brand/logo-ingenioblocks-color.png'
 import './aviso-preview.css'
 
 /* Aviso de "sitio en construcción" para las direcciones de prueba.

@@ -494,21 +494,40 @@ class LessonForm(BootstrapFormMixin, forms.ModelForm):
 
 
 class DiplomaForm(BootstrapFormMixin, forms.ModelForm):
+    """Datos de un diploma.
+
+    Sin `description`, `image_file` ni `image_url` a propósito: el certificado
+    dejó de ser un diseño armable desde acá y pasó a ser la imagen de la marca,
+    con el nombre, la cantidad de desafíos y la fecha escritos encima. Esos tres
+    campos ya no se imprimían en ninguna parte y el formulario prometía algo que
+    no iba a pasar ("si lo dejas vacío se usa el diseño lúdico por defecto").
+
+    Lo que sí faltaba era la CATEGORÍA, que estaba en el formulario pero la
+    plantilla nunca la pintaba: todos los diplomas se guardaban sin ella. Y es
+    el campo que decide las dos cosas que importan: cuándo se gana y cuántos
+    desafíos dice el certificado.
+    """
+
     class Meta:
         model = Diploma
-        fields = ['categoria', 'title', 'description', 'image_file', 'image_url', 'is_active']
+        fields = ['categoria', 'title', 'is_active']
         labels = {
             'categoria': 'Se gana al completar',
             'title': 'Título del diploma',
-            'description': 'Mensaje del diploma',
-            'image_file': 'Imagen del diploma (opcional)',
-            'image_url': '…o pegar una dirección de internet',
             'is_active': 'Activo',
         }
         widgets = {
             'title': forms.TextInput(attrs={'placeholder': 'Ej: Diploma Nivel Básico'}),
-            'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Mensaje que aparece en el diploma (opcional, hay uno por defecto).'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Obligatoria: un diploma sin categoría no sabe cuándo se gana y el
+        # certificado no puede contar los desafíos. Antes se podía guardar así
+        # y quedaba un diploma que nadie ganaba nunca.
+        self.fields['categoria'].required = True
+        self.fields['categoria'].empty_label = 'Elige una categoría…'
+        self.fields['categoria'].queryset = CourseCategory.objects.filter(is_active=True).order_by('nombre')
 
     def save(self, commit=True):
         """El orden se maneja arrastrando en la secuencia de cursos; un diploma

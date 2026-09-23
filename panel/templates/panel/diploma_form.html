@@ -23,26 +23,23 @@
       <div class="pnl-card"><div class="card-pad">
         <div class="form-section-title"><i class="bi bi-award"></i> Datos del diploma</div>
         <div class="mb-3">
+          <label class="form-label">{{ form.categoria.label }}</label>
+          {{ form.categoria }}
+          {% for e in form.categoria.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          <div class="pnl-campo-ayuda">
+            El alumno lo gana al terminar todos los modelos de esta categoría, y
+            es de donde sale la cantidad de desafíos que dice el certificado
+            {% if diploma and diploma.categoria %}(hoy, {{ diploma.desafios }}){% endif %}.
+          </div>
+        </div>
+        <div class="mb-3">
           <label class="form-label">{{ form.title.label }}</label>
           {{ form.title }}
-          {% for e in form.title.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-        </div>
-        <div class="mb-3">
-          <label class="form-label">{{ form.description.label }}</label>
-          {{ form.description }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label">{{ form.image_file.label }}</label>
-          {% if diploma and diploma.image_file %}
-            <div class="mb-2"><img src="{{ diploma.image_file.url }}" alt="" style="max-height:110px;border-radius:10px"></div>
-          {% endif %}
-          {{ form.image_file }}
-          <div class="pnl-campo-ayuda">Si lo dejas vacío se usa el diseño lúdico por defecto de Ingenio Blocks (con el nombre del alumno).</div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">{{ form.image_url.label }}</label>
-          {{ form.image_url }}
-          <div class="pnl-campo-ayuda">Solo si la imagen ya está publicada en otro sitio. La subida de arriba manda sobre esta.</div>
+          {% for e in form.title.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          <div class="pnl-campo-ayuda">
+            Es el nombre con que el alumno lo ve en su Aula. No se imprime en el
+            certificado.
+          </div>
         </div>
         <div class="form-check form-switch">
           {{ form.is_active }}
@@ -51,6 +48,11 @@
       </div></div>
 
       <p class="cell-sub mt-3"><i class="bi bi-info-circle"></i> La posición del diploma (entre qué cursos aparece) se fija arrastrándolo en la lista de <a href="{% url 'panel:courses' %}">Cursos y diplomas</a>.</p>
+
+      <p class="cell-sub"><i class="bi bi-award"></i> El diseño del certificado es
+      el oficial de Ingenio Blocks y es el mismo para todos. Lo único que cambia
+      en cada uno es el nombre del alumno, la cantidad de desafíos y la fecha en
+      que lo ganó{% if diploma %} — míralo con <strong>Vista previa</strong>{% endif %}.</p>
 
       <div class="d-flex gap-2 mt-2">
         <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar diploma</button>

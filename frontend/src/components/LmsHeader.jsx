@@ -1,7 +1,10 @@
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { PANEL_URL } from '../api'
-import logo from '../assets/landing/logo-ingenioblocks.svg'
+// El logo a COLOR y no el de la landing: ese trae el "ingenio blocks"
+// en BLANCO -esta pensado para la cabecera morada- y sobre fondo claro
+// desaparecia, dejando solo el bloquecito suelto.
+import logo from '../assets/brand/logo-ingenioblocks-color.png'
 
 export default function LmsHeader() {
   const { user, logout } = useAuth()

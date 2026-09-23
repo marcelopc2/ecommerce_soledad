@@ -568,6 +568,9 @@ def diploma_preview(request, pk):
     return render(request, 'lms/diploma.html', {
         'diploma': diploma,
         'student_name': 'Nombre de Ejemplo',
+        # El mismo número que vería un alumno real: así la vista previa sirve
+        # para comprobar que la categoría quedó bien elegida.
+        'desafios': diploma.desafios,
         'awarded_at': timezone.now(),
         'is_preview': True,
     })

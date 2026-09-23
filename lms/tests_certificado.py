@@ -130,3 +130,60 @@ class PlantillaDelCertificadoTests(TestCase):
         """Para que nadie confunda una prueba con un certificado ganado."""
         self.assertIn('VISTA PREVIA', self._html(is_preview=True))
         self.assertNotIn('VISTA PREVIA', self._html())
+
+
+class FormularioDelPanelTests(TestCase):
+    """El formulario con el que la clienta crea un diploma.
+
+    Existe porque tenía un agujero silencioso: `categoria` estaba declarada en
+    el formulario pero la plantilla nunca la pintaba, así que TODOS los diplomas
+    se guardaban sin categoría. Un diploma sin categoría no sabe cuándo se gana
+    y el certificado no puede contar los desafíos.
+    """
+
+    def setUp(self):
+        self.cat = CourseCategory.objects.create(nombre='General', slug='general')
+
+    def _form(self, **datos):
+        from panel.forms import DiplomaForm
+        base = {'categoria': self.cat.pk, 'title': 'Diploma Nivel Básico', 'is_active': True}
+        base.update(datos)
+        return DiplomaForm(data=base)
+
+    def test_se_puede_crear_con_categoria(self):
+        f = self._form()
+        self.assertTrue(f.is_valid(), f.errors)
+        self.assertEqual(f.save().categoria, self.cat)
+
+    def test_la_categoria_es_obligatoria(self):
+        """Antes se guardaba sin ella y quedaba un diploma que nadie ganaba."""
+        f = self._form(categoria='')
+        self.assertFalse(f.is_valid())
+        self.assertIn('categoria', f.errors)
+
+    def test_la_plantilla_DEL_PANEL_pinta_la_categoria(self):
+        """El agujero original, y es el que hay que cuidar: el campo estaba en
+        el formulario pero la plantilla no lo dibujaba, así que nunca llegaba
+        nada y se guardaba en blanco. Se mira el archivo, no el formulario:
+        comprobar el formulario habría pasado igual con el error puesto."""
+        from django.template.loader import get_template
+        fuente = get_template('panel/diploma_form.html').template.source
+        self.assertIn('form.categoria', fuente)
+        # Y que no hayan vuelto los campos que ya no se imprimen.
+        self.assertNotIn('form.image_file', fuente)
+        self.assertNotIn('form.description', fuente)
+
+    def test_ya_no_pide_imagen_ni_mensaje(self):
+        """El certificado es el diseño oficial y es el mismo para todos: esos
+        campos no se imprimían en ninguna parte y confundían."""
+        from panel.forms import DiplomaForm
+        campos = set(DiplomaForm().fields)
+        self.assertEqual(campos, {'categoria', 'title', 'is_active'})
+
+    def test_solo_ofrece_categorias_activas(self):
+        apagada = CourseCategory.objects.create(
+            nombre='Vieja', slug='vieja', is_active=False)
+        from panel.forms import DiplomaForm
+        opciones = list(DiplomaForm().fields['categoria'].queryset)
+        self.assertIn(self.cat, opciones)
+        self.assertNotIn(apagada, opciones)
