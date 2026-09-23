@@ -327,12 +327,81 @@
 
 /* Quieta al pasar por encima: la tarjeta no se puede abrir, y moverse como las
    demás prometería un clic que no hace nada. */
-.lms-course-card.misterio:hover .lms-course-cover.velada img { transform: none; }
+.lms-course-card.bloqueado:hover .lms-course-cover.velada img { transform: none; }
 
-/* La tarjeta de un modelo que el goteo no libera no se agrisa como los otros
-   bloqueados: se quiere que luzca atractiva, no apagada. Lo que la atenua es
-   la portada velada de mas arriba. */
-.lms-course-card.misterio { filter: none; cursor: default; }
+/* Un brillo que cruza la portada cada tanto. Es una página para niños: el
+   modelo que todavía no llega tiene que verse guardado, no muerto. */
+.lms-course-cover.velada::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(115deg,
+    transparent 38%, rgba(255, 255, 255, 0.38) 50%, transparent 62%);
+  transform: translateX(-110%);
+  animation: brillo-espera 4.2s ease-in-out infinite;
+}
+@keyframes brillo-espera {
+  0%       { transform: translateX(-110%); }
+  55%, 100% { transform: translateX(110%); }
+}
+
+/* El candado y la pastilla van sobre el brillo, que es decoración. */
+.lms-course-cover .lock-badge { z-index: 3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-course-cover.velada::after { animation: none; opacity: 0; }
+  .lms-candado-ico { animation: none; }
+}
+
+/* Una tarjeta cerrada no se agrisa entera: se quiere que luzca atractiva, no
+   apagada. Lo que atenúa al que todavía no llega es su portada velada; al que
+   solo espera que el niño termine el anterior no lo atenúa nada, porque esa
+   portada ya se la ganó. */
+.lms-course-card.bloqueado { filter: none; cursor: default; }
+.lms-course-card.bloqueado:hover { transform: none; box-shadow: var(--lms-shadow); }
+
+/* --- Candado al centro: la fecha llegó, falta terminar el anterior --------
+   Sin velo oscuro encima: el modelo ya le corresponde y verlo a todo color es
+   justamente el premio que lo empuja a terminar el que tiene abierto. */
+.lms-candado {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  text-align: center;
+}
+.lms-candado-ico {
+  font-size: 42px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+  animation: candado-late 2.8s ease-in-out infinite;
+}
+/* El texto en pastilla y no sobre la foto pelada: encima de una portada clara
+   el blanco desaparecía. */
+.lms-candado-txt {
+  max-width: 100%;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 43, 0.74);
+  backdrop-filter: blur(3px);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@keyframes candado-late {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50%      { transform: scale(1.14) rotate(-7deg); }
+}
 .lms-lessons-chip.muted {
   background: transparent;
   color: var(--lms-muted, #6b7280);
@@ -954,10 +1023,13 @@
   border: 1px solid var(--lms-purple-100);
 }
 
+/* El contador es lo único que se mueve en la pantalla: que se lea de lejos. */
 .lms-que-sigue .cuenta {
+  font-family: var(--lms-heading);
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--lms-accent);
+  font-variant-numeric: tabular-nums;   /* sin esto los números bailan al bajar */
 }
 
 /* El día concreto, para quien quiera anotarlo. Secundario: la cuenta regresiva
@@ -968,10 +1040,3 @@
   text-transform: capitalize;
 }
 
-/* Cuando faltan las dos cosas -la fecha Y terminar el anterior-, decirlo. Sin
-   esto el alumno espera a la fecha, llega el día, sigue cerrado y no entiende. */
-.lms-que-sigue .ademas {
-  margin-top: 4px;
-  font-size: 12.5px;
-  color: var(--lms-body-c);
-}

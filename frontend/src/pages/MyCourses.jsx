@@ -127,16 +127,19 @@ export default function MyCourses() {
           )
         ) : (
           <div className="lms-courses-grid">
-            {/* El primero cerrado es "el que sigue": es el único al que el
-                alumno le puede poner fecha, y por eso lleva el detalle de
-                cuándo se abre. Ponerlo en todos llenaría la pantalla de
-                fechas lejanas que solo abruman. */}
+            {/* El próximo por LLEGAR: el primero cuya fecha todavía no se
+                cumple. Es el único que lleva contador, porque es la única
+                espera real. Ojo que no es lo mismo que "el primero cerrado":
+                un alumno atrasado arrastra modelos cuya fecha ya pasó y que
+                solo esperan que termine el anterior. */}
             {(() => {
-              const siguiente = items.find(it => it.type !== 'diploma' && !it.unlocked)
+              const ahora = Date.now()
+              const proximo = items.find(it => it.type !== 'diploma' && !it.unlocked
+                && new Date(`${it.unlock_date}T00:00:00`).getTime() > ahora)
               return items.map(it => it.type === 'diploma'
                 ? <DiplomaCard key={`d${it.id}`} diploma={it} />
                 : <CourseCard key={`c${it.id}`} course={it} active={active}
-                              onReady={cargar} esElQueSigue={it === siguiente} />
+                              onReady={cargar} esElProximo={it === proximo} />
               )
             })()}
           </div>
@@ -171,6 +174,34 @@ function faltaTexto(unlockDate) {
   return `en ${Math.max(1, Math.floor(diff / 60000))} min`
 }
 
+// Un latido por segundo. Se enciende solo en la tarjeta del próximo modelo:
+// es la única donde el número baja a la vista, y el resto no tiene por qué
+// repintarse cada segundo.
+function useTicTac(activo) {
+  const [, set] = useState(0)
+  useEffect(() => {
+    if (!activo) return
+    const id = setInterval(() => set(t => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [activo])
+}
+
+// Cuenta regresiva que se ve moverse: "6 días y 4 h", "5 h 23 min", "48 s".
+// Baja de unidad a medida que se acerca, para que el último rato sea el que
+// más emociona.
+function cuentaRegresiva(unlockDate) {
+  const falta = new Date(`${unlockDate}T00:00:00`).getTime() - Date.now()
+  if (falta <= 0) return '¡Ya se abrió!'
+  const seg = Math.floor(falta / 1000)
+  const d = Math.floor(seg / 86400)
+  const h = Math.floor((seg % 86400) / 3600)
+  const m = Math.floor((seg % 3600) / 60)
+  if (d >= 1) return `Faltan ${d} ${d === 1 ? 'día' : 'días'} y ${h} h`
+  if (h >= 1) return `Faltan ${h} h ${m} min`
+  if (m >= 1) return `Faltan ${m} min ${seg % 60} s`
+  return `¡Faltan ${seg} s!`
+}
+
 // "lunes 30 de septiembre". Una fecha concreta al lado del contador: "en 7
 // días" sirve para hacerse una idea, pero el apoderado que quiere anotarlo en
 // el calendario necesita el día.
@@ -180,102 +211,90 @@ function fechaEnPalabras(unlockDate) {
   })
 }
 
-function CourseCard({ course: c, active, onReady, esElQueSigue }) {
-  useMinuteTick()
-  // Con la suscripción caída el permiso es POR MODELO, no por membresía: los que
-  // terminó siguen abiertos para repasar. Por eso todo se decide con
-  // `c.unlocked`, que ya trae resuelto el estado de la suscripción, y no con
-  // `active`, que solo sirve para saber si además hay que invitar a renovar.
+function CourseCard({ course: c, active, onReady, esElProximo }) {
+  // TRES ESTADOS, y el que manda es la FECHA del goteo:
+  //
+  //   abierto     la fecha llegó y terminó el anterior -> a todo color, se entra
+  //   porTerminar la fecha llegó pero le falta el anterior -> a color, con candado
+  //   esperando   la fecha todavía no llega -> apagado, con su animación
+  //
+  // Se decide por fecha y no por `lock_reason` porque un modelo puede tener las
+  // dos trabas a la vez, y lo que el niño ve primero tiene que ser una sola
+  // cosa: o "todavía no te toca" o "te toca, termina el anterior".
   const vencido = c.lock_reason === 'vencida'
-  const locked = !c.unlocked
-  // Un curso que el goteo todavía no libera. NO se puede entrar, pero sí se
-  // muestra: antes se ocultaban foto y nombre para dar expectativa, y el efecto
-  // era el contrario. Con 44 modelos el alumno veía 43 tarjetas idénticas que
-  // decían lo mismo, sin ninguna señal de qué se viene ni por qué esperar. Ahora
-  // se ve la foto atenuada y el nombre: una vitrina de lo que falta.
-  const misterio = locked && !vencido && !c.completed
-  const porFecha = c.lock_reason !== 'previo'
-  // Se recalcula en cada repintado a propósito: `useMinuteTick` fuerza uno por
-  // minuto, así el contador baja solo y al llegar la hora deja de ser futuro.
-  const fechaFutura = new Date(`${c.unlock_date}T00:00:00`).getTime() > Date.now()
+  const abierto = c.unlocked
+  const fechaLlegada = new Date(`${c.unlock_date}T00:00:00`).getTime() <= Date.now()
+  const porTerminar = !abierto && !vencido && fechaLlegada
+  const esperando = !abierto && !vencido && !fechaLlegada
 
-  // Cuando llega la hora exacta, recargar para que el curso se libere solo, sin
-  // que el alumno tenga que refrescar. Un único timeout, no un sondeo.
+  useMinuteTick()
+  // El segundero corre SOLO en el próximo por llegar. En las 44 tarjetas sería
+  // repintar la pantalla entera cada segundo para que nadie lo note.
+  useTicTac(esElProximo && esperando)
+
+  // Cuando llega la hora exacta, recargar para que el modelo se abra solo, sin
+  // que el niño tenga que refrescar. Un único timeout, no un sondeo.
   useEffect(() => {
-    if (!misterio || !porFecha) return
-    const objetivo = new Date(`${c.unlock_date}T00:00:00`).getTime()
-    const falta = objetivo - Date.now()
+    if (!esperando) return
+    const falta = new Date(`${c.unlock_date}T00:00:00`).getTime() - Date.now()
     if (falta <= 0) { onReady?.(); return }
     const id = setTimeout(() => onReady?.(), falta + 1000)
     return () => clearTimeout(id)
-  }, [misterio, porFecha, c.unlock_date, onReady])
+  }, [esperando, c.unlock_date, onReady])
 
   const cuerpo = (
     <>
-      <div className={'lms-course-cover' + (misterio ? ' velada' : '')}>
+      <div className={'lms-course-cover' + (esperando ? ' velada' : '')}>
         {c.image_url
           ? <img src={c.image_url} alt={c.title} />
           : <span className="fallback">🧱</span>}
+
+        {/* Se ganó la fecha pero le falta el anterior: la portada va a todo
+            color -ya le corresponde- y el candado encima explica por qué no
+            entra todavía. Sin contador: no hay nada que esperar, depende de él. */}
+        {porTerminar && (
+          <div className="lms-candado">
+            <span className="lms-candado-ico" aria-hidden="true">🔒</span>
+            <span className="lms-candado-txt">
+              Termina {c.required_course_title
+                ? `«${c.required_course_title}»` : 'el modelo anterior'}
+            </span>
+          </div>
+        )}
+
         {c.completed ? (
           <span className="lock-badge done">✓ Completado</span>
         ) : vencido ? (
           <span className="lock-badge">🔒 Membresía vencida</span>
-        ) : !c.unlocked ? (
-          /* Dos motivos de bloqueo, hay que distinguirlos: por fecha (goteo) va
-             un contador; por curso previo, mostrar la fecha lucía un día YA
-             PASADO y el apoderado creía que la plataforma fallaba. */
-          c.lock_reason === 'previo' && c.required_course_title ? (
-            <span className="lock-badge">🔒 Termina el modelo anterior</span>
-          ) : (
-            <span className="lock-badge">🔒 Se abre {faltaTexto(c.unlock_date)}</span>
-          )
+        ) : esperando ? (
+          <span className="lock-badge">🔒 Se abre {faltaTexto(c.unlock_date)}</span>
         ) : null}
       </div>
+
       <div className="lms-course-body">
         <h3>{c.title}</h3>
-        {/* La descripción de los modelos migrados viene vacía, así que en vez
-            de dejar un hueco se explica la espera, que es lo que el alumno se
-            está preguntando al mirar una tarjeta con candado. */}
-        <p>{c.description
-          ? c.description
-          : misterio
-            ? (porFecha
-                ? 'Todavía no se abre. Te avisamos por correo apenas esté listo.'
-                : 'Termina el modelo anterior y este se abre.')
-            : ''}</p>
-        {/* Solo en el que sigue: el alumno quiere saber cuándo le toca lo
-            próximo, no la fecha de los 43 que vienen detrás.
+        <p>{c.description}</p>
 
-            La fecha se muestra únicamente si TODAVÍA no llegó. Un modelo
-            trabado por no haber terminado el anterior arrastra una fecha que
-            suele estar en el pasado, y anunciar "se abre el 22 de abril" en
-            septiembre hacía creer que la plataforma estaba fallando. En ese
-            caso la respuesta honesta es que no hay ninguna espera: se abre en
-            cuanto el alumno termine. */}
-        {esElQueSigue && misterio && (
+        {/* El contador va SOLO en el próximo por llegar: es la única espera que
+            le sirve de algo. En los de más atrás serían fechas cada vez más
+            lejanas, y cuarenta relojes no emocionan a nadie. */}
+        {esElProximo && esperando && (
           <p className="lms-que-sigue">
-            {fechaFutura ? (
-              <>
-                <span className="cuenta">Se abre {faltaTexto(c.unlock_date)}</span>
-                <span className="dia">{fechaEnPalabras(c.unlock_date)}</span>
-                {!porFecha && <span className="ademas">Y además hay que terminar el modelo anterior.</span>}
-              </>
-            ) : (
-              <span className="cuenta">Se abre apenas termines el modelo anterior</span>
-            )}
+            <span className="cuenta">{cuentaRegresiva(c.unlock_date)}</span>
+            <span className="dia">{fechaEnPalabras(c.unlock_date)}</span>
           </p>
         )}
 
-        {c.unlocked && c.total > 0 && (
+        {abierto && c.total > 0 && (
           <div className="lms-progress">
             <div className="lms-progress-track"><div className="lms-progress-bar" style={{ width: `${c.pct}%` }} /></div>
             <span className="lms-progress-label">{c.pct}%</span>
           </div>
         )}
+
         <div className="lms-course-foot">
-          {misterio
-            ? <span className="lms-lessons-chip muted">Muy pronto</span>
-            : <>
+          {abierto || vencido
+            ? <>
                 <span className="lms-lessons-chip">{c.done}/{c.total} pasos</span>
                 <span className="go">
                   {vencido ? 'Renovar para entrar'
@@ -283,23 +302,22 @@ function CourseCard({ course: c, active, onReady, esElQueSigue }) {
                     : c.completed ? 'Revisar →'
                     : 'Entrar →'}
                 </span>
-              </>}
+              </>
+            : <span className="lms-lessons-chip muted">
+                {porTerminar ? 'Casi lo tienes' : 'Muy pronto'}
+              </span>}
         </div>
       </div>
     </>
   )
 
-  // Ni el curso misterio ni el cerrado por vencimiento son clickeables. El
-  // misterio, para no dejar un callejón sin salida ni filtrar el nombre por la
-  // URL (/curso/su-slug). El vencido, porque la carátula está justamente para
-  // que se vea lo que ya no puede abrir: llevarlo a una pantalla de error se
-  // siente como una falla de la plataforma, no como una invitación a renovar.
-  //
-  // Los que SÍ terminó siguen siendo un link aunque la suscripción esté caída:
+  // Ninguno de los cerrados es clickeable: llevar a una pantalla de error se
+  // siente como una falla de la plataforma, no como una invitación.
+  // Los que SÍ terminó siguen siendo link aunque la suscripción esté caída:
   // volver a armar un modelo que le gustó es lo que más se hace en ese estado.
-  if (misterio) return <div className="lms-course-card locked misterio">{cuerpo}</div>
+  if (porTerminar || esperando) return <div className="lms-course-card bloqueado">{cuerpo}</div>
   if (vencido) return <div className="lms-course-card locked vencida">{cuerpo}</div>
-  return <Link to={`/curso/${c.slug}`} className={'lms-course-card' + (locked ? ' locked' : '')}>{cuerpo}</Link>
+  return <Link to={`/curso/${c.slug}`} className="lms-course-card">{cuerpo}</Link>
 }
 
 function DiplomaCard({ diploma: d }) {
