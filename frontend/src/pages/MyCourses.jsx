@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { api, PANEL_URL } from '../api'
 import LmsHeader, { LmsLoader } from '../components/LmsHeader'
@@ -10,8 +10,14 @@ export default function MyCourses() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Un minuto basta para decidir en que estado va cada modelo: el goteo
+  // libera por dia. El segundero del contador corre aparte, en su tarjeta.
+  const ahora = useAhora(60000)
 
-  const cargar = () => {
+  // useCallback y no una función suelta: `cargar` viaja a las 44 tarjetas como
+  // `onReady`. Si cambia de identidad en cada repintado, el efecto que programa
+  // la apertura automática se desarma y se rearma en todas, cada vez.
+  const cargar = useCallback(() => {
     setLoading(true)
     setError(false)
     api.get('/lms/my-courses/')
@@ -20,9 +26,9 @@ export default function MyCourses() {
       // se veían igual y un corte de conexión se leía como "perdí mi compra".
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }
+  }, [])
 
-  useEffect(cargar, [])
+  useEffect(() => { cargar() }, [cargar])
 
   if (loading) {
     return <div className="lms"><LmsHeader /><LmsLoader text="Cargando tus cursos…" /></div>
@@ -133,13 +139,13 @@ export default function MyCourses() {
                 un alumno atrasado arrastra modelos cuya fecha ya pasó y que
                 solo esperan que termine el anterior. */}
             {(() => {
-              const ahora = Date.now()
               const proximo = items.find(it => it.type !== 'diploma' && !it.unlocked
                 && new Date(`${it.unlock_date}T00:00:00`).getTime() > ahora)
               return items.map(it => it.type === 'diploma'
                 ? <DiplomaCard key={`d${it.id}`} diploma={it} />
                 : <CourseCard key={`c${it.id}`} course={it} active={active}
-                              onReady={cargar} esElProximo={it === proximo} />
+                              onReady={cargar} esElProximo={it === proximo}
+                              ahora={ahora} />
               )
             })()}
           </div>
@@ -149,22 +155,30 @@ export default function MyCourses() {
   )
 }
 
-// Re-renderiza cada minuto para que el contador «se abre en X» baje solo si el
-// alumno deja la página abierta. El goteo es por día, así que con el minuto basta.
-function useMinuteTick() {
-  const [, set] = useState(0)
+// El reloj vive en estado y no en un `Date.now()` suelto dentro del render.
+// Leer la hora mientras se pinta hace que dos repintados del mismo estado den
+// resultados distintos; ademas React lo marca como impuro. Asi el momento es
+// un valor fijo durante todo el repintado, igual para todas las tarjetas.
+//
+// `intervaloMs` en 0 apaga el reloj: solo la tarjeta del proximo modelo
+// necesita segundero, y poner 44 relojes latiendo seria repintar la pantalla
+// entera cada segundo para que nadie lo note.
+function useAhora(intervaloMs) {
+  const [ahora, setAhora] = useState(Date.now)
   useEffect(() => {
-    const id = setInterval(() => set(t => t + 1), 60000)
+    if (!intervaloMs) return
+    const id = setInterval(() => setAhora(Date.now()), intervaloMs)
     return () => clearInterval(id)
-  }, [])
+  }, [intervaloMs])
+  return ahora
 }
 
 // Cuánto falta para que se abra, en lenguaje natural. El goteo compara fechas en
 // hora de Chile y libera a las 00:00, así que el objetivo es la medianoche local
 // de unlock_date (para un usuario en Chile, su medianoche = la del servidor).
-function faltaTexto(unlockDate) {
+function faltaTexto(unlockDate, ahora) {
   const objetivo = new Date(`${unlockDate}T00:00:00`).getTime()
-  const diff = objetivo - Date.now()
+  const diff = objetivo - ahora
   if (diff <= 0) return 'hoy'
   const dias = Math.floor(diff / 86400000)
   if (dias >= 2) return `en ${dias} días`
@@ -174,23 +188,11 @@ function faltaTexto(unlockDate) {
   return `en ${Math.max(1, Math.floor(diff / 60000))} min`
 }
 
-// Un latido por segundo. Se enciende solo en la tarjeta del próximo modelo:
-// es la única donde el número baja a la vista, y el resto no tiene por qué
-// repintarse cada segundo.
-function useTicTac(activo) {
-  const [, set] = useState(0)
-  useEffect(() => {
-    if (!activo) return
-    const id = setInterval(() => set(t => t + 1), 1000)
-    return () => clearInterval(id)
-  }, [activo])
-}
-
 // Cuenta regresiva que se ve moverse: "6 días y 4 h", "5 h 23 min", "48 s".
 // Baja de unidad a medida que se acerca, para que el último rato sea el que
 // más emociona.
-function cuentaRegresiva(unlockDate) {
-  const falta = new Date(`${unlockDate}T00:00:00`).getTime() - Date.now()
+function cuentaRegresiva(unlockDate, ahora) {
+  const falta = new Date(`${unlockDate}T00:00:00`).getTime() - ahora
   if (falta <= 0) return '¡Ya se abrió!'
   const seg = Math.floor(falta / 1000)
   const d = Math.floor(seg / 86400)
@@ -211,7 +213,7 @@ function fechaEnPalabras(unlockDate) {
   })
 }
 
-function CourseCard({ course: c, active, onReady, esElProximo }) {
+function CourseCard({ course: c, active, onReady, esElProximo, ahora }) {
   // TRES ESTADOS, y el que manda es la FECHA del goteo:
   //
   //   abierto     la fecha llegó y terminó el anterior -> a todo color, se entra
@@ -221,26 +223,35 @@ function CourseCard({ course: c, active, onReady, esElProximo }) {
   // Se decide por fecha y no por `lock_reason` porque un modelo puede tener las
   // dos trabas a la vez, y lo que el niño ve primero tiene que ser una sola
   // cosa: o "todavía no te toca" o "te toca, termina el anterior".
+  // El segundero corre SOLO en el proximo por llegar; las demas se conforman
+  // con el reloj de un minuto que baja del padre.
+  const tic = useAhora(esElProximo ? 1000 : 0)
+  const momento = esElProximo ? tic : ahora
+
   const vencido = c.lock_reason === 'vencida'
   const abierto = c.unlocked
-  const fechaLlegada = new Date(`${c.unlock_date}T00:00:00`).getTime() <= Date.now()
+  const fechaLlegada = new Date(`${c.unlock_date}T00:00:00`).getTime() <= momento
   const porTerminar = !abierto && !vencido && fechaLlegada
   const esperando = !abierto && !vencido && !fechaLlegada
 
-  useMinuteTick()
-  // El segundero corre SOLO en el próximo por llegar. En las 44 tarjetas sería
-  // repintar la pantalla entera cada segundo para que nadie lo note.
-  useTicTac(esElProximo && esperando)
 
-  // Cuando llega la hora exacta, recargar para que el modelo se abra solo, sin
-  // que el niño tenga que refrescar. Un único timeout, no un sondeo.
+  // Cuando llega la hora exacta, recargar para que el modelo se abra solo sin
+  // que el niño tenga que refrescar.
+  //
+  // SOLO en el próximo por llegar, y solo si la espera cabe en un setTimeout.
+  // El techo son 2.147.483.647 ms (~24,8 días) y pasarse NO lo posterga: lo
+  // dispara de inmediato. Programándolo en los 20 modelos con fecha futura, el
+  // que abría en julio de 2027 recargaba al instante, se volvía a montar y
+  // recargaba otra vez: la página quedaba parpadeando entre "cargando" y la
+  // lista. Más allá de ese plazo nadie deja la pestaña abierta, y si la deja,
+  // el modelo aparece al siguiente refresco igual.
   useEffect(() => {
-    if (!esperando) return
+    if (!esElProximo || !esperando) return
     const falta = new Date(`${c.unlock_date}T00:00:00`).getTime() - Date.now()
-    if (falta <= 0) { onReady?.(); return }
+    if (falta <= 0 || falta > 2147483647) return   // dentro del efecto sí se puede leer la hora
     const id = setTimeout(() => onReady?.(), falta + 1000)
     return () => clearTimeout(id)
-  }, [esperando, c.unlock_date, onReady])
+  }, [esElProximo, esperando, c.unlock_date, onReady])
 
   const cuerpo = (
     <>
@@ -267,7 +278,7 @@ function CourseCard({ course: c, active, onReady, esElProximo }) {
         ) : vencido ? (
           <span className="lock-badge">🔒 Membresía vencida</span>
         ) : esperando ? (
-          <span className="lock-badge">🔒 Se abre {faltaTexto(c.unlock_date)}</span>
+          <span className="lock-badge">🔒 Se abre {faltaTexto(c.unlock_date, momento)}</span>
         ) : null}
       </div>
 
@@ -280,7 +291,7 @@ function CourseCard({ course: c, active, onReady, esElProximo }) {
             lejanas, y cuarenta relojes no emocionan a nadie. */}
         {esElProximo && esperando && (
           <p className="lms-que-sigue">
-            <span className="cuenta">{cuentaRegresiva(c.unlock_date)}</span>
+            <span className="cuenta">{cuentaRegresiva(c.unlock_date, momento)}</span>
             <span className="dia">{fechaEnPalabras(c.unlock_date)}</span>
           </p>
         )}
