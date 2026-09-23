@@ -1,45 +1,49 @@
-{% load static %}
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Diploma · {{ student_name }}</title>
+  <title>Certificado · {{ student_name }}</title>
+
   {% comment %}
-    El diploma se abre en su propia pestaña y se imprime: sin esto salía con el
-    ícono en blanco del navegador.
+    El certificado es la imagen que hizo la clienta; acá solo se le escriben
+    encima los tres datos que cambian. Las posiciones NO están estimadas a ojo:
+    salen de medir el PNG (1920x1080) buscando dónde están las rayas y el hueco
+    del texto. Por eso van en porcentajes del mismo tamaño, y si alguien
+    reemplaza la imagen por otra con la misma diagramación, sigue calzando.
+
+      · la raya del nombre  -> y=547, de x=403 a x=1516 (centro exacto x=960)
+      · el hueco de "...completar ___ de Ingenio Blocks" -> centro x=1047, base y=651
+      · la raya de FECHA    -> y=877, de x=1313 a x=1578 (centro x=1445)
   {% endcomment %}
+
   <link rel="icon" type="image/svg+xml" href="{% static 'panel/img/favicon.svg' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  {% comment %}
+    Questrial es la que más se parece a la Century Gothic con la que está hecha
+    la imagen: geométrica, de "o" redonda y una sola altura en la "g". No es
+    idéntica, así que lleva un poco de separación entre letras, que fue el mismo
+    ajuste que hizo la clienta a mano.
+  {% endcomment %}
+  <link href="https://fonts.googleapis.com/css2?family=Questrial&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+
   <style>
-    :root {
-      --purple-dark: #2f0053;
-      --purple: #590599;
-      --accent: #8200db;
-      --yellow: #ffcb00;
-      --teal: #00b8a9;
-      --coral: #ff6b6b;
-    }
+    :root { --purple: #6a3093;   /* el morado exacto de la plantilla, muestreado del PNG */ --purple-dark: #2f0053; --yellow: #ffcb00; }
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: 'Outfit', sans-serif;
       background: #ece7f3;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 28px 16px 60px;
-      min-height: 100vh;
+      font-family: 'Quicksand', system-ui, sans-serif;
     }
 
-    /* Barra de acciones (no se imprime) */
-    .toolbar {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
+    /* Barra de acciones. No se imprime. */
+    .toolbar { display: flex; gap: 12px; margin-bottom: 22px; }
     .toolbar button {
       font-family: 'Quicksand', sans-serif;
       font-weight: 700;
@@ -52,196 +56,115 @@
       color: var(--purple-dark);
       box-shadow: 0 6px 16px rgba(255, 203, 0, 0.4);
     }
-    .toolbar button.ghost { background: #fff; color: var(--purple); box-shadow: none; border: 1.5px solid #d9cfe8; }
+    .toolbar button.ghost {
+      background: #fff; color: var(--purple);
+      box-shadow: none; border: 1.5px solid #d9cfe8;
+    }
 
-    /* El diploma: proporción horizontal tipo A4 apaisado */
-    .diploma {
+    /* El lienzo. `container-type` habilita las unidades cqw de más abajo: 1cqw
+       es el 1% de ESTE ancho, así que el texto escala junto con la imagen y las
+       medidas se pueden escribir como fracciones del diseño original. */
+    .certificado {
+      container-type: inline-size;
       position: relative;
-      width: min(960px, 96vw);
-      aspect-ratio: 1.414 / 1;
-      background:
-        radial-gradient(circle at 88% 12%, rgba(130, 0, 219, 0.16), transparent 40%),
-        radial-gradient(circle at 10% 90%, rgba(255, 203, 0, 0.16), transparent 38%),
-        #ffffff;
-      border-radius: 22px;
-      box-shadow: 0 30px 70px rgba(47, 0, 83, 0.28);
+      width: min(1240px, 96vw);
+      aspect-ratio: 1920 / 1080;
+      background: url("{% static 'lms/img/certificado.png' %}") center / 100% 100% no-repeat #fff;
+      border-radius: 14px;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 6% 10%;
-    }
-    /* marco */
-    .diploma::before {
-      content: '';
-      position: absolute;
-      inset: 20px;
-      border: 3px solid var(--yellow);
-      border-radius: 16px;
-      pointer-events: none;
-    }
-    .diploma::after {
-      content: '';
-      position: absolute;
-      inset: 27px;
-      border: 1.5px solid rgba(130, 0, 219, 0.35);
-      border-radius: 12px;
-      pointer-events: none;
+      box-shadow: 0 30px 70px rgba(47, 0, 83, 0.28);
     }
 
-    /* Cinta de "vista previa": inconfundible, para que nadie la tome por un
-       diploma real. Se imprime también (a propósito) para que una vista
-       previa impresa por error tampoco pueda pasar por un documento válido. */
-    .preview-ribbon {
+    /* Cada dato se ancla por su CENTRO, que es lo que se midió en la imagen. */
+    .campo {
       position: absolute;
-      top: 34px;
-      left: -54px;
-      width: 220px;
-      transform: rotate(-45deg);
-      background: repeating-linear-gradient(45deg, #d21f1f, #d21f1f 10px, #b31414 10px, #b31414 20px);
+      transform: translate(-50%, -50%);
+      color: var(--purple);
+      font-family: 'Questrial', 'Century Gothic', system-ui, sans-serif;
+      line-height: 1;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    /* El nombre: centro x=960/1920, base y≈528/1080.
+       Los tamaños llevan un valor en px primero por si el navegador no entiende
+       cqw: queda chico pero legible en vez de desaparecer. */
+    .nombre {
+      left: 50%;
+      top: 46.6%;
+      font-size: 42px;
+      font-size: 3.3cqw;
+      letter-spacing: 0.02em;
+    }
+
+    /* "10 desafíos", en el hueco de la frase. Centro x=1047/1920, base y=651. */
+    .desafios {
+      left: 54.5%;
+      top: 58.6%;
+      font-size: 32px;
+      font-size: 2.65cqw;
+      letter-spacing: 0.01em;
+    }
+
+    /* La fecha, sobre la raya de FECHA. Centro x=1445/1920, base y≈866. */
+    .fecha {
+      left: 75.3%;
+      top: 79.1%;
+      font-size: 21px;
+      font-size: 1.77cqw;
+      letter-spacing: 0.02em;
+    }
+
+    .cinta-previa {
+      position: absolute;
+      top: 3.2%;
+      left: 2%;
+      background: rgba(47, 0, 83, 0.88);
       color: #fff;
       font-family: 'Quicksand', sans-serif;
       font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 1.5px;
-      text-align: center;
-      padding: 7px 0;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
-      z-index: 5;
+      font-size: 1.1cqw;
+      letter-spacing: 0.14em;
+      padding: 0.5cqw 1.2cqw;
+      border-radius: 999px;
     }
-    /* bloques decorativos flotando en las esquinas */
-    .blocks { position: absolute; display: grid; grid-template-columns: repeat(2, 20px); grid-auto-rows: 20px; gap: 5px; }
-    .blocks span { border-radius: 5px; }
-    .blocks.tl { top: 42px; left: 46px; transform: rotate(-8deg); }
-    .blocks.br { bottom: 42px; right: 46px; transform: rotate(7deg); }
-    .blocks span:nth-child(1) { background: var(--yellow); }
-    .blocks span:nth-child(2) { background: var(--coral); }
-    .blocks span:nth-child(3) { background: var(--teal); }
-    .blocks span:nth-child(4) { background: var(--accent); }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-family: 'Quicksand', sans-serif;
-      font-weight: 700;
-      font-size: 20px;
-      color: var(--purple);
-      letter-spacing: 0.5px;
-    }
-    .brand .logo-icon { width: 15px; height: auto; }
-
-    .eyebrow {
-      margin-top: 14px;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--teal);
-    }
-    .title {
-      font-family: 'Quicksand', sans-serif;
-      font-weight: 700;
-      font-size: clamp(28px, 5vw, 46px);
-      color: var(--purple-dark);
-      margin: 6px 0 2px;
-      line-height: 1.1;
-    }
-    .subtitle { font-size: 15px; color: #6b6375; margin-bottom: 20px; }
-
-    .awarded-to { font-size: 14px; color: #8a8095; }
-    .student {
-      font-family: 'Quicksand', sans-serif;
-      font-weight: 700;
-      font-size: clamp(30px, 6vw, 54px);
-      color: var(--accent);
-      margin: 2px 0 6px;
-      line-height: 1.05;
-    }
-    .student-underline { width: 46%; height: 3px; background: var(--yellow); border-radius: 2px; margin: 0 auto 20px; }
-
-    .message { font-size: 15px; color: #4a4458; max-width: 78%; line-height: 1.6; }
-
-    .footer {
-      margin-top: 26px;
-      display: flex;
-      align-items: center;
-      gap: 42px;
-      font-size: 13px;
-      color: #6b6375;
-    }
-    .seal {
-      width: 78px; height: 78px; border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, var(--yellow), #eab700);
-      display: grid; place-items: center;
-      color: var(--purple-dark);
-      font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 26px;
-      box-shadow: 0 4px 10px rgba(234, 183, 0, 0.5);
-      transform: rotate(-6deg);
-    }
-    .sign { text-align: center; }
-    .sign .line { width: 150px; border-top: 1.5px solid #b7aec6; margin-bottom: 5px; }
 
     @media print {
-      html, body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        background: #fff;
-      }
+      /* Apaisado y sin márgenes: el certificado ocupa la hoja entera. */
+      @page { size: landscape; margin: 0; }
+      body { padding: 0; background: #fff; display: block; }
       .toolbar { display: none; }
-      .diploma {
-        box-shadow: none;
-        width: 100vw;
-        height: 100vh;
-        aspect-ratio: auto;
+      .certificado {
+        width: 100%;
         border-radius: 0;
+        box-shadow: none;
       }
-      @page { size: A4 landscape; margin: 0; }
+      /* Sin esto Chrome imprime el fondo en blanco y sale una hoja con tres
+         palabras sueltas en medio de la nada. */
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
 <body>
+
   <div class="toolbar">
-    <button onclick="window.print()">🖨️ Descargar / Imprimir</button>
+    <button onclick="window.print()">Imprimir o guardar en PDF</button>
     <button class="ghost" onclick="window.close()">Cerrar</button>
   </div>
 
-  <div class="diploma">
-    {% if is_preview %}<div class="preview-ribbon">VISTA PREVIA</div>{% endif %}
-    <div class="blocks tl"><span></span><span></span><span></span><span></span></div>
-    <div class="blocks br"><span></span><span></span><span></span><span></span></div>
+  <div class="certificado">
+    {% if is_preview %}<div class="cinta-previa">VISTA PREVIA</div>{% endif %}
 
-    <div class="brand">
-      <img src="{% static 'lms/img/logo-icon.svg' %}" alt="" class="logo-icon">
-      Ingenio Blocks
-    </div>
+    <div class="campo nombre">{{ student_name }}</div>
 
-    <div class="eyebrow">Diploma de logro</div>
-    <div class="title">{{ diploma.title }}</div>
-    <div class="subtitle">otorgado con mucho orgullo a</div>
+    {% comment %}
+      `pluralize` para que un diploma de un solo modelo no diga "1 desafíos".
+      Pasa de verdad: las categorías nuevas parten con uno.
+    {% endcomment %}
+    <div class="campo desafios">{{ desafios }} desafío{{ desafios|pluralize }}</div>
 
-    <div class="student">{{ student_name }}</div>
-    <div class="student-underline"></div>
-
-    <div class="message">
-      {% if diploma.description %}{{ diploma.description }}{% else %}Por completar con dedicación, creatividad e ingenio esta etapa de su aventura de aprendizaje construyendo, jugando y descubriendo.{% endif %}
-    </div>
-
-    <div class="footer">
-      <div class="sign">
-        <div class="line"></div>
-        Equipo Ingenio Blocks
-      </div>
-      <div class="seal">🏅</div>
-      <div class="sign">
-        <div class="line"></div>
-        {% if awarded_at %}{{ awarded_at|date:'d/m/Y' }}{% else %}Fecha{% endif %}
-      </div>
-    </div>
+    <div class="campo fecha">{{ awarded_at|date:'d/m/Y' }}</div>
   </div>
+
 </body>
 </html>

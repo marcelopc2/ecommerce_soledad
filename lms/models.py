@@ -302,6 +302,25 @@ class Membership(models.Model):
             return True
         return self.expires_at > timezone.now()
 
+    @property
+    def nombre_para_diploma(self):
+        """El nombre que va impreso en el certificado.
+
+        Primero el del alumno, que es de quien es el logro. Si la apoderada no
+        lo llenó al comprar, se usa el suyo: un certificado a nombre de la
+        familia se entiende, uno que diga un correo no se enmarca. El correo es
+        el último recurso y va sin el dominio, que además no cabe en la línea.
+        """
+        candidatos = (
+            self.student_name,
+            self.parent_name,
+            ('%s %s' % (self.user.first_name, self.user.last_name)).strip(),
+        )
+        for c in candidatos:
+            if c and c.strip():
+                return c.strip()
+        return (self.user.email or self.user.username).split('@')[0]
+
     def pause(self):
         if not self.paused_at:
             self.paused_at = timezone.now()
@@ -384,6 +403,21 @@ class Diploma(models.Model):
 
     class Meta:
         ordering = ['order', 'id']
+
+    @property
+    def desafios(self):
+        """Cuántos modelos hay que completar para ganarlo.
+
+        Es el número que se imprime en el certificado ("10 desafíos"). Se cuenta
+        en vivo y no se guarda a mano: si mañana se agrega un modelo a la
+        categoría, el certificado del que la termine dirá 11 sin que nadie
+        tenga que acordarse de actualizar un campo.
+        """
+        if self.categoria_id:
+            return self.categoria.cursos_en_categoria.filter(curso__is_active=True).count()
+        # Sin categoría es el comportamiento heredado: los modelos que lo
+        # preceden en la secuencia global.
+        return Course.objects.filter(is_active=True, order__lt=self.order).count()
 
     @property
     def portada_url(self):

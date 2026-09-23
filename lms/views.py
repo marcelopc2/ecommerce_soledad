@@ -334,7 +334,9 @@ class DiplomaDownloadView(APIView):
             return render(request, 'lms/diploma.html', {
                 'diploma': diploma,
                 'student_name': 'Nombre del alumno',
+                'desafios': diploma.desafios,
                 'awarded_at': timezone.localdate(),
+                'is_preview': True,
             })
 
         if membership is None:
@@ -349,6 +351,10 @@ class DiplomaDownloadView(APIView):
             raise Http404
         return render(request, 'lms/diploma.html', {
             'diploma': diploma,
-            'student_name': membership.student_name or membership.user.email,
+            # El nombre del alumno manda; si no lo llenaron, el de quien creó la
+            # cuenta. Antes caía al correo completo y se imprimía un certificado
+            # a nombre de "maria.perez@gmail.com".
+            'student_name': membership.nombre_para_diploma,
+            'desafios': diploma.desafios,
             'awarded_at': entry['awarded_at'],
         })
