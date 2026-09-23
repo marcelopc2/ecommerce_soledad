@@ -939,3 +939,39 @@
   .lms-pasos-nav { flex-wrap: wrap; justify-content: space-between; }
   .lms-pasos-pos { order: 3; width: 100%; text-align: center; }
 }
+
+/* --- "Lo que sigue": cuándo se abre el próximo modelo -------------------
+   Va solo en la primera tarjeta cerrada. Antes el alumno veía 43 candados que
+   decían lo mismo y ninguna pista de cuándo cambia algo. */
+.lms-que-sigue {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--lms-purple-50);
+  border: 1px solid var(--lms-purple-100);
+}
+
+.lms-que-sigue .cuenta {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--lms-accent);
+}
+
+/* El día concreto, para quien quiera anotarlo. Secundario: la cuenta regresiva
+   es lo que se lee de un vistazo. */
+.lms-que-sigue .dia {
+  font-size: 12.5px;
+  color: var(--lms-muted);
+  text-transform: capitalize;
+}
+
+/* Cuando faltan las dos cosas -la fecha Y terminar el anterior-, decirlo. Sin
+   esto el alumno espera a la fecha, llega el día, sigue cerrado y no entiende. */
+.lms-que-sigue .ademas {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--lms-body-c);
+}

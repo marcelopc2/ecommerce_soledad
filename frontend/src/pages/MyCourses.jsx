@@ -127,10 +127,18 @@ export default function MyCourses() {
           )
         ) : (
           <div className="lms-courses-grid">
-            {items.map(it => it.type === 'diploma'
-              ? <DiplomaCard key={`d${it.id}`} diploma={it} />
-              : <CourseCard key={`c${it.id}`} course={it} active={active} onReady={cargar} />
-            )}
+            {/* El primero cerrado es "el que sigue": es el único al que el
+                alumno le puede poner fecha, y por eso lleva el detalle de
+                cuándo se abre. Ponerlo en todos llenaría la pantalla de
+                fechas lejanas que solo abruman. */}
+            {(() => {
+              const siguiente = items.find(it => it.type !== 'diploma' && !it.unlocked)
+              return items.map(it => it.type === 'diploma'
+                ? <DiplomaCard key={`d${it.id}`} diploma={it} />
+                : <CourseCard key={`c${it.id}`} course={it} active={active}
+                              onReady={cargar} esElQueSigue={it === siguiente} />
+              )
+            })()}
           </div>
         )}
       </div>
@@ -163,7 +171,16 @@ function faltaTexto(unlockDate) {
   return `en ${Math.max(1, Math.floor(diff / 60000))} min`
 }
 
-function CourseCard({ course: c, active, onReady }) {
+// "lunes 30 de septiembre". Una fecha concreta al lado del contador: "en 7
+// días" sirve para hacerse una idea, pero el apoderado que quiere anotarlo en
+// el calendario necesita el día.
+function fechaEnPalabras(unlockDate) {
+  return new Date(`${unlockDate}T00:00:00`).toLocaleDateString('es-CL', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  })
+}
+
+function CourseCard({ course: c, active, onReady, esElQueSigue }) {
   useMinuteTick()
   // Con la suscripción caída el permiso es POR MODELO, no por membresía: los que
   // terminó siguen abiertos para repasar. Por eso todo se decide con
@@ -178,6 +195,9 @@ function CourseCard({ course: c, active, onReady }) {
   // se ve la foto atenuada y el nombre: una vitrina de lo que falta.
   const misterio = locked && !vencido && !c.completed
   const porFecha = c.lock_reason !== 'previo'
+  // Se recalcula en cada repintado a propósito: `useMinuteTick` fuerza uno por
+  // minuto, así el contador baja solo y al llegar la hora deja de ser futuro.
+  const fechaFutura = new Date(`${c.unlock_date}T00:00:00`).getTime() > Date.now()
 
   // Cuando llega la hora exacta, recargar para que el curso se libere solo, sin
   // que el alumno tenga que refrescar. Un único timeout, no un sondeo.
@@ -223,6 +243,29 @@ function CourseCard({ course: c, active, onReady }) {
                 ? 'Todavía no se abre. Te avisamos por correo apenas esté listo.'
                 : 'Termina el modelo anterior y este se abre.')
             : ''}</p>
+        {/* Solo en el que sigue: el alumno quiere saber cuándo le toca lo
+            próximo, no la fecha de los 43 que vienen detrás.
+
+            La fecha se muestra únicamente si TODAVÍA no llegó. Un modelo
+            trabado por no haber terminado el anterior arrastra una fecha que
+            suele estar en el pasado, y anunciar "se abre el 22 de abril" en
+            septiembre hacía creer que la plataforma estaba fallando. En ese
+            caso la respuesta honesta es que no hay ninguna espera: se abre en
+            cuanto el alumno termine. */}
+        {esElQueSigue && misterio && (
+          <p className="lms-que-sigue">
+            {fechaFutura ? (
+              <>
+                <span className="cuenta">Se abre {faltaTexto(c.unlock_date)}</span>
+                <span className="dia">{fechaEnPalabras(c.unlock_date)}</span>
+                {!porFecha && <span className="ademas">Y además hay que terminar el modelo anterior.</span>}
+              </>
+            ) : (
+              <span className="cuenta">Se abre apenas termines el modelo anterior</span>
+            )}
+          </p>
+        )}
+
         {c.unlocked && c.total > 0 && (
           <div className="lms-progress">
             <div className="lms-progress-track"><div className="lms-progress-bar" style={{ width: `${c.pct}%` }} /></div>
