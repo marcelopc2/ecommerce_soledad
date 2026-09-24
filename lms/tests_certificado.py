@@ -309,3 +309,38 @@ class DiplomaPorPosicionTests(TestCase):
                               'is_active': True})
         self.assertTrue(f.is_valid(), f.errors)
         self.assertEqual(f.save().categoria, self.cat)
+
+
+class LaPlantillaDelCursoPintaSusInterruptoresTests(TestCase):
+    """Guardia contra un accidente real.
+
+    Al agregar «Cuenta como desafío» al formulario, la casilla llegó al código
+    antes de que llegara a las pantallas que la administradora ya tenía
+    abiertas. Esas páginas mandaron el formulario viejo -sin la casilla- contra
+    el código nuevo, que ya la esperaba: sin casilla marcada = apagada. Se
+    apagaron once modelos y el certificado empezó a decir 1 desafío.
+
+    Se distingue de un guardado a medias porque `mostrar_en_portada`, que sí
+    estaba en la plantilla vieja, quedó intacto.
+
+    Esta prueba no evita el problema del despliegue, pero sí el otro: que un
+    campo booleano entre al formulario y nadie lo dibuje nunca.
+    """
+
+    def _fuente(self):
+        from django.template.loader import get_template
+        return get_template('panel/partials/course_fields.html').template.source
+
+    def test_todo_interruptor_del_formulario_se_dibuja(self):
+        from django import forms as dj
+        from panel.forms import CourseForm
+        fuente = self._fuente()
+        for nombre, campo in CourseForm().fields.items():
+            if isinstance(campo.widget, dj.CheckboxInput):
+                self.assertIn(
+                    'form.%s' % nombre, fuente,
+                    'el interruptor "%s" está en el formulario pero la plantilla '
+                    'no lo dibuja: cada guardado lo dejaría apagado' % nombre)
+
+    def test_cuenta_como_desafio_esta_en_la_pantalla(self):
+        self.assertIn('form.cuenta_como_desafio', self._fuente())
