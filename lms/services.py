@@ -136,8 +136,14 @@ def _cursos_sueltos_por_alumno(ids):
 
 def _completion_map(membership, courses, precarga=None):
     """Por cada curso: recursos totales, completados, % y si está terminado.
-    Un curso se da por terminado cuando todos sus recursos están vistos (o si
-    tiene un CourseProgress heredado del sistema anterior / cursos sin recursos)."""
+    Un curso se da por terminado cuando todos sus recursos están vistos, o si
+    tiene un CourseProgress heredado del sistema anterior.
+
+    Un curso SIN recursos NO cuenta como terminado, y eso traba la fila: como la
+    cadena exige completar el anterior, un modelo vacío no deja pasar a nadie.
+    Es a propósito -un modelo sin contenido está a medio cargar, no hecho-, pero
+    hay que tenerlo presente al vaciar modelos para rehacerlos: por eso
+    `vaciar_pasos` deja uno adentro en vez de dejarlos en cero."""
     course_ids = [c.id for c in courses]
 
     if precarga is not None:
