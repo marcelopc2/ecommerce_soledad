@@ -109,9 +109,14 @@
       top: 58.6%;
       font-family: 'Poppins', 'Century Gothic', system-ui, sans-serif;
       font-weight: 700;
-      font-size: 32px;
-      font-size: 2.65cqw;
-      letter-spacing: 0.01em;
+      /* Más chico que el texto de al lado a propósito. El hueco que dejó el
+         diseño mide 16,6% del ancho y "44 desafíos" al tamaño de la frase lo
+         llenaba entero: quedaba "completar44 desafíosde Ingenio Blocks", sin
+         aire. A 2.30 sobra casi un espacio de palabra por lado. En negrita
+         igual pesa más que el texto que lo rodea, que era el objetivo. */
+      font-size: 28px;
+      font-size: 2.30cqw;
+      letter-spacing: 0;
     }
 
     /* La fecha, sobre la raya de FECHA. Centro x=1445/1920, base y≈866. */
@@ -137,16 +142,47 @@
       border-radius: 999px;
     }
 
+    /* --- La hoja impresa ---------------------------------------------
+       La hoja se declara APAISADA y sin márgenes: en vertical el certificado
+       entraba a lo ancho y dejaba media hoja en blanco abajo. */
+    @page { size: A4 landscape; margin: 0; }
+
     @media print {
-      /* Apaisado y sin márgenes: el certificado ocupa la hoja entera. */
-      @page { size: landscape; margin: 0; }
-      body { padding: 0; background: #fff; display: block; }
-      .toolbar { display: none; }
-      .certificado {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
         width: 100%;
+      }
+      /* Centrado vertical: el certificado es más alargado que la hoja (16:9
+         contra 1.41), así que aunque ocupe todo el ancho sobran unos
+         centímetros arriba y abajo. Repartidos se ve enmarcado; pegado al
+         borde superior se ve como un error de impresión. */
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+      .toolbar { display: none !important; }
+
+      .certificado {
+        width: 100vw;
+        height: auto;
         border-radius: 0;
         box-shadow: none;
       }
+
+      /* Las unidades `cqw` no se resuelven al imprimir y el texto caía al
+         tamaño de respaldo en px, que a esta escala queda grande: el nombre se
+         salía de la raya y "44 desafíos" tocaba las palabras de al lado. En la
+         hoja el lienzo mide exactamente 100vw, así que `vw` da el mismo
+         resultado que `cqw` daba en pantalla. */
+      .nombre   { font-size: 3.3vw; }
+      .desafios { font-size: 2.30vw; }
+      .fecha    { font-size: 1.77vw; }
+      .cinta-previa { font-size: 1.1vw; padding: 0.5vw 1.2vw; }
+
       /* Sin esto Chrome imprime el fondo en blanco y sale una hoja con tres
          palabras sueltas en medio de la nada. */
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

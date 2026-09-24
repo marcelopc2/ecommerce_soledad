@@ -187,3 +187,51 @@ class FormularioDelPanelTests(TestCase):
         opciones = list(DiplomaForm().fields['categoria'].queryset)
         self.assertIn(self.cat, opciones)
         self.assertNotIn(apagada, opciones)
+
+
+class ImpresionTests(TestCase):
+    """La hoja impresa.
+
+    El certificado salía en una hoja VERTICAL, ocupando el tercio de arriba y
+    dejando el resto en blanco. Y el texto se agrandaba, porque las unidades
+    `cqw` no se resuelven al imprimir y caía al tamaño de respaldo en píxeles.
+    """
+
+    def _css(self):
+        from django.template.loader import render_to_string
+        return render_to_string('lms/diploma.html', {
+            'student_name': 'Emilia Rojas', 'desafios': 10,
+            'awarded_at': timezone.localdate(),
+        })
+
+    def test_la_hoja_se_declara_apaisada(self):
+        self.assertIn('size: A4 landscape', self._css())
+
+    def test_sin_margenes_de_hoja(self):
+        """Con margen el certificado no llega a los bordes y queda un marco
+        blanco que no es parte del diseño."""
+        self.assertIn('margin: 0;', self._css())
+
+    def test_al_imprimir_los_tamanos_se_repiten_en_vw(self):
+        """Es el arreglo de fondo: `cqw` no se resuelve en la hoja. Si alguien
+        cambia un tamaño arriba y olvida el de abajo, vuelve el problema."""
+        css = self._css()
+        for medida in ('3.3vw', '2.30vw', '1.77vw'):
+            self.assertIn(medida, css)
+
+    def test_los_tamanos_de_pantalla_y_de_hoja_coinciden(self):
+        """Los mismos números en cqw y en vw: el certificado tiene que verse
+        igual en la pantalla que en el papel."""
+        css = self._css()
+        for pantalla, hoja in (('3.3cqw', '3.3vw'), ('2.30cqw', '2.30vw'),
+                               ('1.77cqw', '1.77vw')):
+            self.assertIn(pantalla, css)
+            self.assertIn(hoja, css)
+
+    def test_se_imprimen_los_colores_del_fondo(self):
+        """Sin esto Chrome imprime el fondo en blanco y sale una hoja con tres
+        palabras sueltas en medio de la nada."""
+        self.assertIn('print-color-adjust: exact', self._css())
+
+    def test_la_barra_de_botones_no_se_imprime(self):
+        self.assertIn('.toolbar { display: none !important; }', self._css())
