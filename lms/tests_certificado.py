@@ -155,11 +155,15 @@ class FormularioDelPanelTests(TestCase):
         self.assertTrue(f.is_valid(), f.errors)
         self.assertEqual(f.save().categoria, self.cat)
 
-    def test_la_categoria_es_obligatoria(self):
-        """Antes se guardaba sin ella y quedaba un diploma que nadie ganaba."""
+    def test_la_categoria_es_OPCIONAL(self):
+        """Sin ella el diploma se gana por posición: al terminar los modelos
+        que están antes en la fila. Es el modo del diploma intermedio.
+
+        Estuvo obligatoria un rato y fue un error mío: mataba justo ese caso,
+        que era el que la clienta estaba tratando de armar."""
         f = self._form(categoria='')
-        self.assertFalse(f.is_valid())
-        self.assertIn('categoria', f.errors)
+        self.assertTrue(f.is_valid(), f.errors)
+        self.assertIsNone(f.save().categoria)
 
     def test_la_plantilla_DEL_PANEL_pinta_la_categoria(self):
         """El agujero original, y es el que hay que cuidar: el campo estaba en
@@ -235,3 +239,73 @@ class ImpresionTests(TestCase):
 
     def test_la_barra_de_botones_no_se_imprime(self):
         self.assertIn('.toolbar { display: none !important; }', self._css())
+
+
+class ContarDesafiosSinLaBienvenidaTests(TestCase):
+    """La bienvenida no es un desafío.
+
+    El usuario puso un diploma en la posición 14 y lo llamó "12 desafíos". El
+    conteo daba 13 porque sumaba la bienvenida, que es la introducción al Aula y
+    no un modelo que el niño arme. Se marca con `cuenta_como_desafio`, un campo
+    explícito y no una corazonada sobre el título.
+    """
+
+    def setUp(self):
+        self.cat = CourseCategory.objects.create(nombre='General', slug='general')
+        self.bienvenida = self._curso('Bienvenida a Ingenio Blocks', 1, desafio=False)
+        for i in range(2, 14):                      # 12 modelos armables
+            self._curso('Modelo %d' % i, i)
+
+    def _curso(self, titulo, orden, desafio=True, activo=True):
+        c = Course.objects.create(title=titulo, slug='c-%d' % orden, order=orden,
+                                  is_active=activo, cuenta_como_desafio=desafio)
+        CategoryCourse.objects.create(categoria=self.cat, curso=c, orden=orden)
+        return c
+
+    def test_por_categoria_no_cuenta_la_bienvenida(self):
+        d = Diploma.objects.create(title='Diploma', categoria=self.cat, order=99)
+        self.assertEqual(d.desafios, 12)
+
+    def test_por_posicion_tampoco(self):
+        """El diploma intermedio: en la posición 14 van los 12 de antes."""
+        d = Diploma.objects.create(title='Diploma 12 desafíos', order=14)
+        self.assertEqual(d.desafios, 12)
+
+    def test_un_diploma_mas_adelante_cuenta_mas(self):
+        self._curso('Modelo 14', 15)
+        d = Diploma.objects.create(title='Diploma siguiente', order=27)
+        self.assertEqual(d.desafios, 13)
+
+    def test_los_apagados_siguen_sin_contar(self):
+        self._curso('Modelo guardado', 14, activo=False)
+        d = Diploma.objects.create(title='Diploma', categoria=self.cat, order=99)
+        self.assertEqual(d.desafios, 12)
+
+    def test_se_puede_volver_a_contarla_desde_el_panel(self):
+        """Es un campo editable, no una regla escondida: si algún día la
+        bienvenida sí cuenta, se prende y listo."""
+        self.bienvenida.cuenta_como_desafio = True
+        self.bienvenida.save()
+        d = Diploma.objects.create(title='Diploma', categoria=self.cat, order=99)
+        self.assertEqual(d.desafios, 13)
+
+
+class DiplomaPorPosicionTests(TestCase):
+    """La categoría volvió a ser opcional. Haberla puesto obligatoria mataba el
+    diploma intermedio, que es el que el usuario estaba tratando de crear."""
+
+    def setUp(self):
+        self.cat = CourseCategory.objects.create(nombre='General', slug='general')
+
+    def test_se_puede_guardar_sin_categoria(self):
+        from panel.forms import DiplomaForm
+        f = DiplomaForm(data={'title': 'Diploma 12 desafíos', 'is_active': True})
+        self.assertTrue(f.is_valid(), f.errors)
+        self.assertIsNone(f.save().categoria)
+
+    def test_con_categoria_tambien(self):
+        from panel.forms import DiplomaForm
+        f = DiplomaForm(data={'categoria': self.cat.pk, 'title': 'Diploma final',
+                              'is_active': True})
+        self.assertTrue(f.is_valid(), f.errors)
+        self.assertEqual(f.save().categoria, self.cat)

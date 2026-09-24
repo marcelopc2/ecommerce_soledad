@@ -308,7 +308,8 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Course
         fields = ['title', 'slug', 'description', 'image_file', 'image_url',
-                  'trailer_url', 'mostrar_en_portada', 'is_active']
+                  'trailer_url', 'mostrar_en_portada', 'cuenta_como_desafio',
+                  'is_active']
         labels = {
             'title': 'Título',
             'slug': 'Dirección web (se genera sola desde el título)',
@@ -522,11 +523,14 @@ class DiplomaForm(BootstrapFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Obligatoria: un diploma sin categoría no sabe cuándo se gana y el
-        # certificado no puede contar los desafíos. Antes se podía guardar así
-        # y quedaba un diploma que nadie ganaba nunca.
-        self.fields['categoria'].required = True
-        self.fields['categoria'].empty_label = 'Elige una categoría…'
+        # OPCIONAL, y la diferencia importa:
+        #   · con categoría  -> se gana al terminar TODA la categoría
+        #   · sin categoría  -> se gana al terminar los modelos que están ANTES
+        #                       en la fila, y el certificado cuenta esos
+        # El segundo es el que sirve para un diploma intermedio. Haberla puesto
+        # obligatoria mataba justo ese caso.
+        self.fields['categoria'].required = False
+        self.fields['categoria'].empty_label = 'Por posición en la fila (los modelos anteriores)'
         self.fields['categoria'].queryset = CourseCategory.objects.filter(is_active=True).order_by('nombre')
 
     def save(self, commit=True):

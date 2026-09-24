@@ -65,6 +65,14 @@
   <div class="pnl-campo-ayuda">{{ form.mostrar_en_portada.help_text }}</div>
 </div>
 
+<div class="mb-3 form-check">
+  {{ form.cuenta_como_desafio }}
+  <label class="form-check-label ms-1" for="{{ form.cuenta_como_desafio.id_for_label }}">
+    {{ form.cuenta_como_desafio.label }}
+  </label>
+  <div class="pnl-campo-ayuda">{{ form.cuenta_como_desafio.help_text }}</div>
+</div>
+
 {% comment %}
   A qué categorías pertenece. Es lo que decide quién puede verlo: sin ninguna
   marcada, el modelo no aparece en el Aula de nadie.

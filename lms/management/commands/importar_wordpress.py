@@ -449,6 +449,9 @@ class Command(BaseCommand):
                 order=pos,
                 is_active=True,
                 mostrar_en_portada=not es_bienvenida,
+                # Tampoco cuenta para el "N desafíos" del certificado: es la
+                # introducción al Aula, no un modelo que el niño arme.
+                cuenta_como_desafio=not es_bienvenida,
             )
             portada = d['adjuntos'].get(d['portada_de'].get(cid))
             if portada:

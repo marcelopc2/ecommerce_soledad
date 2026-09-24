@@ -27,9 +27,15 @@
           {{ form.categoria }}
           {% for e in form.categoria.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           <div class="pnl-campo-ayuda">
-            El alumno lo gana al terminar todos los modelos de esta categoría, y
-            es de donde sale la cantidad de desafíos que dice el certificado
-            {% if diploma and diploma.categoria %}(hoy, {{ diploma.desafios }}){% endif %}.
+            <strong>Con una categoría:</strong> se gana al terminar
+            <em>todos</em> los modelos de ella.<br>
+            <strong>Por posición en la fila:</strong> se gana al terminar los
+            modelos que están <em>antes</em> de él. Es el modo para un diploma
+            intermedio; su lugar se arrastra en Cursos y diplomas.<br>
+            De ahí sale también la cantidad de desafíos del certificado
+            {% if diploma %}— hoy este diría <strong>{{ diploma.desafios }}</strong>{% endif %}.
+            No se cuentan los modelos con «Cuenta como desafío» apagado, como la
+            bienvenida.
           </div>
         </div>
         <div class="mb-3">

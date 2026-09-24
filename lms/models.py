@@ -100,6 +100,13 @@ class Course(models.Model):
                   'bienvenida, una introducción): el alumno lo sigue recibiendo '
                   'igual en el Aula.',
     )
+    cuenta_como_desafio = models.BooleanField(
+        default=True,
+        verbose_name='Cuenta como desafío',
+        help_text='Apágalo para lo que no sea un modelo armable (la bienvenida, '
+                  'una introducción). Esos no se suman a la cantidad de desafíos '
+                  'que dice el certificado.',
+    )
     order = models.PositiveIntegerField(
         default=0,
         help_text="Posición en la secuencia semanal (1 = primero). Se arrastra en el panel.",
@@ -414,10 +421,12 @@ class Diploma(models.Model):
         tenga que acordarse de actualizar un campo.
         """
         if self.categoria_id:
-            return self.categoria.cursos_en_categoria.filter(curso__is_active=True).count()
-        # Sin categoría es el comportamiento heredado: los modelos que lo
-        # preceden en la secuencia global.
-        return Course.objects.filter(is_active=True, order__lt=self.order).count()
+            return self.categoria.cursos_en_categoria.filter(
+                curso__is_active=True, curso__cuenta_como_desafio=True).count()
+        # Sin categoría: los modelos que lo preceden en la fila. Es lo que sirve
+        # para un diploma intermedio, puesto a mitad de la secuencia.
+        return Course.objects.filter(
+            is_active=True, cuenta_como_desafio=True, order__lt=self.order).count()
 
     @property
     def portada_url(self):
