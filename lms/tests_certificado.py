@@ -344,3 +344,61 @@ class LaPlantillaDelCursoPintaSusInterruptoresTests(TestCase):
 
     def test_cuenta_como_desafio_esta_en_la_pantalla(self):
         self.assertIn('form.cuenta_como_desafio', self._fuente())
+
+
+class ImagenConDireccionCompletaTests(TestCase):
+    """El certificado salía en blanco en el Aula.
+
+    El alumno lo abre como un archivo en memoria (`blob:`), no navegando al
+    sitio, y ahí una ruta relativa como `/static/...` no apunta a ningún lado.
+    En la vista previa del panel sí se veía -esa se abre desde el sitio-, y por
+    eso el error pasó sin notarse.
+    """
+
+    def _html(self, **extra):
+        from django.template.loader import render_to_string
+        ctx = {'student_name': 'Emilia', 'desafios': 3,
+               'awarded_at': timezone.localdate()}
+        ctx.update(extra)
+        return render_to_string('lms/diploma.html', ctx, request=extra.pop('request', None))
+
+    def test_el_fondo_lleva_el_dominio_completo(self):
+        from django.test import override_settings
+        with override_settings(BACKEND_PUBLIC_URL='https://pre.ingenioblocks.com'):
+            html = self._html()
+        self.assertIn('url("https://pre.ingenioblocks.com/static/lms/img/certificado.png")', html)
+
+    def test_ninguna_ruta_relativa_sobrevive(self):
+        """Ni la imagen ni el ícono: cualquier `/static/` suelto se rompe igual
+        dentro de un `blob:`."""
+        from django.test import override_settings
+        with override_settings(BACKEND_PUBLIC_URL='https://pre.ingenioblocks.com'):
+            html = self._html()
+        self.assertNotIn('"/static/', html)
+
+    def test_prefiere_la_direccion_configurada_al_protocolo_de_la_peticion(self):
+        """Si nginx dejara de avisar que la conexión es cifrada, la petición
+        diría `http://` y el navegador bloquearía la imagen en una página
+        `https://`. La dirección configurada no depende de eso."""
+        from django.test import RequestFactory, override_settings
+        pedido = RequestFactory().get('/', HTTP_HOST='pre.ingenioblocks.com')   # llega como http
+        with override_settings(BACKEND_PUBLIC_URL='https://pre.ingenioblocks.com',
+                               ALLOWED_HOSTS=['pre.ingenioblocks.com']):
+            from django.template.loader import render_to_string
+            html = render_to_string('lms/diploma.html', {
+                'student_name': 'Emilia', 'desafios': 3,
+                'awarded_at': timezone.localdate()}, request=pedido)
+        self.assertIn('https://pre.ingenioblocks.com/static/lms/img/certificado.png', html)
+        self.assertNotIn('http://pre.ingenioblocks.com', html)
+
+    def test_sin_direccion_configurada_la_arma_desde_la_peticion(self):
+        """En desarrollo no hay BACKEND_PUBLIC_URL: igual tiene que quedar
+        completa, tomada de la petición."""
+        from django.test import RequestFactory, override_settings
+        pedido = RequestFactory().get('/', HTTP_HOST='localhost:8000')
+        with override_settings(BACKEND_PUBLIC_URL='', ALLOWED_HOSTS=['localhost']):
+            from django.template.loader import render_to_string
+            html = render_to_string('lms/diploma.html', {
+                'student_name': 'Emilia', 'desafios': 3,
+                'awarded_at': timezone.localdate()}, request=pedido)
+        self.assertIn('http://localhost:8000/static/lms/img/certificado.png', html)

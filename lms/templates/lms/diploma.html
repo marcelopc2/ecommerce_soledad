@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static certificado %}<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
@@ -17,7 +17,7 @@
       · la raya de FECHA    -> y=877, de x=1313 a x=1578 (centro x=1445)
   {% endcomment %}
 
-  <link rel="icon" type="image/svg+xml" href="{% static 'panel/img/favicon.svg' %}">
+  <link rel="icon" type="image/svg+xml" href="{% estatico_absoluto 'panel/img/favicon.svg' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   {% comment %}
@@ -69,7 +69,7 @@
       position: relative;
       width: min(1240px, 96vw);
       aspect-ratio: 1920 / 1080;
-      background: url("{% static 'lms/img/certificado.png' %}") center / 100% 100% no-repeat #fff;
+      background: url("{% estatico_absoluto 'lms/img/certificado.png' %}") center / 100% 100% no-repeat #fff;
       border-radius: 14px;
       overflow: hidden;
       box-shadow: 0 30px 70px rgba(47, 0, 83, 0.28);
