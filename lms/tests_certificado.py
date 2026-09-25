@@ -238,7 +238,7 @@ class ImpresionTests(TestCase):
         self.assertIn('print-color-adjust: exact', self._css())
 
     def test_la_barra_de_botones_no_se_imprime(self):
-        self.assertIn('.toolbar { display: none !important; }', self._css())
+        self.assertIn('.toolbar, .cargador { display: none !important; }', self._css())
 
 
 class ContarDesafiosSinLaBienvenidaTests(TestCase):
@@ -402,3 +402,46 @@ class ImagenConDireccionCompletaTests(TestCase):
                 'student_name': 'Emilia', 'desafios': 3,
                 'awarded_at': timezone.localdate()}, request=pedido)
         self.assertIn('http://localhost:8000/static/lms/img/certificado.png', html)
+
+
+class EsperaLaImagenAntesDeMostrarseTests(TestCase):
+    """El certificado no aparece hasta tener su fondo y sus fuentes.
+
+    Si no, se veían primero el nombre, los desafíos y la fecha sobre blanco y
+    un momento después el diseño detrás, que parecía un error aunque no lo
+    fuera. Y el botón de imprimir se podía apretar a medio cargar.
+    """
+
+    def _html(self):
+        from django.template.loader import render_to_string
+        from django.test import override_settings
+        with override_settings(BACKEND_PUBLIC_URL='https://pre.ingenioblocks.com'):
+            return render_to_string('lms/diploma.html', {
+                'student_name': 'Emilia', 'desafios': 3,
+                'awarded_at': timezone.localdate()})
+
+    def test_se_esconde_desde_javascript_y_no_desde_el_html(self):
+        """Si el script no corriera, un `class="cargando"` escrito en el HTML
+        dejaría el certificado escondido para siempre."""
+        html = self._html()
+        self.assertIn("classList.add('cargando')", html)
+        self.assertNotIn('<html lang="es" class="cargando"', html)
+
+    def test_se_pide_la_imagen_apenas_abre(self):
+        self.assertIn('rel="preload" as="image"', self._html())
+
+    def test_espera_la_imagen_y_las_fuentes(self):
+        html = self._html()
+        self.assertIn('document.fonts.ready', html)
+        self.assertIn('img.decode', html)
+
+    def test_si_la_imagen_falla_igual_se_muestra(self):
+        """Mejor sin fondo que una pantalla con una rueda girando para siempre."""
+        html = self._html()
+        self.assertIn('img.onerror = listo', html)
+        self.assertIn('setTimeout(mostrar, 8000)', html)
+
+    def test_no_se_puede_imprimir_a_medio_cargar(self):
+        html = self._html()
+        self.assertIn('id="imprimir"', html)
+        self.assertIn('boton.disabled = true', html)

@@ -18,6 +18,19 @@
   {% endcomment %}
 
   <link rel="icon" type="image/svg+xml" href="{% estatico_absoluto 'panel/img/favicon.svg' %}">
+  {% comment %}
+    El certificado no se muestra hasta tener la imagen de fondo y las fuentes.
+    Sin esto aparecían primero el nombre, los desafíos y la fecha flotando sobre
+    blanco, y un segundo después el diseño detrás: se veía roto aunque no lo
+    estuviera.
+
+    La clase se pone desde JavaScript y no en el HTML a propósito: si el script
+    no corre, el certificado se ve igual en vez de quedar escondido para
+    siempre. Y va acá arriba, antes de pintar nada, para que no alcance a
+    asomarse sin fondo.
+  {% endcomment %}
+  <script>document.documentElement.classList.add('cargando')</script>
+  <link rel="preload" as="image" href="{% estatico_absoluto 'lms/img/certificado.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   {% comment %}
@@ -56,6 +69,9 @@
       color: var(--purple-dark);
       box-shadow: 0 6px 16px rgba(255, 203, 0, 0.4);
     }
+    /* Mientras carga, imprimir daría una hoja a medio armar. */
+    .toolbar button:disabled { opacity: 0.5; cursor: wait; box-shadow: none; }
+
     .toolbar button.ghost {
       background: #fff; color: var(--purple);
       box-shadow: none; border: 1.5px solid #d9cfe8;
@@ -142,6 +158,41 @@
       border-radius: 999px;
     }
 
+    /* --- Mientras carga -------------------------------------------------
+       El certificado ya ocupa su lugar (transparente), así que al aparecer no
+       empuja nada: solo se funde. El aviso va encima, en el mismo espacio. */
+    .marco { position: relative; }
+    .certificado { transition: opacity 0.45s ease; }
+    .cargando .certificado { opacity: 0; }
+
+    .cargador {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      color: var(--purple);
+      font-family: 'Quicksand', system-ui, sans-serif;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .cargando .cargador { display: flex; }
+    .rueda {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 4px solid #e6daf2;
+      border-top-color: var(--purple);
+      animation: gira 0.8s linear infinite;
+    }
+    @keyframes gira { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .rueda { animation: none; }
+      .certificado { transition: none; }
+    }
+
     /* --- La hoja impresa ---------------------------------------------
        La hoja se declara APAISADA y sin márgenes: en vertical el certificado
        entraba a lo ancho y dejaba media hoja en blanco abajo. */
@@ -164,7 +215,7 @@
         justify-content: center;
         min-height: 100vh;
       }
-      .toolbar { display: none !important; }
+      .toolbar, .cargador { display: none !important; }
 
       .certificado {
         width: 100vw;
@@ -192,8 +243,14 @@
 <body>
 
   <div class="toolbar">
-    <button onclick="window.print()">Imprimir o guardar en PDF</button>
+    <button id="imprimir" onclick="window.print()">Imprimir o guardar en PDF</button>
     <button class="ghost" onclick="window.close()">Cerrar</button>
+  </div>
+
+  <div class="marco">
+  <div class="cargador" aria-live="polite">
+    <span class="rueda" aria-hidden="true"></span>
+    Preparando tu certificado…
   </div>
 
   <div class="certificado">
@@ -209,6 +266,45 @@
 
     <div class="campo fecha">{{ awarded_at|date:'d/m/Y' }}</div>
   </div>
+  </div>
+
+  <script>
+    (function () {
+      var raiz = document.documentElement;
+      var boton = document.getElementById('imprimir');
+      var mostrado = false;
+
+      function mostrar() {
+        if (mostrado) return;
+        mostrado = true;
+        raiz.classList.remove('cargando');
+        if (boton) boton.disabled = false;
+      }
+
+      if (!raiz.classList.contains('cargando')) return;
+      if (boton) boton.disabled = true;
+
+      // La imagen: se espera a que esté DECODIFICADA y no solo descargada, si
+      // no el fondo igual se pinta una fracción de segundo después del texto.
+      var imagen = new Promise(function (listo) {
+        var img = new Image();
+        img.onload = function () {
+          if (img.decode) { img.decode().then(listo, listo); } else { listo(); }
+        };
+        img.onerror = listo;   // si falla, se muestra igual: mejor sin fondo que nada
+        img.src = '{% estatico_absoluto "lms/img/certificado.png" %}';
+      });
+
+      // Las fuentes: sin esto el nombre aparece en otra letra y cambia de
+      // ancho al llegar la buena.
+      var fuentes = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+
+      Promise.all([imagen, fuentes]).then(mostrar, mostrar);
+
+      // Tope: con una conexión mala no se queda esperando para siempre.
+      setTimeout(mostrar, 8000);
+    })();
+  </script>
 
 </body>
 </html>
