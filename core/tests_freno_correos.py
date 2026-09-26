@@ -10,12 +10,13 @@ La regla es una sola: fuera del sitio de verdad no sale nada.
 from importlib import reload
 
 from django.core import mail
-from django.test import SimpleTestCase, override_settings
+from django.contrib.auth import get_user_model
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from core import emails
 
 
-class FrenoTests(SimpleTestCase):
+class FrenoTests(TestCase):   # TestCase: el freno consulta quién es del equipo
     @override_settings(ENVIAR_CORREOS=False)
     def test_en_un_servidor_de_pruebas_no_sale_nada(self):
         mail.outbox.clear()
@@ -40,6 +41,43 @@ class FrenoTests(SimpleTestCase):
         emails.enviar_email('recuperar_clave', 'Hola', ['cliente@correo.cl'],
                             {'nombre': 'Ana', 'link': 'https://x'})
         self.assertEqual(len(mail.outbox), 1)
+
+
+class ElEquipoPasaElFrenoTests(TestCase):
+    """La única excepción del freno: las cuentas de gestión.
+
+    El freno existe para que un servidor de pruebas no le escriba a CLIENTES.
+    El equipo no lo es, y sin esta excepción no se podía probar un correo
+    masivo antes del lanzamiento, ni recuperar la clave del panel.
+    """
+
+    def setUp(self):
+        get_user_model().objects.create_user(
+            username='jefa@ib.cl', email='Jefa@IB.cl', is_staff=True)
+
+    @override_settings(ENVIAR_CORREOS=False)
+    def test_al_equipo_si_le_llega(self):
+        mail.outbox.clear()
+        emails.enviar_email('recuperar_clave', 'Hola', ['jefa@ib.cl'],
+                            {'nombre': 'Ana', 'link': 'https://x'})
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(ENVIAR_CORREOS=False)
+    def test_en_una_lista_mezclada_solo_llega_al_equipo(self):
+        """Si el cliente viene junto con alguien del equipo, no se cuela."""
+        mail.outbox.clear()
+        emails.enviar_email('recuperar_clave', 'Hola', ['cliente@correo.cl', 'jefa@ib.cl'],
+                            {'nombre': 'Ana', 'link': 'https://x'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['jefa@ib.cl'])
+
+    @override_settings(ENVIAR_CORREOS=False)
+    def test_un_staff_desactivado_ya_no_es_equipo(self):
+        get_user_model().objects.filter(email__iexact='jefa@ib.cl').update(is_active=False)
+        mail.outbox.clear()
+        emails.enviar_email('recuperar_clave', 'Hola', ['jefa@ib.cl'],
+                            {'nombre': 'Ana', 'link': 'https://x'})
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class QueDominioHabilitaTests(SimpleTestCase):

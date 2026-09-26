@@ -1,0 +1,141 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}{% if envio %}Correo masivo{% else %}Nuevo correo{% endif %}{% endblock %}
+{% block crumb %}Panel · Clientes · Correos masivos{% endblock %}
+{% block heading %}{% if envio %}{{ envio.asunto }}{% else %}Nuevo correo masivo{% endif %}{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:correos' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  Tres pasos en orden: redactar, probar, enviar. Los pasos 2 y 3 aparecen
+  recién cuando el correo está guardado, y el 3 se enciende solo con una
+  prueba del contenido que está escrito AHORA.
+{% endcomment %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-pencil"></i> 1. Redactar</div>
+
+        {% for e in form.non_field_errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.asunto.label }}</label>
+          {{ form.asunto }}
+          {% for e in form.asunto.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.cuerpo.label }}</label>
+          {{ form.cuerpo }}
+          <div class="pnl-campo-ayuda"><i class="bi bi-info-circle"></i> {{ form.cuerpo.help_text }}</div>
+          {% for e in form.cuerpo.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-sm-5">
+            <label class="form-label">{{ form.boton_texto.label }}</label>
+            {{ form.boton_texto }}
+            {% for e in form.boton_texto.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-7">
+            <label class="form-label">{{ form.boton_url.label }}</label>
+            {{ form.boton_url }}
+            {% for e in form.boton_url.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+        <div class="pnl-campo-ayuda mb-3"><i class="bi bi-info-circle"></i> El botón es opcional. Si lo pones, llena las dos cosas.</div>
+
+        <label class="form-label">{{ form.audiencia.label }}</label>
+        {% for o in opciones_audiencia %}
+          <div class="form-check mb-1">
+            <input class="form-check-input" type="radio" name="audiencia" id="aud-{{ o.valor }}"
+                   value="{{ o.valor }}" {% if form.audiencia.value == o.valor %}checked{% endif %}>
+            <label class="form-check-label" for="aud-{{ o.valor }}">
+              {{ o.etiqueta }} — <strong>{{ o.a_enviar }}</strong> persona{{ o.a_enviar|pluralize }}
+              {% if o.de_baja %}<span class="cell-sub">({{ o.de_baja }} se dieron de baja y no lo reciben)</span>{% endif %}
+            </label>
+          </div>
+        {% endfor %}
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar</button>
+        </div>
+      </div></div>
+    </form>
+
+    {% if envio %}
+      <form method="post" action="{% url 'panel:correo_eliminar' envio.pk %}" class="mt-3"
+            hx-confirm="¿Borrar este borrador? No se puede deshacer.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash me-1"></i>Borrar borrador</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    {% if envio %}
+      <div class="pnl-card mb-3"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-send-check"></i> 2. Mandarse la prueba</div>
+        <p class="pnl-campo-ayuda">
+          Llega igual que a un cliente, con "[PRUEBA]" en el asunto, a las
+          cuentas de gestión:
+        </p>
+        <ul class="small mb-3">
+          {% for c in equipo %}<li>{{ c }}</li>{% empty %}<li class="text-danger">No hay cuentas de gestión con correo.</li>{% endfor %}
+        </ul>
+        {% if envio.prueba_al_dia %}
+          <div class="alert alert-success py-2 small mb-3">
+            <i class="bi bi-check-circle me-1"></i>
+            Prueba enviada el {{ envio.prueba_enviada_en|date:'d-m-Y \a \l\a\s H:i' }}, con este mismo contenido.
+          </div>
+        {% elif envio.prueba_enviada_en %}
+          <div class="alert alert-warning py-2 small mb-3">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Cambiaste el correo después de la última prueba: vuelve a probarlo.
+          </div>
+        {% endif %}
+        <form method="post" action="{% url 'panel:correo_prueba' envio.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost"><i class="bi bi-envelope me-1"></i> Enviarme la prueba</button>
+        </form>
+      </div></div>
+
+      <div class="pnl-card"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-people"></i> 3. Enviar a todos</div>
+        {% if motivo %}
+          <p class="pnl-campo-ayuda mb-3"><i class="bi bi-lock me-1"></i> {{ motivo }}</p>
+          <button type="button" class="btn btn-brand" disabled>Enviar a todos</button>
+        {% else %}
+          <p class="pnl-campo-ayuda mb-3">
+            Sale de a poco, unos 25 por minuto, para no poner en riesgo la
+            cuenta de correo. Puedes detenerlo a la mitad si hace falta.
+          </p>
+          <a href="{% url 'panel:correo_confirmar' envio.pk %}" class="btn btn-brand">Enviar a todos…</a>
+        {% endif %}
+      </div></div>
+    {% else %}
+      <div class="pnl-card"><div class="card-pad">
+        <p class="pnl-campo-ayuda mb-0">
+          <i class="bi bi-info-circle"></i>
+          Guarda el correo para poder mandarte la prueba. Nada sale a los
+          clientes hasta el último paso.
+        </p>
+      </div></div>
+    {% endif %}
+  </div>
+</div>
+
+{% if envio %}
+  <div class="pnl-card mt-4"><div class="card-pad">
+    <div class="form-section-title"><i class="bi bi-eye"></i> Así lo va a ver el cliente</div>
+    <iframe src="{% url 'panel:correo_vista_previa' envio.pk %}" title="Vista previa del correo"
+            style="width:100%; height:760px; border:1px solid #ece5f4; border-radius:12px; background:#fff;"></iframe>
+    <p class="pnl-campo-ayuda mt-2 mb-0">Muestra lo último que guardaste.</p>
+  </div></div>
+{% endif %}
+{% endblock %}

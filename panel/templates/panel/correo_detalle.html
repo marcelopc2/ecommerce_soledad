@@ -1,0 +1,35 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Correo masivo{% endblock %}
+{% block crumb %}Panel · Clientes · Correos masivos{% endblock %}
+{% block heading %}{{ envio.asunto }}{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:correos' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    {% include 'panel/partials/correo_progreso.html' %}
+  </div>
+  <div class="col-lg-5">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-info-circle"></i> Detalles</div>
+      <dl class="small mb-0">
+        <dt>A quién</dt><dd>{{ envio.get_audiencia_display }}</dd>
+        <dt>Enviado por</dt><dd>{{ envio.creado_por.email|default:'—' }}</dd>
+        <dt>Empezó</dt><dd>{{ envio.encolado_en|date:'d-m-Y H:i' }}</dd>
+        {% if envio.terminado_en %}<dt>Terminó</dt><dd>{{ envio.terminado_en|date:'d-m-Y H:i' }}</dd>{% endif %}
+        <dt>Prueba</dt><dd>{{ envio.prueba_enviada_en|date:'d-m-Y H:i'|default:'—' }}</dd>
+      </dl>
+    </div></div>
+  </div>
+</div>
+
+<div class="pnl-card mt-4"><div class="card-pad">
+  <div class="form-section-title"><i class="bi bi-eye"></i> Lo que se envió</div>
+  <iframe src="{% url 'panel:correo_vista_previa' envio.pk %}" title="Correo enviado"
+          style="width:100%; height:760px; border:1px solid #ece5f4; border-radius:12px; background:#fff;"></iframe>
+</div></div>
+{% endblock %}

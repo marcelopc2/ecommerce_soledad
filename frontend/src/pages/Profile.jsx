@@ -22,6 +22,8 @@ export default function Profile() {
   const [datos, setDatos] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [form, setForm] = useState({ student_name: '', parent_name: '' })
+  const [abriendoCorreos, setAbriendoCorreos] = useState(false)
+  const [errorCorreos, setErrorCorreos] = useState('')
   const [tocado, setTocado] = useState({})
   const [guardando, setGuardando] = useState(false)
   const [aviso, setAviso] = useState('')       // mensaje de éxito
@@ -106,6 +108,20 @@ export default function Profile() {
       .then(r => { setDatos(r.data); return refreshMe() })
       .catch(() => setErrorFoto('No pudimos quitar la foto.'))
       .finally(() => setSubiendo(false))
+  }
+
+  // La página de preferencias es la misma del pie de los correos, y va
+  // firmada: se pide el enlace al servidor en vez de armarlo acá.
+  const irAPreferencias = async () => {
+    setAbriendoCorreos(true)
+    setErrorCorreos('')
+    try {
+      const { data } = await api.get('/correos/mi-enlace/')
+      window.location.href = data.url
+    } catch {
+      setAbriendoCorreos(false)
+      setErrorCorreos('No pudimos abrir tus preferencias. Intenta de nuevo en un momento.')
+    }
   }
 
   const cambiarClave = (e) => {
@@ -244,6 +260,21 @@ export default function Profile() {
               <Link to="/#kits" className="pf-link">Ver los kits →</Link>
             </>
           )}
+        </div>
+
+        {/* ---------- Correos ---------- */}
+        <div className="pf-card pf-card-sec">
+          <h2>Tus correos</h2>
+          <p className="pf-ayuda">
+            Elige si quieres recibir las novedades de Ingenio Blocks y los avisos
+            cuando se abre un modelo nuevo. Los correos de tus compras te llegan
+            siempre.
+          </p>
+          <button type="button" className="pf-link-btn" onClick={irAPreferencias}
+            disabled={abriendoCorreos}>
+            {abriendoCorreos ? 'Abriendo…' : 'Elegir qué correos recibo →'}
+          </button>
+          {errorCorreos && <p className="pf-msg pf-msg-error">{errorCorreos}</p>}
         </div>
 
         {/* ---------- Contraseña ---------- */}

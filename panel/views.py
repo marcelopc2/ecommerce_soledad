@@ -12,6 +12,7 @@ from django.http import HttpResponse, FileResponse, Http404
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied, ValidationError as DjangoValidationError
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -28,6 +29,9 @@ from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
 from lms.services import (
     get_course_access, precargar_listado, reanudar_goteo, send_reset_email,
 )
+from comunicaciones import envio as masivos
+from comunicaciones.models import BajaDeCorreo, DestinatarioMasivo, EnvioMasivo
+from comunicaciones.preferencias import AULA, NOVEDADES, correos_de_gestion
 from payments.models import Coupon, Order
 from shipments.models import PuntoRetiro
 from shipments.services import send_dispatch_email, send_pickup_ready_email
@@ -36,7 +40,7 @@ from .forms import (
     DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm,
     MembershipExpiryForm, StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
     CouponForm, PuntoRetiroForm,
-    MiCuentaForm,
+    MiCuentaForm, EnvioMasivoForm,
 )
 
 log = logging.getLogger('ingenioblocks.pagos')
@@ -2350,3 +2354,178 @@ def order_picked_up(request, pk):
     order.save(update_fields=['picked_up_at', 'pickup_ready_at'])
     messages.success(request, 'Pedido marcado como retirado.')
     return redirect('panel:order_detail', pk=pk)
+
+
+# ---------- Correos masivos ----------
+#
+# El recorrido es siempre el mismo y en ese orden: redactar, mandarse la prueba,
+# revisarla, y recién ahí enviar a todos. El envío a todos no se habilita sin
+# una prueba del MISMO contenido; cambiar una coma obliga a probar de nuevo.
+# El despacho en sí lo hace `manage.py enviar_masivos`, de a poco.
+
+@staff_required
+def correos(request):
+    envios = list(EnvioMasivo.objects.select_related('creado_por')[:50])
+    for e in envios:
+        e.cuenta = None if e.editable else e.contadores()
+    return render(request, 'panel/correos.html', {
+        'envios': envios,
+        'bajas': BajaDeCorreo.objects.all()[:300],
+        'bajas_novedades': BajaDeCorreo.objects.filter(categoria=NOVEDADES).count(),
+        'bajas_aula': BajaDeCorreo.objects.filter(categoria=AULA).count(),
+        'section': 'correos',
+    })
+
+
+@staff_required
+def correo_form(request, pk=None):
+    envio = get_object_or_404(EnvioMasivo, pk=pk) if pk else None
+    if envio and not envio.editable:
+        return redirect('panel:correo_detalle', pk=envio.pk)
+
+    form = EnvioMasivoForm(request.POST or None, instance=envio)
+    if request.method == 'POST' and form.is_valid():
+        obj = form.save(commit=False)
+        if not obj.pk:
+            obj.creado_por = request.user
+        obj.save()
+        if obj.prueba_enviada_en and not obj.prueba_al_dia:
+            messages.info(request, 'Guardado. Como cambiaste el correo, mándate '
+                                   'una prueba nueva antes de enviarlo a todos.')
+        else:
+            messages.success(request, 'Guardado. Ahora mándate la prueba para ver '
+                                      'cómo se ve.')
+        return redirect('panel:correo_edit', pk=obj.pk)
+
+    return render(request, 'panel/correo_form.html', {
+        'form': form,
+        'envio': envio,
+        'equipo': correos_de_gestion(),
+        'opciones_audiencia': [dict(valor=a, etiqueta=l, **masivos.cuantos(a))
+                               for a, l in EnvioMasivo.AUDIENCIAS],
+        'motivo': masivos.motivo_para_no_enviar(envio) if envio else None,
+        'section': 'correos',
+    })
+
+
+@staff_required
+@xframe_options_sameorigin
+def correo_vista_previa(request, pk):
+    """El correo tal como le llega a un cliente, para verlo dentro del panel.
+
+    Las imágenes del correo real van adjuntas (`cid:`) y eso solo lo entiende un
+    programa de correo; acá se incrustan para que el navegador las muestre.
+    """
+    from core.email_previews import _data_uri
+    from core.emails import GRID_PATH, LOGO_PATH
+
+    envio = get_object_or_404(EnvioMasivo, pk=pk)
+    ctx = masivos.contexto_de(envio)
+    ctx.update({
+        'contacto_email': settings.CONTACT_EMAIL,
+        'frontend_url': settings.FRONTEND_URL,
+        'logo_src': _data_uri(LOGO_PATH),
+        'grid_src': _data_uri(GRID_PATH),
+        'baja_url': '#',
+        'baja_de': 'novedades de Ingenio Blocks',
+    })
+    return HttpResponse(render_to_string('emails/novedades.html', ctx))
+
+
+@staff_required
+@require_POST
+def correo_prueba(request, pk):
+    envio = get_object_or_404(EnvioMasivo, pk=pk)
+    if not envio.editable:
+        return redirect('panel:correo_detalle', pk=envio.pk)
+    try:
+        llegaron = masivos.enviar_prueba(envio)
+    except Exception as e:
+        log.exception('No se pudo enviar la prueba del correo masivo %s', envio.pk)
+        messages.error(request, 'No se pudo enviar la prueba: %s' % e)
+    else:
+        if llegaron:
+            messages.success(request, 'Prueba enviada a ' + ', '.join(llegaron) +
+                             '. Revísala con calma antes de enviarlo a todos.')
+        else:
+            messages.error(request, 'La prueba no le llegó a nadie. Revisa que las '
+                                    'cuentas de gestión tengan un correo.')
+    return redirect('panel:correo_edit', pk=envio.pk)
+
+
+@staff_required
+def correo_confirmar(request, pk):
+    """Último paso antes de enviar a todos: hay que escribir cuántos son.
+
+    Escribir el número, y no solo apretar "Aceptar", obliga a leerlo. Un clic
+    se da sin mirar; un 296 escrito a mano, no.
+    """
+    envio = get_object_or_404(EnvioMasivo, pk=pk)
+    if not envio.editable:
+        return redirect('panel:correo_detalle', pk=envio.pk)
+
+    motivo = masivos.motivo_para_no_enviar(envio)
+    numeros = masivos.cuantos(envio.audiencia)
+    error = None
+
+    if request.method == 'POST' and not motivo:
+        escrito = request.POST.get('confirmacion', '').strip().replace('.', '')
+        if numeros['a_enviar'] == 0:
+            error = 'No hay nadie a quien enviarle este correo.'
+        elif escrito != str(numeros['a_enviar']):
+            error = 'Escribe el número exacto de personas: %d.' % numeros['a_enviar']
+        else:
+            try:
+                masivos.encolar(envio)
+            except masivos.NoSePuedeEnviar as e:
+                messages.error(request, str(e))
+                return redirect('panel:correo_edit', pk=envio.pk)
+            messages.success(request, 'Listo: el correo está saliendo a %d '
+                                      'personas, de a poco.' % numeros['a_enviar'])
+            return redirect('panel:correo_detalle', pk=envio.pk)
+
+    return render(request, 'panel/correo_confirmar.html', {
+        'envio': envio, 'numeros': numeros, 'motivo': motivo, 'error': error,
+        'section': 'correos',
+    })
+
+
+@staff_required
+def correo_detalle(request, pk):
+    envio = get_object_or_404(EnvioMasivo, pk=pk)
+    if envio.editable:
+        return redirect('panel:correo_edit', pk=envio.pk)
+    ctx = {
+        'envio': envio,
+        'cuenta': envio.contadores(),
+        'fallidos': envio.destinatarios.filter(estado=DestinatarioMasivo.FALLIDO)[:100],
+        'section': 'correos',
+    }
+    # `?parcial=1` y no la cabecera de htmx: con hx-boost TODA navegación la
+    # manda, y devolver solo el fragmento rompía la página completa.
+    if request.GET.get('parcial') == '1':
+        return render(request, 'panel/partials/correo_progreso.html', ctx)
+    return render(request, 'panel/correo_detalle.html', ctx)
+
+
+@staff_required
+@require_POST
+def correo_cancelar(request, pk):
+    """Frena un envío a mitad de camino. Lo que ya salió, salió."""
+    envio = get_object_or_404(EnvioMasivo, pk=pk)
+    cambio = EnvioMasivo.objects.filter(pk=pk, estado=EnvioMasivo.EN_COLA).update(
+        estado=EnvioMasivo.CANCELADO, terminado_en=timezone.now())
+    if cambio:
+        messages.success(request, 'Envío detenido. Los que ya habían salido no se '
+                                  'pueden recoger; al resto no le llega.')
+    return redirect('panel:correo_detalle', pk=envio.pk)
+
+
+@staff_required
+@require_POST
+def correo_eliminar(request, pk):
+    """Solo borradores: lo que se envió queda en el historial para siempre."""
+    envio = get_object_or_404(EnvioMasivo, pk=pk, estado=EnvioMasivo.BORRADOR)
+    envio.delete()
+    messages.success(request, 'Borrador eliminado.')
+    return redirect('panel:correos')

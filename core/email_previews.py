@@ -105,6 +105,27 @@ EJEMPLOS = {
             'link': _LINK,
         },
     },
+    'novedades': {
+        'etiqueta': 'Correo masivo (desde el panel: Correos masivos)',
+        'asunto': '¡Estrenamos página nueva! · Ingenio Blocks',
+        'ctx': {
+            'titulo': '¡Estrenamos página nueva!',
+            'preheader': 'Ahora puedes ver el avance de tu hijo o hija desde el Aula.',
+            'parrafos': [
+                'Hola,',
+                'Te contamos que desde hoy Ingenio Blocks tiene una página nueva, '
+                'hecha para que armar cada modelo sea más fácil: videos paso a paso, '
+                'diplomas y el avance de cada semana en un solo lugar.',
+                'Entra con el mismo correo de siempre en ingenioblocks.com.\nSi no '
+                'recuerdas tu clave, puedes crear una nueva desde el inicio de sesión.',
+                'Un abrazo,\nEl equipo de Ingenio Blocks',
+            ],
+            'boton_texto': 'Conoce la nueva página',
+            'boton_url': settings.FRONTEND_URL,
+            'baja_url': '#',
+            'baja_de': 'novedades de Ingenio Blocks',
+        },
+    },
     'contacto_interno': {
         'etiqueta': 'Contacto desde la web (llega a la clienta)',
         'asunto': 'Contacto desde la web · Camila Soto',

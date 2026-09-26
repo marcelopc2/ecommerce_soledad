@@ -1,0 +1,113 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Correos masivos{% endblock %}
+{% block crumb %}Panel · Clientes{% endblock %}
+{% block heading %}Correos masivos{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:correo_new' %}" class="btn btn-brand"><i class="bi bi-plus-lg me-1"></i> Nuevo correo</a>
+{% endblock %}
+
+{% block content %}
+<div class="pnl-card mb-4"><div class="card-pad">
+  <p class="pnl-campo-ayuda mb-0">
+    <i class="bi bi-info-circle"></i>
+    Para avisos puntuales a los clientes, como el lanzamiento de la página nueva.
+    Cada correo se prueba primero con el equipo y recién después se envía a
+    todos, de a poco. Los correos de compras, despachos y avisos del Aula salen
+    solos: no pasan por acá.
+  </p>
+</div></div>
+
+<div class="pnl-card mb-4">
+  <div class="card-pad pb-0">
+    <div class="form-section-title"><i class="bi bi-clock-history"></i> Historial</div>
+  </div>
+  {% if envios %}
+  <div class="table-responsive">
+    <table class="table pnl-table">
+      <thead>
+        <tr>
+          <th>Asunto</th>
+          <th>A quién</th>
+          <th>Estado</th>
+          <th>Resultado</th>
+          <th>Fecha</th>
+          <th class="text-end"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in envios %}
+        <tr>
+          <td>
+            <strong>{{ e.asunto }}</strong>
+            {% if e.creado_por %}<div class="cell-sub">por {{ e.creado_por.email }}</div>{% endif %}
+          </td>
+          <td>{{ e.get_audiencia_display }}</td>
+          <td>
+            {% if e.estado == 'BORRADOR' %}
+              {% if e.prueba_al_dia %}<span class="badge-soft purple">Probado, listo</span>
+              {% else %}<span class="badge-soft gray">Borrador</span>{% endif %}
+            {% elif e.estado == 'EN_COLA' %}<span class="badge-soft yellow">Enviándose</span>
+            {% elif e.estado == 'TERMINADO' %}<span class="badge-soft green">Enviado</span>
+            {% else %}<span class="badge-soft red">Cancelado</span>{% endif %}
+          </td>
+          <td>
+            {% if e.cuenta %}
+              {{ e.cuenta.ENVIADO }} de {{ e.cuenta.total }}
+              {% if e.cuenta.FALLIDO %}<div class="cell-sub text-danger">{{ e.cuenta.FALLIDO }} fallaron</div>{% endif %}
+            {% else %}<span class="cell-sub">—</span>{% endif %}
+          </td>
+          <td class="cell-sub">{{ e.encolado_en|default:e.creado_en|date:'d-m-Y H:i' }}</td>
+          <td class="text-end">
+            {% if e.editable %}
+              <a href="{% url 'panel:correo_edit' e.pk %}" class="btn btn-sm btn-ghost">Seguir</a>
+            {% else %}
+              <a href="{% url 'panel:correo_detalle' e.pk %}" class="btn btn-sm btn-ghost">Ver</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-pad pt-0">
+    <p class="cell-sub mb-0">Todavía no se ha enviado ningún correo masivo.</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="pnl-card">
+  <div class="card-pad">
+    <div class="form-section-title"><i class="bi bi-envelope-x"></i> Quienes pidieron no recibir correos</div>
+    <p class="pnl-campo-ayuda">
+      <i class="bi bi-info-circle"></i>
+      Cada correo trae un enlace para darse de baja, y la ley exige respetarlo.
+      A estas personas el sistema no les escribe más de lo que pidieron dejar de
+      recibir; los correos de sus compras les siguen llegando igual.
+      <strong>{{ bajas_novedades }}</strong> de novedades y
+      <strong>{{ bajas_aula }}</strong> de avisos del Aula.
+    </p>
+    {% if bajas %}
+    <div class="table-responsive">
+      <table class="table pnl-table mb-0">
+        <thead><tr><th>Correo</th><th>Dejó de recibir</th><th>Cómo</th><th>Cuándo</th></tr></thead>
+        <tbody>
+          {% for b in bajas %}
+          <tr>
+            <td>{{ b.email }}</td>
+            <td>{{ b.get_categoria_display }}</td>
+            <td class="cell-sub">{{ b.get_origen_display|default:'—' }}</td>
+            <td class="cell-sub">{{ b.creada_en|date:'d-m-Y' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="cell-sub mb-0">Nadie se ha dado de baja.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

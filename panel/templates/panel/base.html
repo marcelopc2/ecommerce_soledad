@@ -53,6 +53,11 @@
       <i class="bi bi-graph-up-arrow"></i> Visitas
     </a>
 
+    <div class="pnl-nav-label">Clientes</div>
+    <a href="{% url 'panel:correos' %}" class="{% if section == 'correos' %}active{% endif %}">
+      <i class="bi bi-envelope-paper-fill"></i> Correos masivos
+    </a>
+
     <div class="pnl-nav-label">Tienda</div>
     <a href="{% url 'panel:products' %}" class="{% if section == 'products' %}active{% endif %}">
       <i class="bi bi-box-seam-fill"></i> Productos

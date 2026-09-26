@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/shipping/', include('shipments.urls')),
     path('api/auth/', include(auth_urlpatterns)),
     path('api/lms/', include(student_urlpatterns)),
+    path('api/correos/', include('comunicaciones.urls')),
     # Contador de visitas. Va bajo /api/ y no dentro de /gestion/ porque lo
     # llama el visitante anónimo desde la portada, no el panel.
     path('api/metricas/visita/', RegistrarVisitaView.as_view(), name='registrar-visita'),

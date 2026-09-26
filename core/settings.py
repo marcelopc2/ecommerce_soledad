@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'invoicing',
     'lms',
     'panel',
+    'comunicaciones',
 ]
 
 MIDDLEWARE = [

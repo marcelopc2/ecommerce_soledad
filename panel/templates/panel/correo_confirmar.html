@@ -1,0 +1,43 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Enviar a todos{% endblock %}
+{% block crumb %}Panel · Clientes · Correos masivos{% endblock %}
+{% block heading %}Enviar a todos{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:correo_edit' envio.pk %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver al correo</a>
+{% endblock %}
+
+{% block content %}
+<div class="row"><div class="col-lg-7">
+  <div class="pnl-card"><div class="card-pad">
+    {% if motivo %}
+      <div class="form-section-title"><i class="bi bi-lock"></i> Todavía no se puede enviar</div>
+      <p class="mb-0">{{ motivo }}</p>
+    {% else %}
+      <div class="form-section-title"><i class="bi bi-exclamation-triangle"></i> Último paso</div>
+      <p>Vas a enviar <strong>«{{ envio.asunto }}»</strong> a
+        <strong>{{ numeros.a_enviar }} persona{{ numeros.a_enviar|pluralize }}</strong>
+        ({{ envio.get_audiencia_display|lower }}).
+        {% if numeros.de_baja %}Otras {{ numeros.de_baja }} se dieron de baja y no lo reciben.{% endif %}
+      </p>
+      <p class="pnl-campo-ayuda">
+        Un correo enviado no se puede recoger. Si viste algo raro en la prueba,
+        vuelve y corrígelo primero.
+      </p>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <label class="form-label" for="confirmacion">
+          Para confirmar, escribe cuántas personas lo van a recibir:
+          <strong>{{ numeros.a_enviar }}</strong>
+        </label>
+        <input type="text" inputmode="numeric" autocomplete="off" name="confirmacion" id="confirmacion"
+               class="form-control mb-2" style="max-width:180px" autofocus>
+        {% if error %}<div class="text-danger small mb-2">{{ error }}</div>{% endif %}
+        <button type="submit" class="btn btn-brand mt-2"><i class="bi bi-send me-1"></i> Enviar a {{ numeros.a_enviar }} personas</button>
+      </form>
+    {% endif %}
+  </div></div>
+</div></div>
+{% endblock %}

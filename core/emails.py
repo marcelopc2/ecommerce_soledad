@@ -10,6 +10,8 @@ Por qué el texto plano no es opcional:
 - Si el HTML no carga, el mensaje igual se entiende.
 """
 import logging
+from email.utils import formataddr, parseaddr
+
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -104,7 +106,7 @@ class _CorreoConLogo(EmailMultiAlternatives):
 
 
 def enviar_email(plantilla, asunto, destinatarios, contexto=None,
-                 reply_to=None, fail_silently=True):
+                 reply_to=None, fail_silently=True, es_prueba=False):
     """Renderiza `emails/<plantilla>.html` + `.txt` y los manda como multipart.
 
     fail_silently=True por defecto A PROPÓSITO: estos correos se disparan
@@ -113,17 +115,72 @@ def enviar_email(plantilla, asunto, destinatarios, contexto=None,
     antes que reventar la transacción y dejar al cliente pagado sin orden.
     Los casos donde sí importa saberlo (formulario de contacto) lo llaman con
     fail_silently=False y manejan el error.
-    """
-    # Freno de mano: fuera del sitio de verdad no sale NADA. Va acá, en el único
-    # punto por donde pasan todos los correos, y no en cada comando: basta que
-    # alguien agregue un envío nuevo sin acordarse del freno para repetir el
-    # accidente. Ver settings.ENVIAR_CORREOS.
-    if not settings.ENVIAR_CORREOS:
-        log.warning(
-            'CORREO NO ENVIADO (servidor de pruebas): plantilla=%s asunto=%r '
-            'destinatarios=%s', plantilla, asunto, destinatarios)
-        return None
 
+    Devuelve el mensaje, o None si no salió a nadie (freno o bajas).
+    `es_prueba` salta las bajas: la prueba de un masivo tiene que llegarle al
+    equipo aunque alguien de gestión se haya dado de baja de las novedades.
+    """
+    from comunicaciones.preferencias import (
+        NOMBRES, REMITENTES, SERVICIO, categoria_de, correos_de_gestion,
+        esta_de_baja, normalizar, url_baja_un_clic, url_preferencias)
+
+    destinatarios = [d for d in destinatarios if d]
+
+    # Freno de mano: fuera del sitio de verdad no sale NADA a un cliente. Va
+    # acá, en el único punto por donde pasan todos los correos, y no en cada
+    # comando: basta que alguien agregue un envío nuevo sin acordarse del freno
+    # para repetir el accidente. Ver settings.ENVIAR_CORREOS.
+    #
+    # La única excepción es el equipo: no son clientes, que es a quien el freno
+    # protege. Sin ella no se podía probar un correo masivo antes del
+    # lanzamiento, ni recuperar la clave del panel.
+    if not settings.ENVIAR_CORREOS:
+        equipo = set(correos_de_gestion())
+        frenados = [d for d in destinatarios if normalizar(d) not in equipo]
+        if frenados:
+            log.warning(
+                'CORREO NO ENVIADO (servidor de pruebas): plantilla=%s asunto=%r '
+                'destinatarios=%s', plantilla, asunto, frenados)
+        destinatarios = [d for d in destinatarios if normalizar(d) in equipo]
+        if not destinatarios:
+            return None
+
+    categoria = categoria_de(plantilla)
+    if categoria == SERVICIO:
+        return _armar_y_mandar(plantilla, asunto, destinatarios, contexto,
+                               reply_to, fail_silently)
+
+    # Los que se pueden dar de baja salen UNO POR PERSONA: cada uno lleva su
+    # propio enlace firmado, y un enlace compartido le permitiría a uno dar de
+    # baja al otro.
+    remitente = settings.DEFAULT_FROM_EMAIL
+    if categoria in REMITENTES:
+        remitente = formataddr((REMITENTES[categoria],
+                                parseaddr(settings.DEFAULT_FROM_EMAIL)[1]))
+    salio = None
+    for d in destinatarios:
+        if not es_prueba and esta_de_baja(d, categoria):
+            log.info('CORREO OMITIDO: %s se dio de baja de %s (plantilla=%s)',
+                     d, categoria, plantilla)
+            continue
+        ctx = dict(contexto or {})
+        ctx['baja_url'] = url_preferencias(d, categoria)
+        ctx['baja_de'] = NOMBRES[categoria]
+        # La cabecera estándar de baja (RFC 8058): Gmail y Apple Mail muestran
+        # su propio botón "Cancelar suscripción" junto al remitente. Es lo que
+        # más protege la cuenta: quien no quiere más correos se da de baja ahí
+        # en vez de apretar "spam", que es lo que hace que Google la frene.
+        cabeceras = {
+            'List-Unsubscribe': '<%s>' % url_baja_un_clic(d, categoria),
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        }
+        salio = _armar_y_mandar(plantilla, asunto, [d], ctx, reply_to,
+                                fail_silently, cabeceras, remitente) or salio
+    return salio
+
+
+def _armar_y_mandar(plantilla, asunto, destinatarios, contexto, reply_to,
+                    fail_silently, cabeceras=None, remitente=None):
     ctx = _contexto_base(contexto)
     cuerpo_txt = render_to_string(f'emails/{plantilla}.txt', ctx)
     cuerpo_html = render_to_string(f'emails/{plantilla}.html', ctx)
@@ -131,9 +188,10 @@ def enviar_email(plantilla, asunto, destinatarios, contexto=None,
     msg = _CorreoConLogo(
         subject=asunto,
         body=cuerpo_txt,                       # parte de texto
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=remitente or settings.DEFAULT_FROM_EMAIL,
         to=destinatarios,
         reply_to=reply_to,
+        headers=cabeceras,
     )
     msg.attach_alternative(cuerpo_html, 'text/html')   # parte HTML
     msg.send(fail_silently=fail_silently)

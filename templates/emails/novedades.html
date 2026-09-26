@@ -1,0 +1,27 @@
+{% extends 'emails/base.html' %}
+
+{% comment %}
+  Correo masivo que se redacta desde el panel (Correos masivos). El texto lo
+  escribe la clienta: llega en párrafos separados por una línea en blanco.
+
+  Cada párrafo va con el mismo estilo de emails/_p.html, pero escrito acá y no
+  con ese include porque necesita dos filtros que el include no deja pasar:
+  `urlize` -una dirección web escrita en el texto se vuelve enlace- y
+  `linebreaksbr` -un salto de línea simple dentro del párrafo se respeta-.
+  Los dos escapan el HTML: lo que se escribe en el panel sale como texto,
+  nunca como código.
+{% endcomment %}
+
+{% block asunto %}{{ titulo }}{% endblock %}
+{% block preheader %}{{ preheader }}{% endblock %}
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block contenido %}
+  {% for parrafo in parrafos %}
+    <p style="margin:0 0 14px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.75; color:#314158;">{{ parrafo|urlize|linebreaksbr }}</p>
+  {% endfor %}
+
+  {% if boton_url and boton_texto %}
+    {% include 'emails/_boton.html' with url=boton_url texto=boton_texto %}
+  {% endif %}
+{% endblock %}

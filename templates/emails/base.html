@@ -88,6 +88,13 @@
               <p style="margin:0; font-family:Arial,Helvetica,sans-serif; font-size:11px; line-height:1.6; color:#b0a8ba;">
                 Ingenio Blocks · Las Condes, Santiago — Chile<br>
                 Recibiste este correo porque tienes una compra o cuenta con nosotros.
+                {% comment %}
+                  Solo en los correos que se pueden dejar de recibir (avisos del
+                  Aula y novedades). Los de una compra no lo llevan: son parte
+                  del servicio. Ver comunicaciones/preferencias.py.
+                {% endcomment %}
+                {% if baja_url %}<br>¿Prefieres no recibir más {{ baja_de }}?
+                <a href="{{ baja_url }}" style="color:#8a8095; text-decoration:underline;">Darte de baja</a>.{% endif %}
               </p>
             </td>
           </tr>

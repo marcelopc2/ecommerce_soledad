@@ -12,3 +12,6 @@ Puedes descargarlo o imprimirlo cuando quieras desde tu Aula Virtual.
 --
 Ingenio Blocks · Las Condes, Santiago — Chile
 {{ contacto_email }} · +56 9 8502 6926
+{% if baja_url %}
+¿Prefieres no recibir más {{ baja_de }}? Date de baja acá: {{ baja_url }}
+{% endif %}

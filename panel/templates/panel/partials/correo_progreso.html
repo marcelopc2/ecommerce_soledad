@@ -1,0 +1,49 @@
+{% comment %}
+  Mientras sale, se refresca solo cada 5 segundos. Se pide con `?parcial=1`
+  y no con la cabecera de htmx, que con hx-boost viaja en toda navegación.
+  Cuando termina deja de pedir: el bloque que vuelve ya no trae hx-trigger.
+{% endcomment %}
+<div class="pnl-card" id="correo-progreso"
+     {% if envio.estado == 'EN_COLA' %}
+       hx-get="{% url 'panel:correo_detalle' envio.pk %}?parcial=1"
+       hx-trigger="every 5s" hx-swap="outerHTML"
+     {% endif %}>
+  <div class="card-pad">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <div class="form-section-title mb-0"><i class="bi bi-send"></i> Envío</div>
+      {% if envio.estado == 'EN_COLA' %}<span class="badge-soft yellow">Enviándose</span>
+      {% elif envio.estado == 'TERMINADO' %}<span class="badge-soft green">Terminado</span>
+      {% else %}<span class="badge-soft red">Detenido</span>{% endif %}
+    </div>
+
+    <div class="progress my-3" style="height:12px" role="progressbar"
+         aria-valuenow="{{ cuenta.porcentaje }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar" style="width:{{ cuenta.porcentaje }}%; background:#8200db"></div>
+    </div>
+
+    <div class="row text-center g-2 mb-2">
+      <div class="col"><div class="fs-4 fw-bold">{{ cuenta.ENVIADO }}</div><div class="cell-sub">enviados</div></div>
+      <div class="col"><div class="fs-4 fw-bold">{{ cuenta.PENDIENTE }}</div><div class="cell-sub">en espera</div></div>
+      <div class="col"><div class="fs-4 fw-bold {% if cuenta.FALLIDO %}text-danger{% endif %}">{{ cuenta.FALLIDO }}</div><div class="cell-sub">fallaron</div></div>
+      <div class="col"><div class="fs-4 fw-bold">{{ cuenta.OMITIDO }}</div><div class="cell-sub">se dieron de baja</div></div>
+    </div>
+
+    {% if envio.estado == 'EN_COLA' %}
+      <p class="pnl-campo-ayuda mt-3">Sale de a poco, unos 25 por minuto. Puedes cerrar esta página: sigue igual.</p>
+      <form method="post" action="{% url 'panel:correo_cancelar' envio.pk %}"
+            hx-confirm="¿Detener el envío? A los que ya les llegó no se les puede quitar.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-danger-soft"><i class="bi bi-stop-circle me-1"></i> Detener el envío</button>
+      </form>
+    {% endif %}
+
+    {% if fallidos %}
+      <div class="mt-3">
+        <div class="small fw-bold mb-1">No les llegó:</div>
+        <ul class="small mb-0">
+          {% for f in fallidos %}<li>{{ f.email }} <span class="cell-sub">— {{ f.error }}</span></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+</div>

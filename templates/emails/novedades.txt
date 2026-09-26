@@ -1,0 +1,12 @@
+{{ titulo }}
+{% for parrafo in parrafos %}
+{{ parrafo }}
+{% endfor %}{% if boton_url and boton_texto %}
+{{ boton_texto }}: {{ boton_url }}
+{% endif %}
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926
+{% if baja_url %}
+¿Prefieres no recibir más {{ baja_de }}? Date de baja acá: {{ baja_url }}
+{% endif %}

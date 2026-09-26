@@ -10,6 +10,7 @@ from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
     SeccionConcurso, GanadorConcurso,
 )
+from comunicaciones.models import EnvioMasivo
 from payments.models import Coupon
 from shipments.models import PuntoRetiro
 
@@ -1018,4 +1019,44 @@ class PuntoRetiroForm(BootstrapFormMixin, forms.ModelForm):
                 self.add_error('direccion', 'Para ofrecer retiro hay que decir dónde es.')
             if not (datos.get('horario') or '').strip():
                 self.add_error('horario', 'Para ofrecer retiro hay que decir cuándo se puede ir.')
+        return datos
+
+
+class EnvioMasivoForm(BootstrapFormMixin, forms.ModelForm):
+    """Redactar un correo masivo. Enviarlo es un paso aparte: ver el panel de
+    Correos masivos y comunicaciones/envio.py."""
+
+    class Meta:
+        model = EnvioMasivo
+        fields = ['asunto', 'cuerpo', 'boton_texto', 'boton_url', 'audiencia']
+        labels = {
+            'asunto': 'Asunto',
+            'cuerpo': 'Texto del correo',
+            'audiencia': 'A quién se le manda',
+        }
+        widgets = {
+            'asunto': forms.TextInput(attrs={'placeholder': 'Ej: ¡Estrenamos página nueva!'}),
+            'cuerpo': forms.Textarea(attrs={
+                'rows': 10,
+                'placeholder': 'Hola,\n\nTe contamos que...\n\nUn abrazo,\nEl equipo de Ingenio Blocks',
+            }),
+            'boton_texto': forms.TextInput(attrs={'placeholder': 'Conoce la nueva página'}),
+            'boton_url': forms.URLInput(attrs={'placeholder': 'https://ingenioblocks.com'}),
+            'audiencia': forms.RadioSelect,
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # El mixin le pone `form-control` a todo lo que no reconoce, y a un
+        # botón de radio eso lo deforma.
+        self.fields['audiencia'].widget.attrs['class'] = 'form-check-input'
+
+    def clean(self):
+        datos = super().clean()
+        # Un botón sin dirección no lleva a ningún lado, y una dirección sin
+        # texto no se muestra: las dos a medias se descubrían recién en la prueba.
+        if bool(datos.get('boton_texto')) != bool(datos.get('boton_url')):
+            raise forms.ValidationError(
+                'Para poner un botón necesitas las dos cosas: el texto y la dirección. '
+                'Si no quieres botón, deja las dos en blanco.')
         return datos
