@@ -196,6 +196,8 @@ def _normalize_shipit_prices(prices):
         dias = item.get('days')
         normalized.append({
             'courier': nombre.title(),                   # "chilexpress" → "Chilexpress"
+            # El código que hay que devolverle a Shipit al crear el envío.
+            'courier_code': (courier.get('name') or nombre).lower(),
             'service': _SERVICE_LABELS.get(item.get('service_type'), ''),
             'price': int(round(float(price))),
             'days': (f'{dias} día hábil' if dias == 1
@@ -353,50 +355,124 @@ _STATIC_COMMUNES = [
 # ---------------------------------------------------------------------------
 # Crear envío (POST /v/shipments) — TIENE EFECTO REAL (usa saldo, genera etiqueta)
 # ---------------------------------------------------------------------------
-def create_shipit_shipment(shipment):
-    """
-    Crea el envío real en Shipit y devuelve {reference, tracking_number, label_url}.
-    OJO: gasta saldo y genera una etiqueta real. Se llama desde la acción del admin.
+#: Crear envíos es de la versión 4 de la API; las cotizaciones siguen en la 2
+#: (es con la que se validó el formato de /v/rates con soporte de Shipit).
+SHIPIT_ACCEPT_ENVIOS = 'application/vnd.shipit.v4'
 
-    NOTA: el payload y el endpoint exactos deben confirmarse contra la doc vigente de
-    Shipit (y probar primero en sandbox si existe). Implementación de referencia.
-    """
-    if not _has_credentials():
-        raise RuntimeError("Faltan credenciales de Shipit en el .env (SHIPIT_EMAIL / SHIPIT_TOKEN).")
 
-    payload = {
+def codigo_courier(shipment):
+    """El código del courier que entiende Shipit ("spread", "chilexpress").
+
+    Se guarda al cotizar (Shipment.courier_code). Los envíos de antes de ese
+    campo solo tienen el nombre para mostrar ("Spread"), que en Shipit es el
+    mismo código en mayúscula.
+    """
+    return (shipment.courier_code or shipment.courier or '').strip().lower().replace(' ', '')
+
+
+def payload_shipit(shipment, prueba=False):
+    """El envío en el formato de Shipit (POST /v/shipments, API v4).
+
+    Sacado de developers.shipit.cl/reference/crear-un-envío. La versión
+    anterior mandaba los campos sueltos (sin destiny/sizes/courier) y una
+    referencia de 26 caracteres cuando el máximo es 15: Shipit la rechazaba.
+    """
+    order = shipment.order
+    return {
         'shipment': {
-            'reference': str(shipment.order.order_id)[:26],
-            'full_name': shipment.recipient_name,
-            'email': shipment.recipient_email or shipment.order.customer_email,
-            'cellphone': shipment.recipient_phone,
-            'street': shipment.address_street,
-            'number': shipment.address_number,
-            'complement': shipment.address_detail,
-            'commune_id': shipment.commune_id,
-            'commune_name': shipment.commune,
-            'courier_for_client': shipment.courier,
-            'items_count': shipment.order.products.count(),
-            'parcel': {
-                'weight': float(shipment.weight_kg),
+            'kind': 0,
+            'platform': 2,
+            # Máximo 15 caracteres y única en el día: el principio del id de la orden.
+            'reference': order.order_id.hex[:15],
+            'items': max(1, order.products.count()),
+            'sandbox': bool(prueba),
+            'sizes': {
+                'length': float(shipment.length_cm),
                 'width': float(shipment.width_cm),
                 'height': float(shipment.height_cm),
-                'length': float(shipment.length_cm),
+                'weight': float(shipment.weight_kg),
+            },
+            'courier': {
+                'client': codigo_courier(shipment),
+                # El cliente ya eligió courier en el checkout: Shipit no tiene
+                # que escoger otro por su cuenta.
+                'selected': True,
+                'payable': False,
+            },
+            'destiny': {
+                'street': shipment.address_street,
+                'number': shipment.address_number,
+                'complement': shipment.address_detail,
+                'commune_id': shipment.commune_id,
+                'commune_name': shipment.commune,
+                'full_name': shipment.recipient_name,
+                'email': shipment.recipient_email or order.customer_email,
+                'phone': shipment.recipient_phone,
+                'kind': 'home_delivery',
+            },
+            'insurance': {
+                'ticket_number': str(order.order_id)[:8],
+                'ticket_amount': int(order.total_amount) - int(shipment.shipping_cost or 0),
+                'detail': ', '.join(i.name for i in order.items.all())[:200],
+                'extra': False,
             },
         }
     }
 
+
+def create_shipit_shipment(shipment, prueba=False):
+    """Crea el envío en Shipit y devuelve {reference, tracking_number, label_url}.
+
+    OJO: sin `prueba` gasta saldo y el courier pasa a buscar el paquete. Con
+    `prueba=True` va con sandbox: Shipit valida todo y no crea nada de verdad.
+    """
+    if not _has_credentials():
+        raise RuntimeError("Faltan credenciales de Shipit en el .env (SHIPIT_EMAIL / SHIPIT_TOKEN).")
+
+    headers = dict(_shipit_headers(), Accept=SHIPIT_ACCEPT_ENVIOS)
     resp = requests.post(
         f'{SHIPIT_API_BASE}/v/shipments',
-        json=payload,
-        headers=_shipit_headers(),
-        timeout=SHIPIT_TIMEOUT,
+        json=payload_shipit(shipment, prueba=prueba),
+        headers=headers,
+        timeout=max(SHIPIT_TIMEOUT, 15),
     )
     if resp.status_code >= 400:
         raise RuntimeError(f"Shipit respondió {resp.status_code}: {resp.text[:300]}")
 
     data = resp.json()
     return _leer_respuesta_shipit(data)
+
+
+def enviar_pedido_a_shipit(order):
+    """Manda a Shipit el envío de un pedido pagado. Devuelve el Shipment o None.
+
+    Lo llama la entrega de una compra pagada (payments.views._entregar_compra)
+    si en el panel está prendido "Enviar a Shipit al pagar", y el botón del
+    detalle del pedido. No repite: un envío que ya tiene referencia de Shipit
+    no se vuelve a crear, porque sería otro despacho cobrado.
+    """
+    from django.utils import timezone
+    shipment = getattr(order, 'shipment', None)
+    if shipment is None or order.es_retiro or order.status != 'PAID':
+        return None
+    if shipment.shipit_reference or shipment.status in ('CREATED', 'IN_TRANSIT', 'DELIVERED'):
+        return shipment
+    try:
+        r = create_shipit_shipment(shipment)
+    except Exception as e:
+        shipment.status = 'ERROR'
+        shipment.error_shipit = str(e)[:300]
+        shipment.save(update_fields=['status', 'error_shipit'])
+        log.exception('No se pudo crear en Shipit el envío del pedido %s', order.order_id)
+        return shipment
+    shipment.shipit_reference = r.get('reference', '')
+    shipment.tracking_number = r.get('tracking_number', '') or shipment.tracking_number
+    shipment.label_url = r.get('label_url', '')
+    shipment.status = 'CREATED'
+    shipment.error_shipit = ''
+    shipment.save(update_fields=['shipit_reference', 'tracking_number', 'label_url', 'status', 'error_shipit'])
+    log.info('Envío del pedido %s creado en Shipit (ref %s)', order.order_id, shipment.shipit_reference)
+    return shipment
 
 
 def _leer_respuesta_shipit(data):

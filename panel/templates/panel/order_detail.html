@@ -247,13 +247,35 @@
             <a href="{{ shipment.label_url }}" target="_blank" rel="noopener" class="btn btn-ghost"><i class="bi bi-tag me-1"></i> Ver etiqueta</a>
           </div>
         {% endif %}
+        {% if shipment.shipit_reference %}
+          <div class="mdetail-kv"><span>En Shipit</span><strong class="mono">{{ shipment.shipit_reference }}</strong></div>
+        {% endif %}
+        {% if shipment.error_shipit %}
+          <div class="alert alert-danger small mt-3 mb-0">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Shipit no aceptó el envío: {{ shipment.error_shipit }}
+          </div>
+        {% endif %}
+        {% if order.status == 'PAID' and not shipment.shipit_reference and shipment.status == 'PENDING_DISPATCH' or order.status == 'PAID' and shipment.status == 'ERROR' %}
+          {% comment %}
+            Se manda solo al pagar si el interruptor de Pedidos está prendido;
+            este botón es para cuando está apagado o cuando Shipit falló.
+          {% endcomment %}
+          <form method="post" action="{% url 'panel:order_enviar_shipit' order.pk %}" class="mt-3"
+                hx-confirm="¿Enviar este pedido a Shipit? Se crea el envío real y el courier pasa a buscarlo (usa saldo de Shipit).">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-brand"><i class="bi bi-send me-1"></i>
+              {% if shipment.status == 'ERROR' %}Reintentar envío a Shipit{% else %}Enviar a Shipit{% endif %}
+            </button>
+          </form>
+        {% endif %}
         {% if shipment.status == 'PENDING_DISPATCH' and order.status == 'PAID' %}
           {% comment %}
-            No hay integración que traiga el seguimiento solo (ver
-            shipments/services.py, create_shipit_shipment nunca se probó
-            contra la API real): se anota a mano cuando el paquete sale.
+            Para un envío hecho por fuera de Shipit (o creado a mano en su
+            página): se anota el seguimiento y se avisa al cliente.
           {% endcomment %}
-          <form method="post" action="{% url 'panel:order_shipment_dispatch' order.pk %}" class="mt-3">
+          <div class="pnl-campo-ayuda mt-3 mb-1">¿Lo despachaste por fuera de Shipit? Anota el seguimiento:</div>
+          <form method="post" action="{% url 'panel:order_shipment_dispatch' order.pk %}">
             {% csrf_token %}
             <label class="form-label mb-1" for="tracking_number">N.º de seguimiento</label>
             <div class="d-flex gap-2">

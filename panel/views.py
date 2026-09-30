@@ -1089,6 +1089,8 @@ def orders(request):
     }
     if is_search_request(request):
         return render(request, 'panel/partials/orders_rows.html', ctx)
+    from shipments.models import AjustesEnvios
+    ctx['ajustes_envios'] = AjustesEnvios.obtener()
     return render(request, 'panel/orders.html', ctx)
 
 
@@ -2730,3 +2732,35 @@ def correo_imagen(request):
     ruta = default_storage.save(f'correos/{uuid.uuid4().hex}.{ext}', archivo)
     base = (settings.BACKEND_PUBLIC_URL or request.build_absolute_uri('/')).rstrip('/')
     return JsonResponse({'url': base + default_storage.url(ruta)})
+
+
+@staff_required
+@require_POST
+def order_enviar_shipit(request, pk):
+    """Manda a Shipit el envío de un pedido pagado (o lo reintenta si falló)."""
+    from shipments.services import enviar_pedido_a_shipit
+    order = get_object_or_404(Order, pk=pk)
+    shipment = enviar_pedido_a_shipit(order)
+    if shipment is None:
+        messages.error(request, 'Este pedido no tiene un despacho pagado que mandar a Shipit.')
+    elif shipment.status == 'ERROR':
+        messages.error(request, 'Shipit no aceptó el envío. El detalle está en la tarjeta de Despacho.')
+    else:
+        messages.success(request, 'Envío creado en Shipit. El courier pasa a buscarlo.')
+    return redirect('panel:order_detail', pk=order.pk)
+
+
+@staff_required
+@require_POST
+def envios_ajustes(request):
+    """Prende o apaga el envío automático a Shipit al pagar."""
+    from shipments.models import AjustesEnvios
+    a = AjustesEnvios.obtener()
+    a.enviar_a_shipit_al_pagar = request.POST.get('valor') == '1'
+    a.cambiado_por = request.user.email or request.user.username
+    a.cambiado_en = timezone.now()
+    a.save()
+    log.warning('ENVIOS: %s puso enviar_a_shipit_al_pagar = %s', a.cambiado_por, a.enviar_a_shipit_al_pagar)
+    messages.success(request, 'Los pedidos pagados %s a Shipit solos.' % (
+        'se mandan' if a.enviar_a_shipit_al_pagar else 'ya NO se mandan'))
+    return redirect('panel:orders')

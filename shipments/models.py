@@ -48,6 +48,11 @@ class Shipment(models.Model):
     tracking_number = models.CharField(max_length=120, blank=True)
     label_url = models.URLField(max_length=500, blank=True, help_text="PDF de la etiqueta")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING_DISPATCH')
+    #: El código del courier para Shipit ("spread"); `courier` es el nombre
+    #: para mostrar. Vacío en los envíos de antes de este campo.
+    courier_code = models.CharField(max_length=60, blank=True)
+    #: Qué respondió Shipit la última vez que no se pudo crear el envío.
+    error_shipit = models.CharField(max_length=300, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     dispatched_at = models.DateTimeField(null=True, blank=True)
@@ -131,3 +136,23 @@ class PuntoRetiro(models.Model):
     def direccion_completa(self):
         partes = [self.direccion, self.comuna, self.ciudad]
         return ', '.join(p for p in partes if p and p.strip())
+
+
+class AjustesEnvios(models.Model):
+    """Interruptor del panel: mandar los envíos a Shipit apenas se pagan.
+
+    Prendido, un pedido pagado con despacho aparece solo en Shipit (como hacía
+    el WordPress) y el courier lo pasa a buscar. Apagado, queda "pendiente de
+    despacho" y se manda a mano desde el detalle del pedido.
+    """
+    enviar_a_shipit_al_pagar = models.BooleanField(default=True)
+    cambiado_por = models.CharField(max_length=200, blank=True)
+    cambiado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'ajustes de envíos'
+
+    @classmethod
+    def obtener(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

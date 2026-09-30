@@ -225,6 +225,7 @@ def build_order_from_request(data, user=None):
                 address_number=s.get('address_number', ''),
                 address_detail=s.get('address_detail', ''),
                 courier=q['courier'],
+                courier_code=q.get('courier_code', ''),
                 service_name=q['service'],
                 shipping_cost=shipping_cost,
                 estimated_days=q.get('days', ''),

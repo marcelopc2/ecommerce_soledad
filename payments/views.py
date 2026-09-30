@@ -45,6 +45,16 @@ def _entregar_compra(order):
     except Exception:
         log.exception('Falló el correo de confirmación de la orden %s', order.order_id)
 
+    # El despacho a Shipit, como hacía el WordPress. Si falla, el pedido queda
+    # con el error a la vista en el panel y se reintenta con un botón.
+    try:
+        from shipments.models import AjustesEnvios
+        from shipments.services import enviar_pedido_a_shipit
+        if AjustesEnvios.obtener().enviar_a_shipit_al_pagar:
+            enviar_pedido_a_shipit(order)
+    except Exception:
+        log.exception('Falló el envío a Shipit de la orden %s', order.order_id)
+
 
 def _send_order_confirmation(order, tiene_acceso):
     """Correo con el detalle del pedido. El de 'bienvenida'/'acceso_extendido'

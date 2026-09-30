@@ -26,6 +26,30 @@
 {% endblock %}
 
 {% block content %}
+{% comment %}
+  El envío automático a Shipit. Prendido, un pedido pagado con despacho llega
+  solo a Shipit (como en el WordPress); apagado, se manda desde su detalle.
+{% endcomment %}
+<div class="pnl-card mb-4"><div class="card-pad d-flex justify-content-between align-items-center gap-3 flex-wrap">
+  <div>
+    <div class="fw-bold">
+      <i class="bi bi-truck me-1"></i> Mandar los despachos a Shipit al pagarse
+      {% if ajustes_envios.enviar_a_shipit_al_pagar %}<span class="badge-soft green ms-1">Prendido</span>{% else %}<span class="badge-soft gray ms-1">Apagado</span>{% endif %}
+    </div>
+    <div class="cell-sub">
+      {% if ajustes_envios.enviar_a_shipit_al_pagar %}Cada pedido pagado con despacho aparece solo en Shipit y el courier lo pasa a buscar.
+      {% else %}Los pedidos quedan «pendientes de despacho» y se mandan a Shipit desde el detalle de cada uno.{% endif %}
+    </div>
+  </div>
+  <form method="post" action="{% url 'panel:envios_ajustes' %}"
+        hx-confirm="{% if ajustes_envios.enviar_a_shipit_al_pagar %}¿Dejar de mandar los despachos a Shipit solos?{% else %}¿Mandar a Shipit cada pedido pagado apenas se pague?{% endif %}">
+    {% csrf_token %}
+    <input type="hidden" name="valor" value="{% if ajustes_envios.enviar_a_shipit_al_pagar %}0{% else %}1{% endif %}">
+    <button type="submit" class="btn btn-sm {% if ajustes_envios.enviar_a_shipit_al_pagar %}btn-ghost{% else %}btn-brand{% endif %}">
+      {% if ajustes_envios.enviar_a_shipit_al_pagar %}Apagar{% else %}Prender{% endif %}
+    </button>
+  </form>
+</div></div>
 <div class="pnl-card">
   <div class="pnl-toolbar">
     <div class="pnl-search">
