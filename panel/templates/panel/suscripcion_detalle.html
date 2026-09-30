@@ -1,0 +1,81 @@
+{% extends 'panel/base.html' %}
+{% load humanize %}
+
+{% block title %}Suscripción{% endblock %}
+{% block crumb %}Panel · Tienda · Suscripciones{% endblock %}
+{% block heading %}{{ s.email }}{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:suscripciones' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="form-section-title mb-0"><i class="bi bi-arrow-repeat"></i> Suscripción</div>
+        {% if s.estado == 'ACTIVA' %}<span class="badge-soft green">Activa</span>
+        {% elif s.estado == 'PAUSADA' %}<span class="badge-soft yellow">Pausada</span>
+        {% elif s.estado == 'CANCELADA' %}<span class="badge-soft gray">Cancelada</span>
+        {% else %}<span class="badge-soft red">Suspendida</span>{% endif %}
+      </div>
+      <dl class="small mb-3">
+        <dt>Qué paga</dt><dd>{{ s.nombre|default:s.producto.name }}</dd>
+        <dt>Cuánto</dt><dd>${{ s.monto|intcomma }} {% if s.cada_meses == 1 %}al mes{% else %}cada {{ s.cada_meses }} meses{% endif %}</dd>
+        <dt>Tarjeta</dt><dd>{{ s.tarjeta.tipo|default:'Tarjeta' }} terminada en {{ s.tarjeta.ultimos4 }}</dd>
+        <dt>Origen</dt><dd>{{ s.get_origen_display }}{% if s.origen == 'WORDPRESS' %} — hoy la sigue cobrando el WordPress{% endif %}</dd>
+        <dt>Desde</dt><dd>{{ s.creada_en|date:'d-m-Y' }}</dd>
+        {% if s.cancelada_en %}<dt>Cancelada</dt><dd>{{ s.cancelada_en|date:'d-m-Y H:i' }}</dd>{% endif %}
+        {% if s.ultimo_error %}<dt>Último problema</dt><dd>{{ s.ultimo_error }}{% if s.intentos_fallidos %} ({{ s.intentos_fallidos }} intento{{ s.intentos_fallidos|pluralize }}){% endif %}</dd>{% endif %}
+      </dl>
+      {% include 'panel/partials/suscripcion_acciones.html' with volver='detalle' %}
+    </div></div>
+
+    {% if s.estado != 'CANCELADA' %}
+    <div class="pnl-card mt-4"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-calendar-event"></i> Próximo cobro</div>
+      <form method="post" class="d-flex gap-2 align-items-end flex-wrap">
+        {% csrf_token %}
+        <div>
+          <input type="date" name="proximo_cobro" class="form-control" min="{{ hoy|date:'Y-m-d' }}"
+                 value="{{ s.proximo_cobro|date:'Y-m-d' }}">
+        </div>
+        <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar fecha</button>
+      </form>
+      {% if error %}<div class="text-danger small mt-2">{{ error }}</div>{% endif %}
+      <p class="pnl-campo-ayuda mt-2 mb-0">Por ejemplo, para regalar un mes: corre la fecha un mes más adelante.</p>
+    </div></div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-7">
+    <div class="pnl-card">
+      <div class="pnl-toolbar"><span class="pnl-hint"><i class="bi bi-receipt"></i> Cobros hechos por esta tienda</span></div>
+      <div class="table-responsive">
+        <table class="table pnl-table">
+          <thead><tr><th>Fecha</th><th>Monto</th><th>Resultado</th></tr></thead>
+          <tbody>
+            {% for o in cobros %}
+              <tr>
+                <td>{{ o.created_at|date:'d-m-Y H:i' }}</td>
+                <td>${{ o.total_amount|floatformat:0|intcomma }}</td>
+                <td>
+                  {% if o.status == 'PAID' %}<span class="badge-soft green">Pagado</span>
+                  {% elif o.status == 'FAILED' %}<span class="badge-soft red">Rechazado</span>
+                  {% elif o.status == 'REVIEW' %}<span class="badge-soft yellow">Revisar en Transbank</span>
+                  {% else %}<span class="badge-soft gray">{{ o.get_status_display }}</span>{% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr class="no-hover"><td colspan="3" class="empty-cell">
+                Todavía no hay cobros hechos por esta tienda.{% if s.origen == 'WORDPRESS' %} Los anteriores están en el WordPress.{% endif %}
+              </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

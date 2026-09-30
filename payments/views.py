@@ -435,7 +435,8 @@ def _preparar_orden_oneclick(request):
         return None, Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
 
     if suscripcion and Suscripcion.objects.filter(
-            email__iexact=order.customer_email, estado=Suscripcion.ACTIVA,
+            email__iexact=order.customer_email,
+            estado__in=[Suscripcion.ACTIVA, Suscripcion.PAUSADA],
             producto__in=order.products.all()).exists():
         order.status = 'FAILED'
         order.save(update_fields=['status', 'updated_at'])

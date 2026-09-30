@@ -6,6 +6,7 @@
 {% block heading %}Suscripciones{% endblock %}
 
 {% block content %}
+{% include 'panel/partials/cobros_interruptores.html' %}
 <div class="pnl-card">
   <div class="pnl-toolbar">
     <div class="d-flex gap-2 flex-wrap">
@@ -32,7 +33,7 @@
         {% for s in suscripciones %}
           <tr>
             <td>
-              <div class="cell-title">{{ s.email }}</div>
+              <div class="cell-title"><a href="{% url 'panel:suscripcion_detalle' s.pk %}">{{ s.email }}</a></div>
               <div class="cell-sub">{{ s.tarjeta.tipo|default:'Tarjeta' }} ****{{ s.tarjeta.ultimos4 }} · desde {{ s.creada_en|date:'d-m-Y' }}</div>
             </td>
             <td>
@@ -45,19 +46,14 @@
             <td>{% if s.activa %}{{ s.proximo_cobro|date:'d-m-Y' }}{% else %}—{% endif %}</td>
             <td>
               {% if s.estado == 'ACTIVA' %}<span class="badge-soft green">Activa</span>
+              {% elif s.estado == 'PAUSADA' %}<span class="badge-soft yellow">Pausada</span>
               {% elif s.estado == 'CANCELADA' %}<span class="badge-soft gray">Cancelada</span>
               {% else %}<span class="badge-soft red">Suspendida</span>{% endif %}
               {% if s.ultimo_error %}<div class="cell-sub">{{ s.ultimo_error }}{% if s.intentos_fallidos %} ({{ s.intentos_fallidos }} intento{{ s.intentos_fallidos|pluralize }}){% endif %}</div>{% endif %}
               {% if s.cancelada_en %}<div class="cell-sub">el {{ s.cancelada_en|date:'d-m-Y' }}</div>{% endif %}
             </td>
             <td class="text-end">
-              {% if s.estado != 'CANCELADA' %}
-                <form method="post" action="{% url 'panel:suscripcion_cancelar' s.pk %}"
-                      hx-confirm="¿Cancelar la suscripción de {{ s.email }}? No se le vuelve a cobrar; conserva el acceso que ya pagó.">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-danger-soft"><i class="bi bi-x-circle me-1"></i> Cancelar</button>
-                </form>
-              {% endif %}
+              {% include 'panel/partials/suscripcion_acciones.html' with volver='lista' %}
             </td>
           </tr>
         {% empty %}

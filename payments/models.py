@@ -319,10 +319,13 @@ class Suscripcion(models.Model):
     su boleta y extiende la membresía igual que una compra hecha a mano.
     """
     ACTIVA = 'ACTIVA'
+    PAUSADA = 'PAUSADA'
     CANCELADA = 'CANCELADA'
     SUSPENDIDA = 'SUSPENDIDA'
     ESTADOS = (
         (ACTIVA, 'Activa'),
+        # Desde el panel: no se cobra mientras esté así, y se puede reanudar.
+        (PAUSADA, 'Pausada'),
         (CANCELADA, 'Cancelada'),
         # Después de varios cobros rechazados seguidos. No se sigue intentando:
         # insistir con una tarjeta rechazada puede terminar bloqueándola.
@@ -379,3 +382,33 @@ class Suscripcion(models.Model):
     @property
     def activa(self):
         return self.estado == self.ACTIVA
+
+
+class AjustesCobros(models.Model):
+    """Los interruptores de los cobros automáticos, en el panel.
+
+    Nacen APAGADOS. Para que se le cobre solo a una tarjeta tienen que darse
+    todas estas condiciones a la vez:
+
+    1. Que el sitio sea el de verdad (settings.COBROS_AUTOMATICOS). Eso está en
+       el código a propósito y no acá: el sitio de revisión tiene las
+       credenciales de producción, y un clic en su panel no puede bastar para
+       cobrar plata real.
+    2. `cobros_automaticos` prendido.
+    3. Si la suscripción viene de WordPress, además `cobrar_wordpress`: el
+       WordPress la sigue cobrando hasta que se apague su plugin, y cobrarla
+       también acá sería un cobro doble.
+    4. La suscripción ACTIVA (no pausada, cancelada ni suspendida).
+    """
+    cobros_automaticos = models.BooleanField(default=False)
+    cobrar_wordpress = models.BooleanField(default=False)
+    cambiado_por = models.CharField(max_length=200, blank=True)
+    cambiado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'ajustes de cobros'
+
+    @classmethod
+    def obtener(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

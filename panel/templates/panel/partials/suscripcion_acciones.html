@@ -1,0 +1,26 @@
+{% comment %}
+  Botones de una suscripción. Los usan la lista y el detalle; `volver` dice a
+  cuál de las dos regresar después.
+{% endcomment %}
+<div class="d-inline-flex gap-2 flex-wrap justify-content-end">
+  {% if s.estado == 'ACTIVA' %}
+    <form method="post" action="{% url 'panel:suscripcion_pausar' s.pk %}"
+          hx-confirm="¿Pausar la suscripción de {{ s.email }}? No se le cobra hasta que la reanudes.">
+      {% csrf_token %}<input type="hidden" name="volver" value="{{ volver }}">
+      <button type="submit" class="btn btn-sm btn-ghost"><i class="bi bi-pause-circle me-1"></i> Pausar</button>
+    </form>
+  {% elif s.estado == 'PAUSADA' or s.estado == 'SUSPENDIDA' %}
+    <form method="post" action="{% url 'panel:suscripcion_reanudar' s.pk %}"
+          hx-confirm="¿Reanudar la suscripción de {{ s.email }}? Se le vuelve a cobrar desde el próximo cobro (nunca antes de mañana).">
+      {% csrf_token %}<input type="hidden" name="volver" value="{{ volver }}">
+      <button type="submit" class="btn btn-sm btn-ghost"><i class="bi bi-play-circle me-1"></i> Reanudar</button>
+    </form>
+  {% endif %}
+  {% if s.estado != 'CANCELADA' %}
+    <form method="post" action="{% url 'panel:suscripcion_cancelar' s.pk %}"
+          hx-confirm="¿Cancelar la suscripción de {{ s.email }}? No se le vuelve a cobrar nunca; conserva el acceso que ya pagó. No se puede deshacer.">
+      {% csrf_token %}<input type="hidden" name="volver" value="{{ volver }}">
+      <button type="submit" class="btn btn-sm btn-danger-soft"><i class="bi bi-x-circle me-1"></i> Cancelar</button>
+    </form>
+  {% endif %}
+</div>

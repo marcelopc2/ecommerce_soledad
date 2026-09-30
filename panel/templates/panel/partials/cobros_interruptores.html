@@ -1,0 +1,64 @@
+{% comment %}
+  Los interruptores de los cobros automáticos. Nacen apagados. Prenderlos pide
+  confirmación, y queda registrado quién y cuándo (pagos.log).
+{% endcomment %}
+<div class="pnl-card mb-4"><div class="card-pad">
+  <div class="form-section-title"><i class="bi bi-shield-lock"></i> Cobros automáticos</div>
+
+  {% if not sitio_real %}
+    <div class="alert alert-warning small mb-3">
+      <i class="bi bi-cone-striped me-1"></i>
+      <strong>Este es el sitio de pruebas.</strong> Aquí no se le cobra a nadie aunque prendas los
+      interruptores: los cobros automáticos solo funcionan en ingenioblocks.com.
+    </div>
+  {% endif %}
+
+  <div class="d-flex flex-column gap-3">
+    <div class="d-flex justify-content-between align-items-start gap-3">
+      <div>
+        <div class="fw-bold">
+          Cobrar las suscripciones cuando les toca
+          {% if ajustes.cobros_automaticos %}<span class="badge-soft green ms-1">Prendido</span>{% else %}<span class="badge-soft gray ms-1">Apagado</span>{% endif %}
+        </div>
+        <div class="cell-sub">Apagado, no se le cobra a nadie: las suscripciones esperan. Sirve de freno de emergencia.</div>
+      </div>
+      <form method="post" action="{% url 'panel:cobros_ajustes' %}"
+            {% if ajustes.cobros_automaticos %}hx-confirm="¿Apagar los cobros automáticos? No se le cobrará a nadie hasta que los vuelvas a prender."
+            {% else %}hx-confirm="¿Prender los cobros automáticos? Desde mañana se le cobra a las tarjetas de los clientes cuando les toque."{% endif %}>
+        {% csrf_token %}
+        <input type="hidden" name="campo" value="cobros_automaticos">
+        <input type="hidden" name="valor" value="{% if ajustes.cobros_automaticos %}0{% else %}1{% endif %}">
+        <button type="submit" class="btn btn-sm {% if ajustes.cobros_automaticos %}btn-danger-soft{% else %}btn-brand{% endif %}">
+          {% if ajustes.cobros_automaticos %}Apagar{% else %}Prender{% endif %}
+        </button>
+      </form>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-start gap-3">
+      <div>
+        <div class="fw-bold">
+          Incluir las {{ de_wordpress }} suscripciones traídas de WordPress
+          {% if ajustes.cobrar_wordpress %}<span class="badge-soft green ms-1">Prendido</span>{% else %}<span class="badge-soft gray ms-1">Apagado</span>{% endif %}
+        </div>
+        <div class="cell-sub">
+          Hoy las cobra el WordPress. Prender esto <strong>solo después de desactivar el cobro de
+          Transbank en el WordPress</strong>: si los dos cobran, al cliente le llega el cobro dos veces.
+        </div>
+      </div>
+      <form method="post" action="{% url 'panel:cobros_ajustes' %}"
+            {% if ajustes.cobrar_wordpress %}hx-confirm="¿Dejar de cobrar aquí las suscripciones de WordPress?"
+            {% else %}hx-confirm="¿Ya desactivaste el cobro de Transbank en el WordPress? Si no, a estos clientes se les cobrará dos veces."{% endif %}>
+        {% csrf_token %}
+        <input type="hidden" name="campo" value="cobrar_wordpress">
+        <input type="hidden" name="valor" value="{% if ajustes.cobrar_wordpress %}0{% else %}1{% endif %}">
+        <button type="submit" class="btn btn-sm {% if ajustes.cobrar_wordpress %}btn-danger-soft{% else %}btn-ghost{% endif %}">
+          {% if ajustes.cobrar_wordpress %}Apagar{% else %}Prender{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if ajustes.cambiado_en %}
+    <div class="cell-sub mt-3">Último cambio: {{ ajustes.cambiado_por }}, el {{ ajustes.cambiado_en|date:'d-m-Y H:i' }}.</div>
+  {% endif %}
+</div></div>

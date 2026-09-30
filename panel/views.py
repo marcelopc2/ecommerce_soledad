@@ -32,7 +32,7 @@ from lms.services import (
 from comunicaciones import envio as masivos
 from comunicaciones.models import BajaDeCorreo, DestinatarioMasivo, EnvioMasivo
 from comunicaciones.preferencias import AULA, NOVEDADES, correos_de_gestion
-from payments.models import Coupon, Order, Suscripcion
+from payments.models import AjustesCobros, Coupon, Order, Suscripcion
 from shipments.models import PuntoRetiro
 from shipments.services import send_dispatch_email, send_pickup_ready_email
 from .forms import (
@@ -2578,6 +2578,8 @@ def suscripciones(request):
     return render(request, 'panel/suscripciones.html', {
         'suscripciones': lista, 'estado': estado, 'estados': estados,
         'total': base.count(), 'section': 'suscripciones',
+        'ajustes': AjustesCobros.obtener(), 'sitio_real': settings.COBROS_AUTOMATICOS,
+        'de_wordpress': base.filter(origen=Suscripcion.WORDPRESS, estado=Suscripcion.ACTIVA).count(),
     })
 
 
@@ -2588,4 +2590,97 @@ def suscripcion_cancelar(request, pk):
     s = get_object_or_404(Suscripcion, pk=pk)
     cancelar_suscripcion(s, por=f'el panel ({request.user.email or request.user.username})')
     messages.success(request, f'Suscripción de {s.email} cancelada: no se le vuelve a cobrar.')
+    return _volver_a(request, s)
+
+
+_log_cobros = logging.getLogger('ingenioblocks.pagos')
+
+
+def _volver_a(request, s):
+    """De vuelta a donde se apretó el botón: la lista o el detalle."""
+    if request.POST.get('volver') == 'detalle':
+        return redirect('panel:suscripcion_detalle', pk=s.pk)
     return redirect('panel:suscripciones')
+
+
+@staff_required
+@require_POST
+def cobros_ajustes(request):
+    """Prende o apaga un interruptor de los cobros automáticos.
+
+    Queda en pagos.log quién lo cambió y cuándo: es la decisión de cobrarle
+    plata a las tarjetas de los clientes.
+    """
+    campo = request.POST.get('campo')
+    if campo not in ('cobros_automaticos', 'cobrar_wordpress'):
+        raise Http404
+    valor = request.POST.get('valor') == '1'
+    ajustes = AjustesCobros.obtener()
+    setattr(ajustes, campo, valor)
+    ajustes.cambiado_por = request.user.email or request.user.username
+    ajustes.cambiado_en = timezone.now()
+    ajustes.save()
+    _log_cobros.warning('COBROS: %s puso %s = %s', ajustes.cambiado_por, campo, valor)
+    nombres = {'cobros_automaticos': 'Los cobros automáticos',
+               'cobrar_wordpress': 'El cobro de las suscripciones de WordPress'}
+    messages.success(request, f'{nombres[campo]} quedaron {"PRENDIDOS" if valor else "apagados"}.')
+    return redirect('panel:suscripciones')
+
+
+@staff_required
+def suscripcion_detalle(request, pk):
+    """Una suscripción: sus datos, su historial de cobros y la fecha del próximo."""
+    s = get_object_or_404(Suscripcion.objects.select_related('producto', 'tarjeta', 'orden_inicial'), pk=pk)
+    error = ''
+    if request.method == 'POST':
+        try:
+            fecha = datetime.strptime(request.POST.get('proximo_cobro', ''), '%Y-%m-%d').date()
+        except ValueError:
+            error = 'Esa fecha no es válida.'
+        else:
+            if fecha < timezone.localdate():
+                error = 'El próximo cobro no puede quedar en el pasado: se cobraría al tiro.'
+            else:
+                anterior = s.proximo_cobro
+                s.proximo_cobro = fecha
+                s.save(update_fields=['proximo_cobro'])
+                _log_cobros.info('Suscripción %s: próximo cobro %s -> %s (por %s)', s.pk, anterior,
+                                 fecha, request.user.email or request.user.username)
+                messages.success(request, f'Próximo cobro cambiado al {fecha:%d-%m-%Y}.')
+                return redirect('panel:suscripcion_detalle', pk=s.pk)
+    cobros = Order.objects.filter(Q(suscripcion=s) | Q(suscripcion_iniciada=s)).order_by('-created_at')
+    return render(request, 'panel/suscripcion_detalle.html', {
+        's': s, 'cobros': cobros, 'error': error, 'section': 'suscripciones',
+        'hoy': timezone.localdate(),
+    })
+
+
+@staff_required
+@require_POST
+def suscripcion_pausar(request, pk):
+    s = get_object_or_404(Suscripcion, pk=pk)
+    if s.estado == Suscripcion.ACTIVA:
+        s.estado = Suscripcion.PAUSADA
+        s.save(update_fields=['estado'])
+        _log_cobros.info('Suscripción %s pausada por %s', s.pk, request.user.email or request.user.username)
+        messages.success(request, f'Suscripción de {s.email} pausada: no se le cobra hasta que la reanudes.')
+    return _volver_a(request, s)
+
+
+@staff_required
+@require_POST
+def suscripcion_reanudar(request, pk):
+    """Vuelve a cobrarse. Si el próximo cobro quedó atrás mientras estaba
+    pausada, se corre a mañana: reanudar no puede significar "cobrar ya"."""
+    s = get_object_or_404(Suscripcion, pk=pk)
+    if s.estado in (Suscripcion.PAUSADA, Suscripcion.SUSPENDIDA):
+        s.estado = Suscripcion.ACTIVA
+        s.intentos_fallidos = 0
+        s.ultimo_error = ''
+        manana = timezone.localdate() + timedelta(days=1)
+        if s.proximo_cobro < manana:
+            s.proximo_cobro = manana
+        s.save(update_fields=['estado', 'intentos_fallidos', 'ultimo_error', 'proximo_cobro'])
+        _log_cobros.info('Suscripción %s reanudada por %s', s.pk, request.user.email or request.user.username)
+        messages.success(request, f'Suscripción de {s.email} reanudada. Próximo cobro: {s.proximo_cobro:%d-%m-%Y}.')
+    return _volver_a(request, s)

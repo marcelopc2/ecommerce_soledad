@@ -14,7 +14,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from payments import oneclick
-from payments.models import Suscripcion
+from payments.models import AjustesCobros, Suscripcion
 
 
 class Command(BaseCommand):
@@ -24,24 +24,36 @@ class Command(BaseCommand):
         parser.add_argument('--simular', action='store_true',
                             help='No cobra nada: solo lista a quién le tocaría.')
         parser.add_argument('--forzar', action='store_true',
-                            help='Cobra aunque el sitio no sea el de producción. '
-                                 'Solo para probar a mano con una suscripción propia.')
+                            help='Para probar a mano: cobra UNA suscripción (--solo) aunque '
+                                 'el sitio no sea el de producción o los cobros estén apagados.')
+        parser.add_argument('--solo', type=int, help='Id de la única suscripción a cobrar.')
 
     def handle(self, *args, **op):
         # Import tardío: views arrastra toda la app de pagos y la boleta.
         from payments.views import _entregar_compra
 
-        if not (settings.COBROS_AUTOMATICOS or op['forzar'] or op['simular']):
-            self.stdout.write('El sitio no es el de producción: no se cobra nada. '
-                              'Usa --simular para ver a quién le tocaría.')
+        ajustes = AjustesCobros.obtener()
+        if op['forzar'] and not op['solo']:
+            self.stdout.write('--forzar solo se puede usar con --solo <id>: nunca para cobrarle a todos.')
             return
+        if not (op['simular'] or op['forzar']):
+            if not settings.COBROS_AUTOMATICOS:
+                self.stdout.write('El sitio no es el de producción: no se cobra nada. '
+                                  'Usa --simular para ver a quién le tocaría.')
+                return
+            if not ajustes.cobros_automaticos:
+                self.stdout.write('Los cobros automáticos están apagados en el panel: no se cobra nada.')
+                return
 
         hoy = timezone.localdate()
         pendientes = (Suscripcion.objects
                       .filter(estado=Suscripcion.ACTIVA, proximo_cobro__lte=hoy)
                       .select_related('producto', 'tarjeta', 'orden_inicial'))
-        # Las de WordPress las cobra todavía el WordPress (ver settings).
-        if not settings.COBRAR_SUSCRIPCIONES_WORDPRESS:
+        if op['solo']:
+            pendientes = pendientes.filter(pk=op['solo'])
+        # Las de WordPress las cobra todavía el WordPress, hasta que en el panel
+        # se diga lo contrario (ver AjustesCobros).
+        if not ajustes.cobrar_wordpress:
             omitidas = pendientes.filter(origen=Suscripcion.WORDPRESS).count()
             pendientes = pendientes.exclude(origen=Suscripcion.WORDPRESS)
             if omitidas:

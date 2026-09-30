@@ -405,12 +405,8 @@ def _sitio_real():
     return host in DOMINIOS_DE_PRODUCCION or host in ('localhost', '127.0.0.1')
 
 COBROS_AUTOMATICOS = _sitio_real()
-
-# Las suscripciones traídas de WordPress las sigue cobrando el WordPress hasta
-# que se apague. Cobrarlas también acá sería cobrarle doble a cada cliente, así
-# que quedan fuera hasta que alguien lo prenda A MANO en el .env, el día que el
-# plugin de Transbank del WordPress ya esté desactivado.
-COBRAR_SUSCRIPCIONES_WORDPRESS = os.environ.get('COBRAR_SUSCRIPCIONES_WORDPRESS') == '1'
+# Lo demás (prender los cobros, incluir las de WordPress, pausar una) se
+# decide en el panel: ver payments.models.AjustesCobros.
 # Bandeja que recibe los mensajes del formulario de contacto de la landing.
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'contacto@ingenioblocks.com')
 

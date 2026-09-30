@@ -182,6 +182,8 @@ class CobroMensualTests(Base):
         self.Transaccion.return_value.authorize.reset_mock()
 
     def cobrar(self, *args):
+        from payments.models import AjustesCobros
+        AjustesCobros.objects.update_or_create(pk=1, defaults={'cobros_automaticos': True})
         call_command('cobrar_suscripciones', *args, stdout=StringIO())
         self.s.refresh_from_db()
 

@@ -22,7 +22,7 @@ from rest_framework.test import APIClient
 from catalog.models import Product
 from lms.models import CourseCategory, Membership
 from payments import oneclick
-from payments.models import Order, Suscripcion, TarjetaOneclick
+from payments.models import AjustesCobros, Order, Suscripcion, TarjetaOneclick
 
 User = get_user_model()
 
@@ -122,6 +122,11 @@ class ImportarTests(Base):
         self.assertEqual(TarjetaOneclick.objects.count(), 2)
 
 
+def prender(cobros=True, wordpress=False):
+    AjustesCobros.objects.update_or_create(pk=1, defaults={
+        'cobros_automaticos': cobros, 'cobrar_wordpress': wordpress})
+
+
 @override_settings(COBROS_AUTOMATICOS=True)
 class NoCobrarDobleTests(Base):
     def setUp(self):
@@ -129,16 +134,35 @@ class NoCobrarDobleTests(Base):
         self.importar('--aplicar')
         Suscripcion.objects.update(proximo_cobro=timezone.localdate())
 
-    def cobrar(self):
+    def cobrar(self, *args):
+        out = StringIO()
         with patch('payments.views._entregar_compra'):
-            call_command('cobrar_suscripciones', stdout=StringIO())
+            call_command('cobrar_suscripciones', *args, stdout=out)
+        return out.getvalue()
+
+    def test_todo_nace_apagado(self):
+        a = AjustesCobros.obtener()
+        self.assertEqual((a.cobros_automaticos, a.cobrar_wordpress), (False, False))
+        self.assertIn('apagados en el panel', self.cobrar())
+        self.Transaccion.return_value.authorize.assert_not_called()
 
     def test_las_de_wordpress_no_se_cobran_mientras_el_wordpress_cobre(self):
+        prender(cobros=True, wordpress=False)
         self.cobrar()
         self.Transaccion.return_value.authorize.assert_not_called()
 
-    @override_settings(COBRAR_SUSCRIPCIONES_WORDPRESS=True)
+    def test_una_pausada_no_se_cobra(self):
+        prender(cobros=True, wordpress=True)
+        Suscripcion.objects.update(estado=Suscripcion.PAUSADA)
+        self.cobrar()
+        self.Transaccion.return_value.authorize.assert_not_called()
+
+    def test_forzar_nunca_le_cobra_a_todos(self):
+        self.assertIn('--solo', self.cobrar('--forzar'))
+        self.Transaccion.return_value.authorize.assert_not_called()
+
     def test_con_el_interruptor_prendido_si_se_cobran_con_el_usuario_del_wordpress(self):
+        prender(cobros=True, wordpress=True)
         self.cobrar()
         args = self.Transaccion.return_value.authorize.call_args.args
         self.assertEqual((args[0], args[1]), ('mama', 'tbk-mama-real'))
@@ -146,14 +170,14 @@ class NoCobrarDobleTests(Base):
         self.assertEqual((o.status, int(o.total_amount)), ('PAID', 8900))
         self.assertEqual(o.items.get().name, 'Plan Individual - Trimestral')
 
-    @override_settings(COBROS_AUTOMATICOS=False, COBRAR_SUSCRIPCIONES_WORDPRESS=True)
-    def test_en_el_sitio_de_revision_no_se_cobra_nada(self):
+    @override_settings(COBROS_AUTOMATICOS=False)
+    def test_en_el_sitio_de_revision_no_se_cobra_nada_aunque_el_panel_diga_que_si(self):
+        prender(cobros=True, wordpress=True)
         self.cobrar()
         self.Transaccion.return_value.authorize.assert_not_called()
 
 
 class MesesDelCobroTests(Base):
-    @override_settings(COBROS_AUTOMATICOS=True, COBRAR_SUSCRIPCIONES_WORDPRESS=True)
     def test_un_cobro_trimestral_da_tres_meses_aunque_el_producto_sea_mensual(self):
         from lms.services import grant_access_for_order
         self.importar('--aplicar')
@@ -259,3 +283,53 @@ class AvisoDeRechazoTests(Base):
     def test_con_el_freno_puesto_no_le_llega_al_cliente(self):
         oneclick.cobrar_suscripcion(self.s, entregar=lambda o: None)
         self.assertEqual([m for m in mail.outbox if 'mama@correo.cl' in m.to], [])
+
+
+class PanelCobrosTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.importar('--aplicar')
+        self.s = Suscripcion.objects.get()
+        admin = User.objects.create_user(username='admin@ib.cl', email='admin@ib.cl', is_staff=True)
+        self.client.force_login(admin)
+
+    def test_la_lista_muestra_los_interruptores_apagados(self):
+        r = self.client.get(reverse('panel:suscripciones'))
+        self.assertContains(r, 'Cobros automáticos')
+        self.assertContains(r, 'ms-1">Apagado</span>', count=2)
+
+    def test_prender_y_apagar_queda_registrado(self):
+        self.client.post(reverse('panel:cobros_ajustes'), {'campo': 'cobros_automaticos', 'valor': '1'})
+        a = AjustesCobros.obtener()
+        self.assertTrue(a.cobros_automaticos)
+        self.assertEqual(a.cambiado_por, 'admin@ib.cl')
+        self.client.post(reverse('panel:cobros_ajustes'), {'campo': 'cobros_automaticos', 'valor': '0'})
+        self.assertFalse(AjustesCobros.obtener().cobros_automaticos)
+
+    def test_un_alumno_no_puede_prenderlos(self):
+        alumno = User.objects.create_user(username='a@b.cl', email='a@b.cl')
+        self.client.force_login(alumno)
+        self.client.post(reverse('panel:cobros_ajustes'), {'campo': 'cobros_automaticos', 'valor': '1'})
+        self.assertFalse(AjustesCobros.obtener().cobros_automaticos)
+
+    def test_pausar_y_reanudar_no_cobra_de_inmediato(self):
+        self.client.post(reverse('panel:suscripcion_pausar', args=[self.s.pk]))
+        self.s.refresh_from_db()
+        self.assertEqual(self.s.estado, Suscripcion.PAUSADA)
+        Suscripcion.objects.filter(pk=self.s.pk).update(proximo_cobro=timezone.localdate() - timedelta(days=10))
+        self.client.post(reverse('panel:suscripcion_reanudar', args=[self.s.pk]), {'volver': 'detalle'})
+        self.s.refresh_from_db()
+        self.assertEqual(self.s.estado, Suscripcion.ACTIVA)
+        self.assertEqual(self.s.proximo_cobro, timezone.localdate() + timedelta(days=1))
+
+    def test_cambiar_la_fecha_del_proximo_cobro(self):
+        url = reverse('panel:suscripcion_detalle', args=[self.s.pk])
+        self.assertContains(self.client.get(url), 'Plan Individual - Trimestral')
+        nueva = timezone.localdate() + timedelta(days=40)
+        self.client.post(url, {'proximo_cobro': nueva.isoformat()})
+        self.s.refresh_from_db()
+        self.assertEqual(self.s.proximo_cobro, nueva)
+        r = self.client.post(url, {'proximo_cobro': (timezone.localdate() - timedelta(days=1)).isoformat()})
+        self.assertContains(r, 'no puede quedar en el pasado')
+        self.s.refresh_from_db()
+        self.assertEqual(self.s.proximo_cobro, nueva)
