@@ -280,47 +280,54 @@
     if (document.body.dataset.confirmModalBound) return
     document.body.dataset.confirmModalBound = '1'
 
-    document.body.addEventListener('htmx:confirm', function (evt) {
-      if (!evt.detail.question) return  // sin hx-confirm: dejamos pasar la petición normal
-      evt.preventDefault()
-
+    // El modal propio, también para el JavaScript de cada página: se usa en
+    // vez de confirm() para que ninguna pregunta salga con el cuadro gris del
+    // navegador. peligro=true lo pinta en rojo ("Sí, eliminar").
+    window.pnlConfirmar = function (pregunta, alAceptar, opciones) {
+      opciones = opciones || {}
       // Se consulta el DOM en cada apertura (no se cachea) porque el modal
       // se vuelve a crear en cada navegación boosted.
       var modalEl = document.getElementById('pnlConfirmModal')
-      if (!modalEl) { evt.detail.issueRequest(true); return }
+      if (!modalEl) { alAceptar(); return }
       var textEl = modalEl.querySelector('.pnl-confirm-text')
       var iconEl = modalEl.querySelector('.pnl-confirm-icon')
       var iconI = iconEl.querySelector('i')
       var okBtn = modalEl.querySelector('.pnl-confirm-ok')
       var cancelBtn = modalEl.querySelector('.pnl-confirm-cancel')
+      var peligro = !!opciones.peligro
 
-      textEl.textContent = evt.detail.question
-      var isDanger = false
-      var el = evt.detail.elt
-      // busca "danger" como subcadena de cualquier clase (cubre .danger,
-      // .btn-danger-soft, etc.) subiendo por los ancestros del elemento
-      while (el && el !== document.body) {
-        if (Array.prototype.some.call(el.classList || [], function (c) { return c.indexOf('danger') !== -1 })) {
-          isDanger = true
-          break
-        }
-        el = el.parentElement
-      }
-      iconEl.classList.toggle('danger', isDanger)
-      iconI.className = isDanger ? 'bi bi-exclamation-triangle-fill' : 'bi bi-question-circle-fill'
-      okBtn.classList.toggle('danger', isDanger)
-      okBtn.textContent = isDanger ? 'Sí, eliminar' : 'Confirmar'
+      textEl.textContent = pregunta
+      iconEl.classList.toggle('danger', peligro)
+      iconI.className = peligro ? 'bi bi-exclamation-triangle-fill' : 'bi bi-question-circle-fill'
+      okBtn.classList.toggle('danger', peligro)
+      okBtn.textContent = opciones.textoOk || (peligro ? 'Sí, eliminar' : 'Confirmar')
 
       var modal = bootstrap.Modal.getOrCreateInstance(modalEl)
-
-      function onOk() { modal.hide(); evt.detail.issueRequest(true) }
+      function onOk() { modal.hide(); alAceptar() }
       okBtn.addEventListener('click', onOk, { once: true })
       cancelBtn.addEventListener('click', function () { modal.hide() }, { once: true })
       modalEl.addEventListener('hidden.bs.modal', function () {
         okBtn.removeEventListener('click', onOk)
       }, { once: true })
-
       modal.show()
+    }
+
+    document.body.addEventListener('htmx:confirm', function (evt) {
+      if (!evt.detail.question) return  // sin hx-confirm: dejamos pasar la petición normal
+      evt.preventDefault()
+      var peligro = false
+      var el = evt.detail.elt
+      // busca "danger" como subcadena de cualquier clase (cubre .danger,
+      // .btn-danger-soft, etc.) subiendo por los ancestros del elemento
+      while (el && el !== document.body) {
+        if (Array.prototype.some.call(el.classList || [], function (c) { return c.indexOf('danger') !== -1 })) {
+          peligro = true
+          break
+        }
+        el = el.parentElement
+      }
+      window.pnlConfirmar(evt.detail.question, function () { evt.detail.issueRequest(true) },
+                          { peligro: peligro })
     })
   })()
 

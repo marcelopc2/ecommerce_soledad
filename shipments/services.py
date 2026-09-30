@@ -355,9 +355,30 @@ _STATIC_COMMUNES = [
 # ---------------------------------------------------------------------------
 # Crear envío (POST /v/shipments) — TIENE EFECTO REAL (usa saldo, genera etiqueta)
 # ---------------------------------------------------------------------------
-#: Crear envíos es de la versión 4 de la API; las cotizaciones siguen en la 2
-#: (es con la que se validó el formato de /v/rates con soporte de Shipit).
-SHIPIT_ACCEPT_ENVIOS = 'application/vnd.shipit.v4'
+# ---------------------------------------------------------------------------
+# Mandar un pedido a Shipit: como VENTA, no como envío
+# ---------------------------------------------------------------------------
+#
+# Shipit tiene dos cosas distintas:
+#
+# - VENTAS (orders.shipit.cl/v/orders): el pedido aparece en el módulo
+#   "Ventas" y ahí la tienda lo revisa y lo convierte en envío cuando quiere.
+#   Es lo que hacía el WordPress, y es lo que se usa acá.
+#
+# - ENVÍOS (api.shipit.cl/v/shipments): crea el envío de una y AGENDA el retiro
+#   del courier. Eso se usó el 30-09-2026 y le agendó a la clienta retiros de
+#   paquetes de prueba que tuvo que anular a mano. Además, el campo `sandbox`
+#   de ese endpoint NO evitó que se crearan de verdad. No se usa.
+#
+# Formato sacado de developers.shipit.cl/v1.0/reference/crear-una-orden. Ojo:
+# `plaftform` y `payble` van escritos así, con esos errores: son los nombres
+# que documenta Shipit.
+
+SHIPIT_ORDERS_BASE = getattr(settings, 'SHIPIT_ORDERS_BASE', 'https://orders.shipit.cl')
+SHIPIT_ACCEPT_VENTAS = 'application/vnd.orders.v1'
+#: Estado con que llega la venta. 1 = "Lista para despachar" (0 sería
+#: borrador). Crear una venta NO crea el envío: eso lo decide la tienda.
+ESTADO_VENTA = 1
 
 
 def codigo_courier(shipment):
@@ -370,22 +391,23 @@ def codigo_courier(shipment):
     return (shipment.courier_code or shipment.courier or '').strip().lower().replace(' ', '')
 
 
-def payload_shipit(shipment, prueba=False):
-    """El envío en el formato de Shipit (POST /v/shipments, API v4).
-
-    Sacado de developers.shipit.cl/reference/crear-un-envío. La versión
-    anterior mandaba los campos sueltos (sin destiny/sizes/courier) y una
-    referencia de 26 caracteres cuando el máximo es 15: Shipit la rechazaba.
-    """
+def payload_venta(shipment):
+    """El pedido como venta de Shipit (POST orders.shipit.cl/v/orders)."""
     order = shipment.order
+    productos = int(order.total_amount) - int(shipment.shipping_cost or 0)
     return {
-        'shipment': {
+        'order': {
             'kind': 0,
-            'platform': 2,
-            # Máximo 15 caracteres y única en el día: el principio del id de la orden.
+            'plaftform': 2,
             'reference': order.order_id.hex[:15],
             'items': max(1, order.products.count()),
-            'sandbox': bool(prueba),
+            'state': ESTADO_VENTA,
+            'seller': {
+                'id': order.order_id.hex[:15],
+                'status': 'paid',
+                'name': 'ingenioblocks',
+                'created_at': order.created_at.date().isoformat(),
+            },
             'sizes': {
                 'length': float(shipment.length_cm),
                 'width': float(shipment.width_cm),
@@ -394,10 +416,14 @@ def payload_shipit(shipment, prueba=False):
             },
             'courier': {
                 'client': codigo_courier(shipment),
-                # El cliente ya eligió courier en el checkout: Shipit no tiene
-                # que escoger otro por su cuenta.
                 'selected': True,
-                'payable': False,
+                'payble': False,
+            },
+            'prices': {
+                'price': int(shipment.shipping_cost or 0),
+                'tax': 0,
+                'overcharge': 0,
+                'total': int(shipment.shipping_cost or 0),
             },
             'destiny': {
                 'street': shipment.address_street,
@@ -408,11 +434,10 @@ def payload_shipit(shipment, prueba=False):
                 'full_name': shipment.recipient_name,
                 'email': shipment.recipient_email or order.customer_email,
                 'phone': shipment.recipient_phone,
-                'kind': 'home_delivery',
             },
             'insurance': {
                 'ticket_number': str(order.order_id)[:8],
-                'ticket_amount': int(order.total_amount) - int(shipment.shipping_cost or 0),
+                'ticket_amount': productos,
                 'detail': ', '.join(i.name for i in order.items.all())[:200],
                 'extra': False,
             },
@@ -420,58 +445,54 @@ def payload_shipit(shipment, prueba=False):
     }
 
 
-def create_shipit_shipment(shipment, prueba=False):
-    """Crea el envío en Shipit y devuelve {reference, tracking_number, label_url}.
+def crear_venta_shipit(shipment):
+    """Deja el pedido en "Ventas" de Shipit. Devuelve {reference, ...}.
 
-    OJO: sin `prueba` gasta saldo y el courier pasa a buscar el paquete. Con
-    `prueba=True` va con sandbox: Shipit valida todo y no crea nada de verdad.
+    No agenda retiro ni gasta saldo: convertirla en envío lo hace la tienda
+    desde Shipit.
     """
     if not _has_credentials():
         raise RuntimeError("Faltan credenciales de Shipit en el .env (SHIPIT_EMAIL / SHIPIT_TOKEN).")
-
-    headers = dict(_shipit_headers(), Accept=SHIPIT_ACCEPT_ENVIOS)
+    headers = dict(_shipit_headers(), Accept=SHIPIT_ACCEPT_VENTAS)
     resp = requests.post(
-        f'{SHIPIT_API_BASE}/v/shipments',
-        json=payload_shipit(shipment, prueba=prueba),
+        f'{SHIPIT_ORDERS_BASE}/v/orders',
+        json=payload_venta(shipment),
         headers=headers,
         timeout=max(SHIPIT_TIMEOUT, 15),
     )
     if resp.status_code >= 400:
         raise RuntimeError(f"Shipit respondió {resp.status_code}: {resp.text[:300]}")
-
     data = resp.json()
+    if isinstance(data, dict) and isinstance(data.get('order'), dict):
+        data = data['order']
     return _leer_respuesta_shipit(data)
 
 
 def enviar_pedido_a_shipit(order):
-    """Manda a Shipit el envío de un pedido pagado. Devuelve el Shipment o None.
+    """Manda a "Ventas" de Shipit el despacho de un pedido pagado.
 
-    Lo llama la entrega de una compra pagada (payments.views._entregar_compra)
-    si en el panel está prendido "Enviar a Shipit al pagar", y el botón del
-    detalle del pedido. No repite: un envío que ya tiene referencia de Shipit
-    no se vuelve a crear, porque sería otro despacho cobrado.
+    Lo llama la entrega de una compra pagada (si en Pedidos está prendido el
+    interruptor) y el botón del detalle del pedido. No repite: un pedido que
+    ya tiene referencia de Shipit no se vuelve a mandar.
     """
-    from django.utils import timezone
     shipment = getattr(order, 'shipment', None)
     if shipment is None or order.es_retiro or order.status != 'PAID':
         return None
     if shipment.shipit_reference or shipment.status in ('CREATED', 'IN_TRANSIT', 'DELIVERED'):
         return shipment
     try:
-        r = create_shipit_shipment(shipment)
+        r = crear_venta_shipit(shipment)
     except Exception as e:
         shipment.status = 'ERROR'
         shipment.error_shipit = str(e)[:300]
         shipment.save(update_fields=['status', 'error_shipit'])
-        log.exception('No se pudo crear en Shipit el envío del pedido %s', order.order_id)
+        log.exception('No se pudo crear en Shipit la venta del pedido %s', order.order_id)
         return shipment
     shipment.shipit_reference = r.get('reference', '')
-    shipment.tracking_number = r.get('tracking_number', '') or shipment.tracking_number
-    shipment.label_url = r.get('label_url', '')
     shipment.status = 'CREATED'
     shipment.error_shipit = ''
-    shipment.save(update_fields=['shipit_reference', 'tracking_number', 'label_url', 'status', 'error_shipit'])
-    log.info('Envío del pedido %s creado en Shipit (ref %s)', order.order_id, shipment.shipit_reference)
+    shipment.save(update_fields=['shipit_reference', 'status', 'error_shipit'])
+    log.info('Pedido %s enviado a Ventas de Shipit (ref %s)', order.order_id, shipment.shipit_reference)
     return shipment
 
 

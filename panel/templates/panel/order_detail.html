@@ -262,10 +262,10 @@
             este botón es para cuando está apagado o cuando Shipit falló.
           {% endcomment %}
           <form method="post" action="{% url 'panel:order_enviar_shipit' order.pk %}" class="mt-3"
-                hx-confirm="¿Enviar este pedido a Shipit? Se crea el envío real y el courier pasa a buscarlo (usa saldo de Shipit).">
+                hx-confirm="¿Mandar este pedido a Ventas de Shipit? Queda ahí para que crees el envío cuando quieras; no agenda retiro.">
             {% csrf_token %}
             <button type="submit" class="btn btn-brand"><i class="bi bi-send me-1"></i>
-              {% if shipment.status == 'ERROR' %}Reintentar envío a Shipit{% else %}Enviar a Shipit{% endif %}
+              {% if shipment.status == 'ERROR' %}Reintentar: mandar a Ventas de Shipit{% else %}Mandar a Ventas de Shipit{% endif %}
             </button>
           </form>
         {% endif %}

@@ -10,7 +10,7 @@ class Shipment(models.Model):
     """
     STATUS_CHOICES = (
         ('PENDING_DISPATCH', 'Pendiente de despacho'),
-        ('CREATED', 'Envío creado (etiqueta generada)'),
+        ('CREATED', 'En Shipit (Ventas)'),
         ('IN_TRANSIT', 'En tránsito'),
         ('DELIVERED', 'Entregado'),
         ('ERROR', 'Error al crear en Shipit'),
@@ -139,13 +139,15 @@ class PuntoRetiro(models.Model):
 
 
 class AjustesEnvios(models.Model):
-    """Interruptor del panel: mandar los envíos a Shipit apenas se pagan.
+    """Interruptor del panel: mandar los despachos a "Ventas" de Shipit al pagarse.
 
-    Prendido, un pedido pagado con despacho aparece solo en Shipit (como hacía
-    el WordPress) y el courier lo pasa a buscar. Apagado, queda "pendiente de
-    despacho" y se manda a mano desde el detalle del pedido.
+    Prendido, un pedido pagado con despacho aparece solo en Ventas de Shipit
+    (como hacía el WordPress) y desde ahí la tienda crea el envío. Apagado,
+    queda "pendiente de despacho" y se manda desde el detalle del pedido.
+
+    Nace APAGADO: se prende a mano en Pedidos cuando se decida.
     """
-    enviar_a_shipit_al_pagar = models.BooleanField(default=True)
+    enviar_a_shipit_al_pagar = models.BooleanField(default=False)
     cambiado_por = models.CharField(max_length=200, blank=True)
     cambiado_en = models.DateTimeField(null=True, blank=True)
 

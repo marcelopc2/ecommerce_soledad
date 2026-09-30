@@ -2748,7 +2748,7 @@ def order_enviar_shipit(request, pk):
     elif shipment.status == 'ERROR':
         messages.error(request, 'Shipit no aceptó el envío. El detalle está en la tarjeta de Despacho.')
     else:
-        messages.success(request, 'Envío creado en Shipit. El courier pasa a buscarlo.')
+        messages.success(request, 'Pedido enviado a Ventas de Shipit. Crea el envío desde Shipit cuando quieras.')
     return redirect('panel:order_detail', pk=order.pk)
 
 
@@ -2763,6 +2763,6 @@ def envios_ajustes(request):
     a.cambiado_en = timezone.now()
     a.save()
     log.warning('ENVIOS: %s puso enviar_a_shipit_al_pagar = %s', a.cambiado_por, a.enviar_a_shipit_al_pagar)
-    messages.success(request, 'Los pedidos pagados %s a Shipit solos.' % (
+    messages.success(request, 'Los pedidos pagados %s a Ventas de Shipit solos.' % (
         'se mandan' if a.enviar_a_shipit_al_pagar else 'ya NO se mandan'))
     return redirect('panel:orders')

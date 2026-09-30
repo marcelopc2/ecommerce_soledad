@@ -258,12 +258,7 @@
         // llenan asunto y botón solo si están vacíos, para no pisar lo escrito.
         var plantillas = JSON.parse(document.getElementById('correo-plantillas').textContent)
         var selector = document.getElementById('correo-plantilla')
-        selector.addEventListener('change', function () {
-          var p = plantillas.find(function (x) { return x.clave === selector.value })
-          selector.value = ''
-          if (!p) return
-          var hayTexto = quill.getText().trim().length > 0 || quill.root.querySelector('img')
-          if (hayTexto && !confirm('La plantilla reemplaza lo que escribiste en el contenido. ¿Seguir?')) return
+        function aplicarPlantilla(p) {
           quill.setContents([])
           quill.clipboard.dangerouslyPasteHTML(p.html)
           textarea.value = htmlDe(quill)
@@ -272,6 +267,19 @@
             var el = form.querySelector('[name=' + nombre + ']')
             if (el && !el.value) el.value = campos[nombre]
           })
+          sincronizar()
+        }
+        selector.addEventListener('change', function () {
+          var p = plantillas.find(function (x) { return x.clave === selector.value })
+          selector.value = ''
+          if (!p) return
+          var hayTexto = quill.getText().trim().length > 0 || quill.root.querySelector('img')
+          if (!hayTexto) return aplicarPlantilla(p)
+          // El modal del panel, no el confirm() del navegador.
+          window.pnlConfirmar(
+            'La plantilla «' + p.nombre + '» reemplaza lo que escribiste en el contenido. ¿Seguir?',
+            function () { aplicarPlantilla(p) },
+            { textoOk: 'Sí, reemplazar' })
         })
 
         // El campo oculto se mantiene al día con CADA cambio, y no recién al
@@ -284,7 +292,6 @@
         quill.on('text-change', sincronizar)
         textarea.addEventListener('input', sincronizar)
         document.querySelectorAll('[data-modo]').forEach(function (b) { b.addEventListener('click', sincronizar) })
-        selector.addEventListener('change', sincronizar)
         form.addEventListener('submit', sincronizar)
         sincronizar()
       })
