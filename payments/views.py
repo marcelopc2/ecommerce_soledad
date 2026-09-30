@@ -6,6 +6,7 @@ from django.db import transaction
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.conf import settings
+from django.utils import timezone
 from catalog.models import Product
 from . import coupons
 from .models import Order
@@ -103,6 +104,7 @@ class CreateWebpayTransactionView(APIView):
             
             # response contiene { "url": "https://webpay3gint...", "token": "..." }
             order.tbk_token = response['token']
+            order.pasarela = Order.WEBPAY
             order.save()
             
             return Response({
@@ -183,9 +185,18 @@ class CreateMercadoPagoTransactionView(APIView):
 
     def post(self, request):
         # Arma la orden (+ envío si corresponde) y valida el costo de envío en el servidor.
+        # Una suscripción se cobra sola cada mes con la tarjeta inscrita en
+        # Oneclick; MercadoPago no deja esa tarjeta, así que no puede partirla.
+        if _trae_suscripcion(request.data):
+            return Response(
+                {'error': 'Este producto es una suscripción y se paga con tarjeta por Transbank.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         order, error = build_order_from_request(request.data, user=request.user)
         if error:
             return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        order.pasarela = Order.MERCADOPAGO
+        order.save(update_fields=['pasarela'])
 
         # MercadoPago exige URLs públicas con HTTPS para el retorno y el webhook.
         # Usamos la URL del túnel (BACKEND_PUBLIC_URL); si no está configurada, caemos a la local.
@@ -385,3 +396,179 @@ class ValidarCuponView(APIView):
             'discount': descuento,
             'subtotal': subtotal,
         })
+
+
+# --- TRANSBANK ONECLICK --- #
+#
+# La pasarela principal (ver payments/oneclick.py). El cliente inscribe su
+# tarjeta en la página de Transbank y, al volver, se le cobra ahí mismo.
+
+from rest_framework.permissions import AllowAny  # noqa: E402
+from . import oneclick  # noqa: E402
+from .models import Suscripcion  # noqa: E402
+
+
+def _trae_suscripcion(datos):
+    ids = datos.get('product_ids') or []
+    if not isinstance(ids, list):
+        return False
+    return Product.objects.filter(id__in=ids, es_suscripcion=True).exists()
+
+
+class CreateOneclickView(APIView):
+    """Arma la orden y pide a Transbank la página para inscribir la tarjeta."""
+    throttle_scope = 'payment'
+
+    def post(self, request):
+        suscripcion = _trae_suscripcion(request.data)
+        # Un cobro que se repite solo necesita un sí explícito: no basta con
+        # que el precio diga "mensual" en letra chica.
+        if suscripcion and request.data.get('acepta_cobro_automatico') is not True:
+            return Response(
+                {'error': 'Para suscribirte tienes que aceptar el cobro automático.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order, error = build_order_from_request(request.data, user=request.user)
+        if error:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        if suscripcion and Suscripcion.objects.filter(
+                email__iexact=order.customer_email, estado=Suscripcion.ACTIVA,
+                producto__in=order.products.all()).exists():
+            order.status = 'FAILED'
+            order.save(update_fields=['status', 'updated_at'])
+            return Response(
+                {'error': 'Ya tienes esta suscripción activa. La puedes ver en tu perfil.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        base_url = settings.BACKEND_PUBLIC_URL or request.build_absolute_uri('/').rstrip('/')
+        try:
+            token, url = oneclick.iniciar_inscripcion(
+                order.customer_email, f"{base_url}{reverse('oneclick-finish')}",
+            )
+        except Exception:
+            log.exception('No se pudo iniciar la inscripción Oneclick de la orden %s', order.order_id)
+            return Response(
+                {'error': 'No pudimos conectar con Transbank. Intenta nuevamente en unos minutos.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        order.tbk_token = token
+        order.pasarela = Order.ONECLICK
+        order.save(update_fields=['tbk_token', 'pasarela', 'updated_at'])
+        return Response({'url': url, 'token': token})
+
+
+class FinishOneclickView(APIView):
+    """Adonde vuelve el navegador desde Transbank, con TBK_TOKEN.
+
+    Cierra la inscripción y cobra. La fila de la orden queda bloqueada durante
+    todo el proceso: si la persona recarga la página o Transbank reenvía, la
+    segunda vuelta espera a la primera y la encuentra ya pagada, en vez de
+    cobrar otra vez.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return self._terminar(request)
+
+    def post(self, request):
+        return self._terminar(request)
+
+    def _terminar(self, request):
+        token = request.POST.get('TBK_TOKEN') or request.GET.get('TBK_TOKEN')
+        if not token:
+            return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=aborted')
+
+        entregar = False
+        with transaction.atomic():
+            order = Order.objects.select_for_update().filter(tbk_token=token).first()
+            if order is None:
+                return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=invalid_token')
+            if order.status == 'PAID':
+                return redirect(f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}')
+            if order.status != 'PENDING':
+                return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=rejected')
+
+            try:
+                tarjeta = oneclick.terminar_inscripcion(token, order.customer_email)
+            except Exception:
+                # Cerrar la inscripción no cobra nada: acá no hay plata en juego.
+                log.exception('No se pudo cerrar la inscripción Oneclick de la orden %s', order.order_id)
+                tarjeta = None
+            if tarjeta is None:
+                order.status = 'FAILED'
+                order.save(update_fields=['status', 'updated_at'])
+                return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=card')
+
+            resultado = oneclick.cobrar(order, tarjeta)
+            oneclick.aplicar_resultado(order, resultado)
+            if resultado == oneclick.AUTORIZADO:
+                oneclick.crear_suscripcion(order, tarjeta)
+                entregar = True
+                log.info('Orden %s PAGADA por Oneclick (monto %s)', order.order_id, order.total_amount)
+            else:
+                log.info('Orden %s sin pagar por Oneclick (%s)', order.order_id, resultado)
+
+        if entregar:
+            _entregar_compra(order)
+            return redirect(f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}')
+        motivo = 'error' if order.status == 'REVIEW' else 'rejected'
+        return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason={motivo}')
+
+
+def _email_de(user):
+    return (user.email or user.username or '').strip()
+
+
+class MisSuscripcionesView(APIView):
+    """Las suscripciones del usuario con sesión, para verlas y cancelarlas."""
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        subs = (Suscripcion.objects.filter(email__iexact=_email_de(request.user))
+                .select_related('producto', 'tarjeta'))
+        return Response([_suscripcion_json(s) for s in subs])
+
+
+class CancelarSuscripcionView(APIView):
+    """El cliente cancela su propia suscripción.
+
+    Deja de cobrarse desde ya, pero conserva el acceso hasta donde ya pagó: se
+    cancela el cobro que viene, no el mes en curso.
+    """
+
+    def post(self, request, pk):
+        if not request.user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        s = Suscripcion.objects.filter(pk=pk, email__iexact=_email_de(request.user)).first()
+        if s is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        cancelar_suscripcion(s, por='el cliente')
+        return Response(_suscripcion_json(s))
+
+
+def cancelar_suscripcion(s, por):
+    """Deja de cobrarle. Lo usan el cliente (perfil) y el panel."""
+    if s.estado != Suscripcion.CANCELADA:
+        s.estado = Suscripcion.CANCELADA
+        s.cancelada_en = timezone.now()
+        s.save(update_fields=['estado', 'cancelada_en'])
+        log.info('Suscripción %s (%s) cancelada por %s', s.pk, s.email, por)
+
+
+def _suscripcion_json(s):
+    return {
+        'id': s.pk,
+        'producto': s.producto.name,
+        'monto': s.monto,
+        'cada_meses': s.cada_meses,
+        'estado': s.estado,
+        'estado_texto': s.get_estado_display(),
+        'proximo_cobro': s.proximo_cobro if s.activa else None,
+        'tarjeta': f'{s.tarjeta.tipo or "Tarjeta"} terminada en {s.tarjeta.ultimos4}',
+    }

@@ -262,6 +262,8 @@ export default function Profile() {
           )}
         </div>
 
+        <TusSuscripciones />
+
         {/* ---------- Correos ---------- */}
         <div className="pf-card pf-card-sec">
           <h2>Tus correos</h2>
@@ -307,6 +309,71 @@ export default function Profile() {
         </form>
         </div>
       </div>
+    </div>
+  )
+}
+
+
+const clp = (n) => '$' + parseInt(n, 10).toLocaleString('es-CL')
+
+/* Las suscripciones con cobro automático (Transbank Oneclick). Cancelar tiene
+   que ser tan fácil como suscribirse: está acá, a un clic y una confirmación,
+   sin escribirle a nadie. Si la cuenta no tiene ninguna, no se muestra. */
+function TusSuscripciones() {
+  const [subs, setSubs] = useState([])
+  const [confirmando, setConfirmando] = useState(null)
+  const [cancelando, setCancelando] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.get('/payments/suscripciones/').then(r => setSubs(r.data)).catch(() => {})
+  }, [])
+
+  if (!subs.length) return null
+
+  const cancelar = async (id) => {
+    setCancelando(true); setError('')
+    try {
+      const { data } = await api.post(`/payments/suscripciones/${id}/cancelar/`)
+      setSubs(subs.map(s => (s.id === id ? data : s)))
+      setConfirmando(null)
+    } catch {
+      setError('No pudimos cancelarla. Intenta de nuevo en un momento.')
+    } finally {
+      setCancelando(false)
+    }
+  }
+
+  return (
+    <div className="pf-card pf-card-sec">
+      <h2>Tu suscripción</h2>
+      {subs.map(s => (
+        <div key={s.id} className="pf-sub">
+          <p className="pf-ayuda">
+            <strong>{s.producto}</strong> · {clp(s.monto)} {s.cada_meses === 1 ? 'al mes' : `cada ${s.cada_meses} meses`}
+            <br />{s.tarjeta} · {s.estado_texto}
+            {s.proximo_cobro && <><br />Próximo cobro: {new Date(s.proximo_cobro + 'T12:00:00').toLocaleDateString('es-CL')}</>}
+          </p>
+          {s.estado === 'ACTIVA' && (confirmando === s.id ? (
+            <p className="pf-ayuda">
+              ¿Cancelar? No se te vuelve a cobrar y sigues entrando al Aula hasta
+              que termine lo que ya pagaste.{' '}
+              <button type="button" className="pf-link-btn" disabled={cancelando}
+                onClick={() => cancelar(s.id)}>
+                {cancelando ? 'Cancelando…' : 'Sí, cancelar'}
+              </button>{' '}
+              <button type="button" className="pf-link-btn" onClick={() => setConfirmando(null)}>
+                No
+              </button>
+            </p>
+          ) : (
+            <button type="button" className="pf-link-btn" onClick={() => setConfirmando(s.id)}>
+              Cancelar suscripción
+            </button>
+          ))}
+        </div>
+      ))}
+      {error && <p className="pf-msg pf-msg-error">{error}</p>}
     </div>
   )
 }

@@ -32,7 +32,7 @@ from lms.services import (
 from comunicaciones import envio as masivos
 from comunicaciones.models import BajaDeCorreo, DestinatarioMasivo, EnvioMasivo
 from comunicaciones.preferencias import AULA, NOVEDADES, correos_de_gestion
-from payments.models import Coupon, Order
+from payments.models import Coupon, Order, Suscripcion
 from shipments.models import PuntoRetiro
 from shipments.services import send_dispatch_email, send_pickup_ready_email
 from .forms import (
@@ -2563,3 +2563,29 @@ def correo_eliminar(request, pk):
     envio.delete()
     messages.success(request, 'Borrador eliminado.')
     return redirect('panel:correos')
+
+
+# ---------- Suscripciones ----------
+
+@staff_required
+def suscripciones(request):
+    """Las suscripciones de Oneclick: quién paga, cuánto y cuándo toca el próximo cobro."""
+    estado = request.GET.get('estado', '').strip()
+    base = Suscripcion.objects.select_related('producto', 'tarjeta')
+    lista = base.filter(estado=estado) if estado else base
+    estados = [(clave, nombre, base.filter(estado=clave).count())
+               for clave, nombre in Suscripcion.ESTADOS]
+    return render(request, 'panel/suscripciones.html', {
+        'suscripciones': lista, 'estado': estado, 'estados': estados,
+        'total': base.count(), 'section': 'suscripciones',
+    })
+
+
+@staff_required
+@require_POST
+def suscripcion_cancelar(request, pk):
+    from payments.views import cancelar_suscripcion
+    s = get_object_or_404(Suscripcion, pk=pk)
+    cancelar_suscripcion(s, por=f'el panel ({request.user.email or request.user.username})')
+    messages.success(request, f'Suscripción de {s.email} cancelada: no se le vuelve a cobrar.')
+    return redirect('panel:suscripciones')

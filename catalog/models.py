@@ -63,6 +63,15 @@ class Product(models.Model):
                   "o planes que requieren haber comprado antes el kit con las piezas)",
     )
 
+    # --- Suscripción ---
+    # Con esto prendido el producto se paga con Transbank Oneclick: el cliente
+    # inscribe su tarjeta una vez y se le vuelve a cobrar solo cada
+    # `access_months` meses, sumándole esos meses de acceso en cada cobro.
+    es_suscripcion = models.BooleanField(
+        default=False,
+        help_text="Se cobra automáticamente cada 'Meses de acceso' meses con la tarjeta del cliente",
+    )
+
     # --- Cupones ---
     # Apagado, el producto se cobra siempre a precio completo: un cupón en el
     # carrito rebaja solo los demás productos. Sirve para lo que ya va con

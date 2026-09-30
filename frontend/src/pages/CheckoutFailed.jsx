@@ -23,6 +23,11 @@ const MOTIVOS = {
     texto: 'Tu banco o el medio de pago no autorizó la transacción. Suele pasar por saldo, límite de compras por internet o datos mal ingresados.',
     cobro: 'no',
   },
+  card: {
+    titulo: 'No se pudo registrar tu tarjeta',
+    texto: 'Transbank no terminó de registrar la tarjeta, así que no se hizo ningún cobro. Puede pasar si cancelaste en su página o si el banco no la aceptó.',
+    cobro: 'no',
+  },
   invalid_token: {
     titulo: 'No pudimos validar la transacción',
     texto: 'La sesión de pago venció o el enlace ya se había usado.',
@@ -108,7 +113,7 @@ export default function CheckoutFailed() {
                   <h3>Vuelve a intentarlo</h3>
                   <p>
                     Tu carrito no se perdió. Puedes elegir otro medio de pago
-                    (Webpay o MercadoPago) desde la página de kits.
+                    (tarjeta o MercadoPago) desde la página de kits.
                   </p>
                 </div>
               </li>

@@ -69,6 +69,7 @@
               </span>
             </label>
             {{ form.access_months }}
+            {% for e in form.access_months.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
         </div>
         {% comment %}
@@ -219,6 +220,23 @@
                 </span>
               </span>
             </label>
+          </div>
+
+          <div class="form-check form-switch">
+            {{ form.es_suscripcion }}
+            <label class="form-check-label" for="{{ form.es_suscripcion.id_for_label }}">
+              {{ form.es_suscripcion.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  El cliente registra su tarjeta en Transbank al comprar y se le
+                  vuelve a cobrar solo cada «Meses de acceso» meses (pon 1 para
+                  mensual). Cada cobro le suma esos meses. Lo puede cancelar
+                  desde su perfil. Solo para productos digitales.
+                </span>
+              </span>
+            </label>
+            {% for e in form.es_suscripcion.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
           <div class="form-check form-switch">

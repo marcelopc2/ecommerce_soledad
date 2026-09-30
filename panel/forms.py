@@ -75,7 +75,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'weight_kg', 'width_cm', 'height_cm', 'length_cm',
             # oferta / próximamente / compra restringida
             'is_on_sale', 'sale_price', 'is_coming_soon', 'requires_login',
-            'acepta_cupones',
+            'acepta_cupones', 'es_suscripcion',
             # cómo se ve la tarjeta en la portada
             'landing_badge', 'price_note', 'features', 'highlight',
         ]
@@ -99,6 +99,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'is_coming_soon': 'Próximamente',
             'requires_login': 'Necesita membresía',
             'acepta_cupones': 'Acepta cupones',
+            'es_suscripcion': 'Suscripción (cobro automático)',
             'landing_badge': 'Etiqueta',
             'price_note': 'Nota del precio',
             'features': 'Beneficios',
@@ -137,6 +138,15 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
                 self.add_error('sale_price', 'Indica el precio de oferta o desmarca "En oferta".')
             elif price is not None and sale >= price:
                 self.add_error('sale_price', 'El precio de oferta debe ser menor al precio normal.')
+
+        # Una suscripción cobra cada "Meses de acceso" meses y en cada cobro
+        # suma esos meses: sin meses no sabría cada cuánto cobrar. Y solo para
+        # productos digitales: cobrar un despacho todos los meses no existe.
+        if data.get('es_suscripcion'):
+            if not data.get('access_months'):
+                self.add_error('access_months', 'Una suscripción necesita los meses: es cada cuánto se cobra.')
+            if not data.get('is_digital'):
+                self.add_error('es_suscripcion', 'Solo un producto digital puede ser suscripción.')
 
         return data
 

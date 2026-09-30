@@ -94,6 +94,9 @@ export default function Checkout() {
   const [cuponAplicado, setCuponAplicado] = useState(null) // {code, label, discount}
   const [cuponMsg, setCuponMsg] = useState('')
   const [revisandoCupon, setRevisandoCupon] = useState(false)
+  // Una suscripción se cobra sola todos los meses: hay que aceptarlo marcando
+  // la casilla, no basta con que el precio diga "mensual".
+  const [aceptaCobro, setAceptaCobro] = useState(false)
   const [retiro, setRetiro] = useState(null)        // el punto de retiro, o null si no hay
   const [entrega, setEntrega] = useState('SHIPPING') // 'SHIPPING' | 'PICKUP'
 
@@ -226,7 +229,9 @@ export default function Checkout() {
     (!errores.region && !errores.commune && !errores.street && !errores.number)
   // Con retiro no hay cotización que elegir: basta con haber elegido retirar.
   const entregaLista = direccionLista && (!requiereEnvio || esRetiro || courier)
-  const puedePagar = datosListos && entregaLista && !paying
+  const esSuscripcion = !!product?.es_suscripcion
+  const cadaMeses = product?.access_months || 1
+  const puedePagar = datosListos && entregaLista && !paying && (!esSuscripcion || aceptaCobro)
 
   const marcarTodo = () => setTocado(Object.fromEntries(Object.keys(errores).map(k => [k, true])))
 
@@ -277,6 +282,7 @@ export default function Checkout() {
       phone: contact.phone,
     }
     if (cuponAplicado) payload.coupon_code = cuponAplicado.code
+    if (esSuscripcion) payload.acepta_cobro_automatico = aceptaCobro
     if (esRetiro) payload.delivery_method = 'PICKUP'
     if (requiereEnvio && !esRetiro) {
       payload.shipping = {
@@ -293,15 +299,18 @@ export default function Checkout() {
       }
     }
     try {
-      const url = gateway === 'webpay' ? '/payments/create/' : '/payments/mp-create/'
+      // Transbank Oneclick es la pasarela con tarjeta: la tienda no tiene
+      // Webpay Plus contratado. La persona registra su tarjeta en la página de
+      // Transbank y al volver se le cobra (y, si es suscripción, cada mes).
+      const url = gateway === 'oneclick' ? '/payments/oneclick/create/' : '/payments/mp-create/'
       const { data } = await api.post(url, payload)
-      if (gateway === 'webpay') {
-        // Transbank exige un form POST con el token.
+      if (gateway === 'oneclick') {
+        // Transbank exige llegar con un form POST que lleve el token.
         const form = document.createElement('form')
         form.method = 'POST'
         form.action = data.url
         const input = document.createElement('input')
-        input.type = 'hidden'; input.name = 'token_ws'; input.value = data.token
+        input.type = 'hidden'; input.name = 'TBK_TOKEN'; input.value = data.token
         form.appendChild(input)
         document.body.appendChild(form)
         form.submit()
@@ -632,15 +641,31 @@ export default function Checkout() {
               sistema aparecía justo cuando la persona ya decidió pagar. */}
           {errorPago && <p className="co-msg co-msg-error">{errorPago}</p>}
 
+          {esSuscripcion && (
+            <label className="co-acepta">
+              <input type="checkbox" checked={aceptaCobro}
+                     onChange={e => setAceptaCobro(e.target.checked)} />
+              <span>
+                Acepto que se cobre {clp(product.effective_price)} {cadaMeses === 1 ? 'cada mes' : `cada ${cadaMeses} meses`} a
+                mi tarjeta de forma automática, hasta que cancele la suscripción desde mi perfil.
+                {cuponAplicado && ' El cupón aplica solo a este primer pago.'}
+              </span>
+            </label>
+          )}
+
           <div className="co-pagos">
             <button className="co-btn-pagar co-btn-webpay"
-              disabled={!puedePagar} onClick={() => handleCheckout('webpay')}>
-              {paying ? <><Cargando />Procesando…</> : 'Pagar con Webpay'}
+              disabled={!puedePagar} onClick={() => handleCheckout('oneclick')}>
+              {paying ? <><Cargando />Procesando…</> : 'Pagar con tarjeta'}
             </button>
-            <button className="co-btn-pagar co-btn-mp"
-              disabled={!puedePagar} onClick={() => handleCheckout('mercadopago')}>
-              {paying ? <><Cargando />Procesando…</> : 'Pagar con MercadoPago'}
-            </button>
+            {/* MercadoPago no deja la tarjeta guardada para volver a cobrar,
+                así que una suscripción solo se puede pagar con Transbank. */}
+            {!esSuscripcion && (
+              <button className="co-btn-pagar co-btn-mp"
+                disabled={!puedePagar} onClick={() => handleCheckout('mercadopago')}>
+                {paying ? <><Cargando />Procesando…</> : 'Pagar con MercadoPago'}
+              </button>
+            )}
           </div>
 
           {!puedePagar && !paying && (
@@ -649,13 +674,15 @@ export default function Checkout() {
                 ? 'Completa tus datos para continuar'
                 : !direccionLista
                   ? 'Completa la dirección de envío'
-                  : 'Cotiza el envío y elige un courier'}
+                  : !entregaLista
+                    ? 'Cotiza el envío y elige un courier'
+                    : 'Marca la casilla para aceptar el cobro automático'}
             </p>
           )}
           {paying && <p className="co-hint">Redirigiendo al pago…</p>}
 
           <p className="co-seguro">
-            <span aria-hidden="true">🔒</span> Pago seguro · Webpay y MercadoPago
+            <span aria-hidden="true">🔒</span> Pago seguro · Transbank{esSuscripcion ? '' : ' y MercadoPago'}
           </p>
         </aside>
       </div>

@@ -596,3 +596,20 @@
   .co-fila, .co-fila-dir { grid-template-columns: 1fr; }
   .co-logo img { width: 112px; }
 }
+
+/* Casilla para aceptar el cobro automático de una suscripción. */
+.co-acepta {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border: 1.5px solid #e9d5ff;
+  border-radius: 12px;
+  background: #faf5ff;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #3b0764;
+  cursor: pointer;
+}
+.co-acepta input { margin-top: 3px; width: 17px; height: 17px; accent-color: #8200db; flex-shrink: 0; }

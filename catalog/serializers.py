@@ -31,7 +31,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'price', 'is_digital', 'images',
             # oferta / próximamente / compra restringida
             'is_on_sale', 'sale_price', 'effective_price', 'is_coming_soon',
-            'requires_login', 'acepta_cupones',
+            'requires_login', 'acepta_cupones', 'es_suscripcion', 'access_months',
             # presentación en la landing
             'show_on_landing', 'landing_order', 'landing_badge',
             'price_note', 'features_list', 'highlight',

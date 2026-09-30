@@ -83,6 +83,24 @@ class Order(models.Model):
     #: regaló ni reconstruir el precio de lista.
     discount_amount = models.PositiveIntegerField(default=0)
 
+    #: Por dónde se pagó. Vacío en las órdenes anteriores a este campo.
+    WEBPAY = 'WEBPAY'
+    MERCADOPAGO = 'MERCADOPAGO'
+    ONECLICK = 'ONECLICK'
+    PASARELAS = (
+        (WEBPAY, 'Webpay Plus'),
+        (MERCADOPAGO, 'MercadoPago'),
+        (ONECLICK, 'Tarjeta (Transbank Oneclick)'),
+    )
+    pasarela = models.CharField(max_length=12, choices=PASARELAS, blank=True, default='')
+
+    #: Si es el cobro mensual de una suscripción, cuál. La orden con que se
+    #: contrató la suscripción NO lo lleva: esa es una compra normal.
+    suscripcion = models.ForeignKey(
+        'Suscripcion', related_name='cobros', on_delete=models.PROTECT,
+        null=True, blank=True,
+    )
+
     # Indexado porque es el orden por defecto de los listados del panel.
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -267,3 +285,80 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity}x {self.name} (${self.unit_price})"
+
+
+class TarjetaOneclick(models.Model):
+    """Una tarjeta que el cliente inscribió en Transbank Oneclick.
+
+    Acá NO está la tarjeta: Transbank la guarda y nos devuelve `tbk_user`, un
+    identificador que solo sirve con nuestro código de comercio y junto al
+    `username` con que se inscribió. Con esos dos se puede cobrar sin que el
+    cliente vuelva a pasar por Transbank, que es lo que permite la suscripción.
+    Los 4 últimos dígitos y el tipo son solo para mostrarle cuál es.
+    """
+    email = models.EmailField(db_index=True)
+    username = models.CharField(max_length=40)
+    tbk_user = models.CharField(max_length=40)
+    tipo = models.CharField(max_length=30, blank=True, help_text="Visa, Mastercard, Redcompra…")
+    ultimos4 = models.CharField(max_length=4, blank=True)
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creada_en']
+
+    def __str__(self):
+        return f'{self.tipo or "Tarjeta"} ****{self.ultimos4} ({self.email})'
+
+
+class Suscripcion(models.Model):
+    """Un cobro automático cada N meses con la tarjeta inscrita en Oneclick.
+
+    Nace cuando se paga la primera vez un producto marcado como suscripción
+    (Product.es_suscripcion). Desde ahí `manage.py cobrar_suscripciones` le
+    cobra cuando llega `proximo_cobro`, y cada cobro es una Order normal: lleva
+    su boleta y extiende la membresía igual que una compra hecha a mano.
+    """
+    ACTIVA = 'ACTIVA'
+    CANCELADA = 'CANCELADA'
+    SUSPENDIDA = 'SUSPENDIDA'
+    ESTADOS = (
+        (ACTIVA, 'Activa'),
+        (CANCELADA, 'Cancelada'),
+        # Después de varios cobros rechazados seguidos. No se sigue intentando:
+        # insistir con una tarjeta rechazada puede terminar bloqueándola.
+        (SUSPENDIDA, 'Suspendida por cobros rechazados'),
+    )
+
+    #: Cuántos rechazos seguidos antes de suspender, y cuántos días se espera
+    #: entre un intento y el siguiente.
+    INTENTOS_MAXIMOS = 3
+    DIAS_ENTRE_INTENTOS = 3
+
+    email = models.EmailField(db_index=True)
+    producto = models.ForeignKey(Product, related_name='suscripciones', on_delete=models.PROTECT)
+    tarjeta = models.ForeignKey(TarjetaOneclick, related_name='suscripciones', on_delete=models.PROTECT)
+    orden_inicial = models.OneToOneField(
+        Order, related_name='suscripcion_iniciada', on_delete=models.PROTECT,
+    )
+    #: Se congela al contratar: si después se cambia el precio del producto,
+    #: a quien ya está suscrito se le sigue cobrando lo que aceptó.
+    monto = models.PositiveIntegerField()
+    cada_meses = models.PositiveSmallIntegerField(default=1)
+
+    estado = models.CharField(max_length=12, choices=ESTADOS, default=ACTIVA, db_index=True)
+    proximo_cobro = models.DateField(db_index=True)
+    intentos_fallidos = models.PositiveSmallIntegerField(default=0)
+    ultimo_error = models.CharField(max_length=200, blank=True)
+
+    creada_en = models.DateTimeField(auto_now_add=True)
+    cancelada_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creada_en']
+
+    def __str__(self):
+        return f'{self.producto.name} · {self.email} · {self.get_estado_display()}'
+
+    @property
+    def activa(self):
+        return self.estado == self.ACTIVA
