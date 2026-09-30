@@ -192,15 +192,32 @@ def crear_suscripcion(order, tarjeta):
     )
 
 
+def _datos_del_cliente(suscripcion):
+    """Nombre, alumno y teléfono para la orden del cobro.
+
+    De la compra con que se contrató; si no hay (las traídas de WordPress), de
+    la membresía del alumno.
+    """
+    base = suscripcion.orden_inicial
+    if base is not None:
+        return base.customer_name, base.student_name, base.customer_phone
+    from lms.models import Membership
+    m = (Membership.objects.filter(user__username__iexact=suscripcion.email).first()
+         or Membership.objects.filter(user__email__iexact=suscripcion.email).first())
+    if m is None:
+        return '', '', ''
+    return m.parent_name, m.student_name, m.phone
+
+
 def orden_de_renovacion(suscripcion):
     """La orden del cobro de este mes, con los datos de la primera compra."""
-    base = suscripcion.orden_inicial
+    nombre, alumno, telefono = _datos_del_cliente(suscripcion)
     with transaction.atomic():
         order = Order.objects.create(
             customer_email=suscripcion.email,
-            customer_name=base.customer_name,
-            student_name=base.student_name,
-            customer_phone=base.customer_phone,
+            customer_name=nombre,
+            student_name=alumno,
+            customer_phone=telefono,
             total_amount=suscripcion.monto,
             status='PENDING',
             pasarela=Order.ONECLICK,
@@ -209,7 +226,7 @@ def orden_de_renovacion(suscripcion):
         order.products.set([suscripcion.producto])
         OrderItem.objects.create(
             order=order, product=suscripcion.producto,
-            name=suscripcion.producto.name, unit_price=suscripcion.monto,
+            name=suscripcion.nombre or suscripcion.producto.name, unit_price=suscripcion.monto,
         )
     return order
 
@@ -248,6 +265,7 @@ def cobrar_suscripcion(suscripcion, entregar):
         suscripcion.save()
         log.info('Suscripción %s: cobro rechazado (%s de %s)', suscripcion.pk,
                  suscripcion.intentos_fallidos, Suscripcion.INTENTOS_MAXIMOS)
+        avisar_cobro_rechazado(suscripcion)
     else:
         # No se sabe si se cobró: se suspende hasta que alguien lo revise en el
         # portal de Transbank. Seguir cobrando podía cobrarle dos veces el mes.
@@ -256,3 +274,32 @@ def cobrar_suscripcion(suscripcion, entregar):
         suscripcion.save()
 
     return order, resultado
+
+
+def avisar_cobro_rechazado(suscripcion):
+    """Le avisa al cliente que no se pudo cobrar, y si se va a reintentar.
+
+    Pasa por enviar_email como cualquier otro correo, así que respeta el freno:
+    en el sitio de revisión no le llega a ningún cliente.
+    """
+    from django.conf import settings
+    from core.emails import enviar_email, formato_clp
+    suspendida = suscripcion.estado == Suscripcion.SUSPENDIDA
+    try:
+        enviar_email(
+            'suscripcion_rechazada',
+            asunto=('Tu suscripción quedó suspendida · Ingenio Blocks' if suspendida
+                    else 'No pudimos cobrar tu suscripción · Ingenio Blocks'),
+            destinatarios=[suscripcion.email],
+            contexto={
+                'producto': suscripcion.nombre or suscripcion.producto.name,
+                'monto': formato_clp(suscripcion.monto),
+                'tarjeta': f'{suscripcion.tarjeta.tipo or "tarjeta"} terminada en {suscripcion.tarjeta.ultimos4}',
+                'suspendida': suspendida,
+                'reintento': suscripcion.proximo_cobro.strftime('%d-%m-%Y'),
+                'link': f'{settings.FRONTEND_URL}/perfil',
+                'link_tienda': f'{settings.FRONTEND_URL}/#kits',
+            },
+        )
+    except Exception:
+        log.exception('No se pudo avisar el cobro rechazado de la suscripción %s', suscripcion.pk)

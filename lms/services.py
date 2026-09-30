@@ -662,6 +662,11 @@ def _grant(order):
     courses = [c for p in products for c in p.courses.filter(is_active=True)]
     categorias = {c for p in products for c in p.categories.filter(is_active=True)}
     months = max((p.access_months for p in products), default=0)
+    # Un cobro de suscripción da los meses de ESA suscripción, no los del
+    # producto: las traídas de WordPress se cobran cada 6 meses aunque el
+    # producto con que quedaron asociadas sea el mensual.
+    if getattr(order, 'suscripcion_id', None):
+        months = order.suscripcion.cada_meses
 
     # Basta con que otorgue categorías O cursos sueltos: los productos migrados
     # traen las dos cosas, pero uno nuevo bien configurado solo trae categorías.

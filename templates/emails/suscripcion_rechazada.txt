@@ -1,0 +1,20 @@
+{% if suspendida %}Tu suscripción quedó suspendida{% else %}No pudimos cobrar tu suscripción{% endif %}
+
+{% if suspendida %}Intentamos varias veces cobrar tu suscripción y el banco no lo autorizó,
+así que la dejamos suspendida: no te vamos a volver a cobrar.{% else %}Intentamos cobrar tu suscripción y el banco no lo autorizó. Suele pasar
+por saldo, por el cupo de compras por internet o porque la tarjeta venció.{% endif %}
+
+{{ producto }} · {{ monto }}
+Con tu {{ tarjeta }}.
+{% if suspendida %}Sigues entrando al Aula hasta que termine lo que ya pagaste.
+
+Si quieres seguir, puedes suscribirte de nuevo desde la tienda:
+{{ link_tienda }}{% else %}Lo volveremos a intentar el {{ reintento }}. No tienes que hacer nada si ya
+lo resolviste con tu banco.
+
+Ver mi suscripción:
+{{ link }}{% endif %}
+
+--
+Ingenio Blocks · Las Condes, Santiago — Chile
+{{ contacto_email }} · +56 9 8502 6926

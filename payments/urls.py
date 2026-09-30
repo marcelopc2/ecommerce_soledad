@@ -4,6 +4,7 @@ from .views import (
     CreateMercadoPagoTransactionView, CommitMercadoPagoTransactionView,
     MercadoPagoWebhookView, ValidarCuponView,
     CreateOneclickView, FinishOneclickView, MisSuscripcionesView, CancelarSuscripcionView,
+    MisTarjetasView, PagarConTarjetaGuardadaView,
 )
 
 urlpatterns = [
@@ -19,6 +20,8 @@ urlpatterns = [
     # Transbank Oneclick (tarjeta inscrita; también las suscripciones)
     path('oneclick/create/', CreateOneclickView.as_view(), name='oneclick-create'),
     path('oneclick/finish/', FinishOneclickView.as_view(), name='oneclick-finish'),
+    path('oneclick/tarjetas/', MisTarjetasView.as_view(), name='mis-tarjetas'),
+    path('oneclick/pagar-guardada/', PagarConTarjetaGuardadaView.as_view(), name='oneclick-guardada'),
     path('suscripciones/', MisSuscripcionesView.as_view(), name='mis-suscripciones'),
     path('suscripciones/<int:pk>/cancelar/', CancelarSuscripcionView.as_view(), name='suscripcion-cancelar'),
 

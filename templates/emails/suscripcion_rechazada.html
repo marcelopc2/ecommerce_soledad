@@ -1,0 +1,32 @@
+{% extends 'emails/base.html' %}
+
+{% block asunto %}{% if suspendida %}Tu suscripción quedó suspendida{% else %}No pudimos cobrar tu suscripción{% endif %}{% endblock %}
+{% block preheader %}{% if suspendida %}Después de varios intentos no pudimos cobrar {{ monto }}.{% else %}Lo volveremos a intentar el {{ reintento }}.{% endif %}{% endblock %}
+{% block titulo %}{% if suspendida %}Tu suscripción quedó suspendida{% else %}No pudimos cobrar tu suscripción{% endif %}{% endblock %}
+
+{% block contenido %}
+  {% if suspendida %}
+    {% include 'emails/_p.html' with texto="Intentamos varias veces cobrar tu suscripción y el banco no lo autorizó, así que la dejamos suspendida: no te vamos a volver a cobrar." %}
+  {% else %}
+    {% include 'emails/_p.html' with texto="Intentamos cobrar tu suscripción y el banco no lo autorizó. Suele pasar por saldo, por el cupo de compras por internet o porque la tarjeta venció." %}
+  {% endif %}
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0;">
+    <tr>
+      <td bgcolor="#f8f4fe" style="background-color:#f8f4fe; border-left:4px solid #f59e0b; border-radius:8px; padding:14px 18px;">
+        <p style="margin:0; font-family:Arial,Helvetica,sans-serif; font-size:14px; line-height:1.6; color:#2f0053;">
+          <strong>{{ producto }}</strong> · {{ monto }}<br>
+          Con tu {{ tarjeta }}.<br>
+          {% if suspendida %}Sigues entrando al Aula hasta que termine lo que ya pagaste.{% else %}Lo volveremos a intentar el <strong>{{ reintento }}</strong>. No tienes que hacer nada si ya lo resolviste con tu banco.{% endif %}
+        </p>
+      </td>
+    </tr>
+  </table>
+
+  {% if suspendida %}
+    {% include 'emails/_p.html' with texto="Si quieres seguir, puedes suscribirte de nuevo desde la tienda con la misma u otra tarjeta." %}
+    {% include 'emails/_boton.html' with url=link_tienda texto="Volver a suscribirme" %}
+  {% else %}
+    {% include 'emails/_boton.html' with url=link texto="Ver mi suscripción" %}
+  {% endif %}
+{% endblock %}

@@ -7,6 +7,8 @@ mismas plantillas con datos de ejemplo.
 
 Se registran solo si DEBUG=True (ver core/urls.py): en producción no existen.
 """
+from datetime import timedelta
+
 from django.conf import settings
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -124,6 +126,19 @@ EJEMPLOS = {
             'boton_url': settings.FRONTEND_URL,
             'baja_url': '#',
             'baja_de': 'novedades de Ingenio Blocks',
+        },
+    },
+    'suscripcion_rechazada': {
+        'etiqueta': 'Suscripción: cobro rechazado (se reintenta)',
+        'asunto': 'No pudimos cobrar tu suscripción · Ingenio Blocks',
+        'ctx': {
+            'producto': 'Membresía Familiar',
+            'monto': formato_clp(4990),
+            'tarjeta': 'Visa terminada en 6623',
+            'suspendida': False,
+            'reintento': (timezone.now() + timedelta(days=3)).strftime('%d-%m-%Y'),
+            'link': f'{settings.FRONTEND_URL}/perfil',
+            'link_tienda': f'{settings.FRONTEND_URL}/#kits',
         },
     },
     'contacto_interno': {

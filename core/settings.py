@@ -393,6 +393,24 @@ def _correos_habilitados():
     return host in DOMINIOS_DE_PRODUCCION
 
 ENVIAR_CORREOS = _correos_habilitados()
+
+# --- Cobros automáticos de suscripciones ------------------------------------
+#
+# Mismo criterio que el freno de correos: solo el sitio de verdad le cobra solo
+# a una tarjeta. En el sitio de revisión las credenciales de Transbank son las
+# de producción, así que un cron olvidado ahí cobraría plata real.
+def _sitio_real():
+    from urllib.parse import urlparse
+    host = (urlparse(FRONTEND_URL).hostname or '').lower()
+    return host in DOMINIOS_DE_PRODUCCION or host in ('localhost', '127.0.0.1')
+
+COBROS_AUTOMATICOS = _sitio_real()
+
+# Las suscripciones traídas de WordPress las sigue cobrando el WordPress hasta
+# que se apague. Cobrarlas también acá sería cobrarle doble a cada cliente, así
+# que quedan fuera hasta que alguien lo prenda A MANO en el .env, el día que el
+# plugin de Transbank del WordPress ya esté desactivado.
+COBRAR_SUSCRIPCIONES_WORDPRESS = os.environ.get('COBRAR_SUSCRIPCIONES_WORDPRESS') == '1'
 # Bandeja que recibe los mensajes del formulario de contacto de la landing.
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'contacto@ingenioblocks.com')
 

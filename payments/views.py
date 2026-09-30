@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -405,7 +406,7 @@ class ValidarCuponView(APIView):
 
 from rest_framework.permissions import AllowAny  # noqa: E402
 from . import oneclick  # noqa: E402
-from .models import Suscripcion  # noqa: E402
+from .models import Suscripcion, TarjetaOneclick  # noqa: E402
 
 
 def _trae_suscripcion(datos):
@@ -415,33 +416,46 @@ def _trae_suscripcion(datos):
     return Product.objects.filter(id__in=ids, es_suscripcion=True).exists()
 
 
+def _preparar_orden_oneclick(request):
+    """Lo común a pagar con tarjeta nueva o guardada: revisa y arma la orden.
+
+    Devuelve (order, None) o (None, Response de error).
+    """
+    suscripcion = _trae_suscripcion(request.data)
+    # Un cobro que se repite solo necesita un sí explícito: no basta con que el
+    # precio diga "mensual" en letra chica.
+    if suscripcion and request.data.get('acepta_cobro_automatico') is not True:
+        return None, Response(
+            {'error': 'Para suscribirte tienes que aceptar el cobro automático.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    order, error = build_order_from_request(request.data, user=request.user)
+    if error:
+        return None, Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+    if suscripcion and Suscripcion.objects.filter(
+            email__iexact=order.customer_email, estado=Suscripcion.ACTIVA,
+            producto__in=order.products.all()).exists():
+        order.status = 'FAILED'
+        order.save(update_fields=['status', 'updated_at'])
+        return None, Response(
+            {'error': 'Ya tienes esta suscripción activa. La puedes ver en tu perfil.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    order.pasarela = Order.ONECLICK
+    order.save(update_fields=['pasarela', 'updated_at'])
+    return order, None
+
+
 class CreateOneclickView(APIView):
     """Arma la orden y pide a Transbank la página para inscribir la tarjeta."""
     throttle_scope = 'payment'
 
     def post(self, request):
-        suscripcion = _trae_suscripcion(request.data)
-        # Un cobro que se repite solo necesita un sí explícito: no basta con
-        # que el precio diga "mensual" en letra chica.
-        if suscripcion and request.data.get('acepta_cobro_automatico') is not True:
-            return Response(
-                {'error': 'Para suscribirte tienes que aceptar el cobro automático.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        order, error = build_order_from_request(request.data, user=request.user)
+        order, error = _preparar_orden_oneclick(request)
         if error:
-            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
-
-        if suscripcion and Suscripcion.objects.filter(
-                email__iexact=order.customer_email, estado=Suscripcion.ACTIVA,
-                producto__in=order.products.all()).exists():
-            order.status = 'FAILED'
-            order.save(update_fields=['status', 'updated_at'])
-            return Response(
-                {'error': 'Ya tienes esta suscripción activa. La puedes ver en tu perfil.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return error
 
         base_url = settings.BACKEND_PUBLIC_URL or request.build_absolute_uri('/').rstrip('/')
         try:
@@ -572,3 +586,83 @@ def _suscripcion_json(s):
         'proximo_cobro': s.proximo_cobro if s.activa else None,
         'tarjeta': f'{s.tarjeta.tipo or "Tarjeta"} terminada en {s.tarjeta.ultimos4}',
     }
+
+
+def _tarjetas_de(user):
+    """Las tarjetas inscritas de la cuenta, sin repetir la misma tarjeta.
+
+    Una persona que compró varias veces puede tener la misma tarjeta inscrita
+    más de una vez; se muestra una sola (la más nueva).
+    """
+    vistas, salida = set(), []
+    for t in TarjetaOneclick.objects.filter(email__iexact=_email_de(user)).order_by('-creada_en'):
+        clave = (t.tipo, t.ultimos4)
+        if clave not in vistas:
+            vistas.add(clave)
+            salida.append(t)
+    return salida
+
+
+class MisTarjetasView(APIView):
+    """Las tarjetas guardadas, para ofrecer "Pagar con Visa ****6623"."""
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response([])
+        return Response([
+            {'id': t.pk, 'texto': f'{t.tipo or "Tarjeta"} terminada en {t.ultimos4}'}
+            for t in _tarjetas_de(request.user)
+        ])
+
+
+class PagarConTarjetaGuardadaView(APIView):
+    """Cobra con una tarjeta ya inscrita, sin volver a pasar por Transbank.
+
+    Solo con sesión iniciada y solo con tarjetas de la propia cuenta: el id de
+    la tarjeta viene del navegador, así que se busca junto con el correo de la
+    sesión y no solo por id.
+
+    Se bloquea la fila de la tarjeta mientras se cobra: si llegan dos pedidos
+    seguidos (doble clic), el segundo espera y encuentra que la misma compra
+    acaba de pagarse, en vez de cobrarla otra vez.
+    """
+    throttle_scope = 'payment'
+
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return Response({'error': 'Inicia sesión para pagar con tu tarjeta guardada.'},
+                            status=status.HTTP_401_UNAUTHORIZED)
+        ids = request.data.get('product_ids') or []
+        entregar = False
+        with transaction.atomic():
+            tarjeta = (TarjetaOneclick.objects.select_for_update()
+                       .filter(pk=request.data.get('tarjeta_id'), email__iexact=_email_de(request.user))
+                       .first())
+            if tarjeta is None:
+                return Response({'error': 'No encontramos esa tarjeta en tu cuenta.'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            hace_un_rato = timezone.now() - timedelta(minutes=2)
+            if Order.objects.filter(
+                    customer_email__iexact=_email_de(request.user), pasarela=Order.ONECLICK,
+                    status='PAID', created_at__gte=hace_un_rato, products__in=ids).exists():
+                return Response(
+                    {'error': 'Esta compra se acaba de pagar. Revisa tu correo o tus cursos.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            order, error = _preparar_orden_oneclick(request)
+            if error:
+                return error
+            resultado = oneclick.cobrar(order, tarjeta)
+            oneclick.aplicar_resultado(order, resultado)
+            if resultado == oneclick.AUTORIZADO:
+                oneclick.crear_suscripcion(order, tarjeta)
+                entregar = True
+                log.info('Orden %s PAGADA con tarjeta guardada (monto %s)', order.order_id, order.total_amount)
+
+        if entregar:
+            _entregar_compra(order)
+            return Response({'url': f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}'})
+        motivo = 'error' if order.status == 'REVIEW' else 'rejected'
+        return Response({'url': f'{settings.FRONTEND_URL}/checkout/failed?reason={motivo}'})

@@ -298,7 +298,7 @@ class TarjetaOneclick(models.Model):
     """
     email = models.EmailField(db_index=True)
     username = models.CharField(max_length=40)
-    tbk_user = models.CharField(max_length=40)
+    tbk_user = models.CharField(max_length=40, unique=True)
     tipo = models.CharField(max_length=30, blank=True, help_text="Visa, Mastercard, Redcompra…")
     ultimos4 = models.CharField(max_length=4, blank=True)
     creada_en = models.DateTimeField(auto_now_add=True)
@@ -334,12 +334,29 @@ class Suscripcion(models.Model):
     INTENTOS_MAXIMOS = 3
     DIAS_ENTRE_INTENTOS = 3
 
+    TIENDA = 'TIENDA'
+    WORDPRESS = 'WORDPRESS'
+    ORIGENES = (
+        (TIENDA, 'Contratada en esta tienda'),
+        # Traída del sitio viejo. Mientras el WordPress siga cobrando, estas NO
+        # se cobran acá (ver cobrar_suscripciones): serían cobros dobles.
+        (WORDPRESS, 'Traída de WordPress'),
+    )
+
     email = models.EmailField(db_index=True)
     producto = models.ForeignKey(Product, related_name='suscripciones', on_delete=models.PROTECT)
     tarjeta = models.ForeignKey(TarjetaOneclick, related_name='suscripciones', on_delete=models.PROTECT)
+    #: La compra con que se contrató. Las traídas de WordPress no tienen.
     orden_inicial = models.OneToOneField(
         Order, related_name='suscripcion_iniciada', on_delete=models.PROTECT,
+        null=True, blank=True,
     )
+    #: El nombre que va en la boleta de cada cobro. Vacío = el del producto.
+    nombre = models.CharField(max_length=200, blank=True)
+    origen = models.CharField(max_length=10, choices=ORIGENES, default=TIENDA, db_index=True)
+    #: El id de la suscripción en WordPress, para poder volver a importar
+    #: (actualizar) sin duplicar.
+    wp_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
     #: Se congela al contratar: si después se cambia el precio del producto,
     #: a quien ya está suscrito se le sigue cobrando lo que aceptó.
     monto = models.PositiveIntegerField()

@@ -97,11 +97,20 @@ export default function Checkout() {
   // Una suscripción se cobra sola todos los meses: hay que aceptarlo marcando
   // la casilla, no basta con que el precio diga "mensual".
   const [aceptaCobro, setAceptaCobro] = useState(false)
+  // Tarjetas ya inscritas en Transbank (de una compra anterior, o traídas del
+  // sitio viejo): con sesión iniciada se paga con un clic, sin volver a
+  // pasar por la página de Transbank.
+  const [tarjetas, setTarjetas] = useState([])
   const [retiro, setRetiro] = useState(null)        // el punto de retiro, o null si no hay
   const [entrega, setEntrega] = useState('SHIPPING') // 'SHIPPING' | 'PICKUP'
 
   // Con sesión iniciada, el correo de la cuenta viene puesto. En los productos
   // "solo para alumnos" además queda fijo: el servidor ancla la compra a esa
+  useEffect(() => {
+    if (!user) return
+    api.get('/payments/oneclick/tarjetas/').then(r => setTarjetas(r.data)).catch(() => {})
+  }, [user])
+
   // cuenta, así que dejarlo editable solo confundiría.
   useEffect(() => {
     if (user?.email) setContact(c => (c.email ? c : { ...c, email: user.email }))
@@ -269,7 +278,7 @@ export default function Checkout() {
     setCuponAplicado(null); setCupon(''); setCuponMsg('')
   }
 
-  const handleCheckout = async (gateway) => {
+  const handleCheckout = async (gateway, tarjetaId) => {
     // Último resguardo: si igual se llama con datos malos, se marcan los
     // campos para que se vean los errores en vez de rebotar en el servidor.
     if (!puedePagar) { marcarTodo(); return }
@@ -302,6 +311,12 @@ export default function Checkout() {
       // Transbank Oneclick es la pasarela con tarjeta: la tienda no tiene
       // Webpay Plus contratado. La persona registra su tarjeta en la página de
       // Transbank y al volver se le cobra (y, si es suscripción, cada mes).
+      if (gateway === 'guardada') {
+        // Se cobra en el servidor y vuelve la página de resultado.
+        const { data } = await api.post('/payments/oneclick/pagar-guardada/', { ...payload, tarjeta_id: tarjetaId })
+        window.location.assign(data.url)
+        return
+      }
       const url = gateway === 'oneclick' ? '/payments/oneclick/create/' : '/payments/mp-create/'
       const { data } = await api.post(url, payload)
       if (gateway === 'oneclick') {
@@ -315,7 +330,7 @@ export default function Checkout() {
         document.body.appendChild(form)
         form.submit()
       } else {
-        window.location.href = data.url
+        window.location.assign(data.url)
       }
     } catch (err) {
       setQuoteMsg('')
@@ -654,9 +669,15 @@ export default function Checkout() {
           )}
 
           <div className="co-pagos">
+            {tarjetas.map(t => (
+              <button key={t.id} className="co-btn-pagar co-btn-webpay"
+                disabled={!puedePagar} onClick={() => handleCheckout('guardada', t.id)}>
+                {paying ? <><Cargando />Procesando…</> : `Pagar con ${t.texto}`}
+              </button>
+            ))}
             <button className="co-btn-pagar co-btn-webpay"
               disabled={!puedePagar} onClick={() => handleCheckout('oneclick')}>
-              {paying ? <><Cargando />Procesando…</> : 'Pagar con tarjeta'}
+              {paying ? <><Cargando />Procesando…</> : (tarjetas.length ? 'Pagar con otra tarjeta' : 'Pagar con tarjeta')}
             </button>
             {/* MercadoPago no deja la tarjeta guardada para volver a cobrar,
                 así que una suscripción solo se puede pagar con Transbank. */}
