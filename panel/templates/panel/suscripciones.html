@@ -35,7 +35,12 @@
               <div class="cell-title">{{ s.email }}</div>
               <div class="cell-sub">{{ s.tarjeta.tipo|default:'Tarjeta' }} ****{{ s.tarjeta.ultimos4 }} · desde {{ s.creada_en|date:'d-m-Y' }}</div>
             </td>
-            <td>{{ s.producto.name }}</td>
+            <td>
+              {{ s.nombre|default:s.producto.name }}
+              {% if s.origen == 'WORDPRESS' %}
+                <div class="cell-sub"><span class="badge-soft yellow">De WordPress</span> la sigue cobrando el sitio viejo hasta el lanzamiento</div>
+              {% endif %}
+            </td>
             <td>${{ s.monto|intcomma }} {% if s.cada_meses == 1 %}al mes{% else %}cada {{ s.cada_meses }} meses{% endif %}</td>
             <td>{% if s.activa %}{{ s.proximo_cobro|date:'d-m-Y' }}{% else %}—{% endif %}</td>
             <td>
