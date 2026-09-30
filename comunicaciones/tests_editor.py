@@ -85,7 +85,7 @@ class FormularioTests(TestCase):
 
     @override_settings(ENVIAR_CORREOS=False)
     def test_guardar_y_enviar_prueba_llega_solo_a_los_administradores(self):
-        self.crear(accion='prueba')
+        self.crear(accion='enviar', audiencia='PRUEBA')
         destinos = sorted(d for m in mail.outbox for d in m.to)
         self.assertEqual(destinos, ['jefa@ib.cl', 'socia@ib.cl'])
         self.assertTrue(all(m.subject.startswith('[PRUEBA]') for m in mail.outbox))
@@ -94,6 +94,19 @@ class FormularioTests(TestCase):
         self.assertNotIn('script', html)
         self.assertIn('Texto fuerte', mail.outbox[0].body)
         self.assertTrue(EnvioMasivo.objects.get().prueba_al_dia)
+
+    def test_guardar_y_enviar_a_clientes_pasa_por_la_confirmacion(self):
+        r = self.crear(accion='enviar', audiencia='TODOS')
+        e = EnvioMasivo.objects.get()
+        self.assertRedirects(r, reverse('panel:correo_confirmar', args=[e.pk]), fetch_redirect_response=False)
+        self.assertEqual(mail.outbox, [])
+        self.assertEqual(e.estado, EnvioMasivo.BORRADOR)
+
+    def test_la_prueba_es_la_opcion_marcada_y_no_se_puede_encolar(self):
+        self.assertEqual(EnvioMasivo._meta.get_field('audiencia').default, EnvioMasivo.PRUEBA)
+        e = EnvioMasivo.objects.create(asunto='x', cuerpo='y', audiencia=EnvioMasivo.PRUEBA)
+        self.assertIsNotNone(masivos.motivo_para_no_enviar(e))
+        self.assertEqual(sorted(masivos.correos_de_la_audiencia(EnvioMasivo.PRUEBA)), ['jefa@ib.cl', 'socia@ib.cl'])
 
     def test_un_borrador_antiguo_se_abre_en_el_editor(self):
         e = EnvioMasivo.objects.create(asunto='Viejo', cuerpo='Uno\n\nDos & tres', audiencia='TODOS')

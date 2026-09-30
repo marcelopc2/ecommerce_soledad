@@ -2423,10 +2423,13 @@ def correo_form(request, pk=None):
         if not obj.pk:
             obj.creado_por = request.user
         obj.save()
-        # "Guardar y enviar prueba" hace las dos cosas con un clic: la prueba
-        # se descubría recién después de guardar, en la columna de al lado.
-        if request.POST.get('accion') == 'prueba':
-            return correo_prueba(request, obj.pk)
+        # "Guardar y enviar": a quién sale lo dice el radio. Con Prueba sale al
+        # tiro a los administradores; a los clientes pasa primero por la
+        # confirmación de cuántas personas son.
+        if request.POST.get('accion') == 'enviar':
+            if obj.audiencia == EnvioMasivo.PRUEBA:
+                return correo_prueba(request, obj.pk)
+            return redirect('panel:correo_confirmar', pk=obj.pk)
         if obj.prueba_enviada_en and not obj.prueba_al_dia:
             messages.info(request, 'Guardado. Como cambiaste el correo, mándate '
                                    'una prueba nueva antes de enviarlo a todos.')

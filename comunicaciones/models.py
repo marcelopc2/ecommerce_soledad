@@ -58,9 +58,13 @@ class EnvioMasivo(models.Model):
         (CANCELADO, 'Cancelado'),
     ]
 
+    PRUEBA = 'PRUEBA'
     TODOS = 'TODOS'
     VIGENTES = 'VIGENTES'
     AUDIENCIAS = [
+        # Va primera y es la que viene marcada: lo que se escribe se prueba
+        # antes de mandarlo a los clientes.
+        (PRUEBA, 'Prueba: solo a los administradores'),
         (TODOS, 'Todos los clientes'),
         (VIGENTES, 'Solo con membresía vigente'),
     ]
@@ -78,7 +82,7 @@ class EnvioMasivo(models.Model):
     boton_url = models.URLField(
         'Dirección del botón', blank=True,
         help_text='A dónde lleva el botón. Tiene que empezar con https://')
-    audiencia = models.CharField(max_length=10, choices=AUDIENCIAS, default=TODOS)
+    audiencia = models.CharField(max_length=10, choices=AUDIENCIAS, default=PRUEBA)
 
     estado = models.CharField(max_length=10, choices=ESTADOS, default=BORRADOR)
     creado_por = models.ForeignKey(

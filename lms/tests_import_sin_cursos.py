@@ -169,3 +169,23 @@ class GuardiasTests(TestCase):
                        sin_cursos=True, sobre_lo_que_hay=False,
                        categoria='General', dias_vigencia=30)
         self.assertIn('sin-cursos', str(e.exception))
+
+
+class EmparejarPorNumeroTests(TestCase):
+    """WordPress titula "001-Taladro" y acá "001 - Taladro": el 30-09-2026 eso
+    hizo que no calzara ningún modelo y se perdiera casi todo el avance."""
+
+    def test_calza_por_numero_aunque_el_titulo_se_escriba_distinto(self):
+        from lms.management.commands.importar_wordpress import Command
+        from lms.models import Course, Lesson
+        taladro = Course.objects.create(title='001 - Taladro y Herramientas', slug='taladro')
+        Lesson.objects.create(course=taladro, title='Paso 1', order=1)
+        bienvenida = Course.objects.create(title='Bienvenida a Ingenio Blocks', slug='bienvenida')
+        ordenados = [('10', {'post_title': 'Bienvenida a Ingenio Blocks'}),
+                     ('11', {'post_title': '001-Taladro y herramientas'})]
+        pasos_de = {'11': [(1, '500')]}
+        d = {'posts': {'500': {'post_title': 'Paso 1'}}}
+        cursos, lecciones, sin_par, _ = Command()._emparejar_con_lo_que_hay(ordenados, pasos_de, d)
+        self.assertEqual(cursos, {'10': bienvenida, '11': taladro})
+        self.assertEqual(lecciones['500'].course, taladro)
+        self.assertEqual(sin_par, [])

@@ -362,8 +362,18 @@ class Command(BaseCommand):
         del modelo, que es la que el importador les puso al crearlos. Si alguien
         reordenó los pasos en el panel, cae al título como segundo intento.
         """
-        por_titulo = {}
+        # Primero por NÚMERO: en WordPress el título es "001-Taladro" y acá
+        # "001 - Taladro", así que comparando el texto no calzaba ninguno y se
+        # perdía el avance de todos los alumnos (pasó el 30-09-2026: de 1.500
+        # modelos terminados se trasladaron 250). El número no cambia aunque
+        # alguien corrija el nombre en el panel. El título queda de respaldo,
+        # con y sin número, para los que no llevan (la bienvenida).
+        por_numero, por_titulo = {}, {}
         for c in Course.objects.all():
+            mc = RE_NUMERO.match((c.title or '').strip())
+            if mc:
+                por_numero.setdefault(int(mc.group(1)), c)
+                por_titulo.setdefault(_norm_titulo(mc.group(2)), c)
             por_titulo.setdefault(_norm_titulo(c.title), c)
 
         curso_de_wp, leccion_de_wp = {}, {}
@@ -372,7 +382,8 @@ class Command(BaseCommand):
         for cid, post_curso in ordenados:
             m = RE_NUMERO.match((post_curso.get('post_title') or '').strip())
             titulo = (m.group(2) if m else post_curso.get('post_title') or 'Modelo').strip()
-            curso = por_titulo.get(_norm_titulo(titulo))
+            curso = ((por_numero.get(int(m.group(1))) if m else None)
+                     or por_titulo.get(_norm_titulo(titulo)))
             if curso is None:
                 cursos_sin_par.append(titulo)
                 continue

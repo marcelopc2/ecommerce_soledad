@@ -50,6 +50,9 @@ def correos_de_la_audiencia(audiencia):
     from lms.models import Membership
     from payments.models import Order
 
+    if audiencia == EnvioMasivo.PRUEBA:
+        return sorted(normalizar(c) for c in correos_de_gestion())
+
     alumnos = (Membership.objects
                .filter(user__is_staff=False, user__is_active=True)
                .exclude(user__email=''))
@@ -127,14 +130,17 @@ def motivo_para_no_enviar(envio):
     """Por qué el botón de "enviar a todos" está apagado, o None si se puede."""
     if not envio.editable:
         return 'Este correo ya se envió.'
+    if envio.audiencia == EnvioMasivo.PRUEBA:
+        return 'Está marcado como prueba: se manda solo a los administradores.'
     if not settings.ENVIAR_CORREOS:
         return ('El envío a todos se activa cuando el sitio esté en su dominio '
                 'definitivo. Mientras tanto funciona solo la prueba al equipo.')
     if not envio.prueba_enviada_en:
-        return 'Primero mándate la prueba y revisa que se vea bien.'
+        return ('Primero envíalo de prueba (marcando «Prueba: solo a los administradores») '
+                'y revisa que se vea bien.')
     if not envio.prueba_al_dia:
-        return ('Cambiaste el correo después de la prueba. Manda una prueba '
-                'nueva para ver cómo quedó.')
+        return ('Cambiaste el correo después de la prueba. Vuelve a enviarlo como '
+                'prueba para ver cómo quedó.')
     return None
 
 

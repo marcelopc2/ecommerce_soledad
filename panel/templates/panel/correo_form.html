@@ -87,8 +87,8 @@
 
         <div class="d-flex gap-2 mt-4 flex-wrap">
           <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar</button>
-          <button type="submit" name="accion" value="prueba" class="btn btn-ghost">
-            <i class="bi bi-envelope-check me-1"></i> Guardar y enviar prueba a los administradores
+          <button type="submit" name="accion" value="enviar" class="btn btn-ghost">
+            <i class="bi bi-send me-1"></i> Guardar y enviar
           </button>
         </div>
       </div></div>
@@ -104,59 +104,25 @@
   </div>
 
   <div class="col-lg-5">
-    {% if envio %}
-      <div class="pnl-card mb-3"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-send-check"></i> 2. Mandarse la prueba</div>
-        <p class="pnl-campo-ayuda">
-          Llega igual que a un cliente, con "[PRUEBA]" en el asunto, a las
-          cuentas de gestión:
-        </p>
-        <ul class="small mb-3">
-          {% for c in equipo %}<li>{{ c }}</li>{% empty %}<li class="text-danger">No hay cuentas de gestión con correo.</li>{% endfor %}
-        </ul>
-        {% if envio.prueba_al_dia %}
-          <div class="alert alert-success py-2 small mb-3">
-            <i class="bi bi-check-circle me-1"></i>
-            Prueba enviada el {{ envio.prueba_enviada_en|date:'d-m-Y \a \l\a\s H:i' }}, con este mismo contenido.
-          </div>
-        {% elif envio.prueba_enviada_en %}
-          <div class="alert alert-warning py-2 small mb-3">
-            <i class="bi bi-exclamation-triangle me-1"></i>
-            Cambiaste el correo después de la última prueba: vuelve a probarlo.
-          </div>
-        {% endif %}
-        <form method="post" action="{% url 'panel:correo_prueba' envio.pk %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-ghost"><i class="bi bi-envelope me-1"></i> Enviar prueba a los administradores</button>
-        </form>
-      </div></div>
-
-      <div class="pnl-card"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-people"></i> 3. Enviar a todos</div>
-        {% if motivo %}
-          <p class="pnl-campo-ayuda mb-3"><i class="bi bi-lock me-1"></i> {{ motivo }}</p>
-          <button type="button" class="btn btn-brand" disabled>Enviar a todos</button>
-        {% else %}
-          <p class="pnl-campo-ayuda mb-3">
-            Sale de a poco, unos 25 por minuto, para no poner en riesgo la
-            cuenta de correo. Puedes detenerlo a la mitad si hace falta.
-          </p>
-          <a href="{% url 'panel:correo_confirmar' envio.pk %}" class="btn btn-brand">Enviar a todos…</a>
-        {% endif %}
-      </div></div>
-    {% else %}
-      <div class="pnl-card"><div class="card-pad">
-        <div class="form-section-title"><i class="bi bi-send-check"></i> Prueba</div>
-        <p class="pnl-campo-ayuda">
-          Con <strong>«Guardar y enviar prueba a los administradores»</strong> el correo
-          llega, con "[PRUEBA]" en el asunto, solo a las cuentas de gestión:
-        </p>
-        <ul class="small mb-2">
-          {% for c in equipo %}<li>{{ c }}</li>{% endfor %}
-        </ul>
-        <p class="pnl-campo-ayuda mb-0">Nada sale a los clientes hasta el último paso.</p>
-      </div></div>
-    {% endif %}
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-send-check"></i> Cómo se envía</div>
+      <p class="pnl-campo-ayuda">
+        Elige a quién en «{{ form.audiencia.label }}» y aprieta <strong>Guardar y enviar</strong>.
+        Con <strong>Prueba</strong> llega solo a los administradores, con "[PRUEBA]" en el asunto.
+        Para mandarlo a los clientes, primero hay que enviarlo de prueba.
+      </p>
+      {% if envio.prueba_al_dia %}
+        <div class="alert alert-success py-2 small mb-0">
+          <i class="bi bi-check-circle me-1"></i>
+          Prueba enviada el {{ envio.prueba_enviada_en|date:'d-m-Y \a \l\a\s H:i' }}, con este mismo contenido.
+        </div>
+      {% elif envio.prueba_enviada_en %}
+        <div class="alert alert-warning py-2 small mb-0">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          Cambiaste el correo después de la última prueba: vuelve a enviarlo de prueba.
+        </div>
+      {% endif %}
+    </div></div>
   </div>
 </div>
 
