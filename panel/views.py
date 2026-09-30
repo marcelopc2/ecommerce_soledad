@@ -602,6 +602,40 @@ def lessons_reorder(request, pk):
     return render(request, 'panel/partials/lessons_rows.html', {'course': course, 'lessons': course.lessons.all()})
 
 
+#: Los archivos que puede traer un recurso. Al reemplazar o quitar uno, el
+#: viejo se borra del disco: Django nunca borra archivos solo.
+_ARCHIVOS_DE_RECURSO = ('video_file', 'pdf_file', 'image_file')
+
+
+@staff_required
+def lesson_edit(request, pk):
+    """Editar un recurso sin tener que borrarlo y volver a crearlo.
+
+    Borrar y recrear no era solo más trabajo: el recurso nuevo cae al final del
+    curso y los alumnos que ya lo habían visto pierden esa marca. Editando se
+    conservan el lugar en el orden y el avance.
+    """
+    lesson = get_object_or_404(Lesson.objects.select_related('course'), pk=pk)
+    antes = {c: getattr(lesson, c).name for c in _ARCHIVOS_DE_RECURSO}
+
+    if request.method == 'POST':
+        lesson_form = LessonForm(request.POST, request.FILES, instance=lesson)
+        if lesson_form.is_valid():
+            lesson = lesson_form.save()
+            for campo, nombre in antes.items():
+                if nombre and getattr(lesson, campo).name != nombre:
+                    getattr(lesson, campo).storage.delete(nombre)
+            messages.success(request, f'Recurso "{lesson.title}" guardado.')
+            return redirect('panel:course_edit', pk=lesson.course_id)
+    else:
+        lesson_form = LessonForm(instance=lesson)
+
+    return render(request, 'panel/lesson_form.html', {
+        'lesson': lesson, 'course': lesson.course, 'lesson_form': lesson_form,
+        'section': 'courses',
+    })
+
+
 @staff_required
 @require_POST
 def lesson_delete(request, pk):

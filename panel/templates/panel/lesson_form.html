@@ -1,0 +1,52 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Editar recurso{% endblock %}
+{% block crumb %}Panel · Academia · {{ course.title }}{% endblock %}
+{% block heading %}Editar recurso{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:course_edit' course.pk %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver al curso</a>
+{% endblock %}
+
+{% block content %}
+<div class="row"><div class="col-lg-7">
+  <div class="pnl-card"><div class="card-pad">
+    <div class="form-section-title"><i class="bi bi-pencil"></i> {{ lesson.title }}</div>
+    <p class="pnl-campo-ayuda">
+      Si subes un archivo nuevo, reemplaza al anterior. Si no eliges ninguno, se
+      queda el que ya tiene. El recurso mantiene su lugar en el curso y el
+      avance de los alumnos.
+    </p>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {% include 'panel/partials/lesson_fields.html' %}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar cambios</button>
+        <a href="{% url 'panel:course_edit' course.pk %}" class="btn btn-ghost">Cancelar</a>
+      </div>
+    </form>
+  </div></div>
+</div></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Mismo criterio que al agregar: solo se ve el campo del tipo elegido.
+  function initLessonForm() {
+    var typeSelect = document.getElementById('{{ lesson_form.lesson_type.id_for_label }}')
+    if (!typeSelect || typeSelect.dataset.bound) return
+    typeSelect.dataset.bound = '1'
+    var fields = { VIDEO: 'video-field', PDF: 'pdf-field', IMAGE: 'image-field' }
+    function sync() {
+      for (var t in fields) {
+        var el = document.getElementById(fields[t])
+        if (el) el.style.display = (typeSelect.value === t) ? '' : 'none'
+      }
+    }
+    typeSelect.addEventListener('change', sync)
+    sync()
+  }
+  document.addEventListener('DOMContentLoaded', initLessonForm)
+  document.body.addEventListener('htmx:afterSettle', initLessonForm)
+</script>
+{% endblock %}

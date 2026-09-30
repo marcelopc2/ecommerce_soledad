@@ -53,6 +53,7 @@ urlpatterns = [
     path('cursos/<int:pk>/eliminar/', views.course_delete, name='course_delete'),
     path('cursos/<int:pk>/mostrar/', views.course_toggle_active, name='course_toggle_active'),
     path('cursos/<int:pk>/recursos/reordenar/', views.lessons_reorder, name='lessons_reorder'),
+    path('recursos/<int:pk>/editar/', views.lesson_edit, name='lesson_edit'),
     path('recursos/<int:pk>/eliminar/', views.lesson_delete, name='lesson_delete'),
     path('recursos/<int:pk>/vista-previa/', views.lesson_preview, name='lesson_preview'),
     path('recursos/<int:pk>/vista-previa/imagen/', views.lesson_preview_image, name='lesson_preview_image'),

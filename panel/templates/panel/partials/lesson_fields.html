@@ -1,0 +1,47 @@
+{% comment %}
+  Los campos de un recurso. Los usan el formulario de agregar (course_form) y
+  el de editar (lesson_form), así los dos piden exactamente lo mismo.
+  Los ids video-field / pdf-field / image-field los usa el script que muestra
+  solo el campo del tipo elegido.
+{% endcomment %}
+<div class="mb-3">
+  <label class="form-label" for="{{ lesson_form.title.id_for_label }}">{{ lesson_form.title.label }}</label>
+  {{ lesson_form.title }}
+  {% for e in lesson_form.title.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  <label class="form-label" for="{{ lesson_form.lesson_type.id_for_label }}">{{ lesson_form.lesson_type.label }}</label>
+  {{ lesson_form.lesson_type }}
+</div>
+<div class="mb-3" id="video-field">
+  <label class="form-label" for="{{ lesson_form.video_embed_url.id_for_label }}">{{ lesson_form.video_embed_url.label }}</label>
+  {{ lesson_form.video_embed_url }}
+  {% for e in lesson_form.video_embed_url.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+
+  {% comment %}
+    Las dos formas de poner un video conviven: YouTube para los largos
+    (no cuesta ancho de banda y se ve al instante) y archivo propio
+    para un clip corto que no se quiere publicar en ningún lado. El
+    archivo sale por un endpoint con permisos; el de YouTube no.
+  {% endcomment %}
+  <div class="mt-3">
+    <label class="form-label" for="{{ lesson_form.video_file.id_for_label }}">{{ lesson_form.video_file.label }}</label>
+    {{ lesson_form.video_file }}
+    <div class="pnl-campo-ayuda">{{ lesson_form.video_file.help_text }}</div>
+    {% for e in lesson_form.video_file.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+  </div>
+</div>
+<div class="mb-3" id="pdf-field">
+  <label class="form-label" for="{{ lesson_form.pdf_file.id_for_label }}">{{ lesson_form.pdf_file.label }}</label>
+  {{ lesson_form.pdf_file }}
+  {% for e in lesson_form.pdf_file.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+</div>
+<div class="mb-3" id="image-field">
+  <label class="form-label" for="{{ lesson_form.image_file.id_for_label }}">{{ lesson_form.image_file.label }}</label>
+  {{ lesson_form.image_file }}
+  {% for e in lesson_form.image_file.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  <label class="form-label" for="{{ lesson_form.description.id_for_label }}">{{ lesson_form.description.label }}</label>
+  {{ lesson_form.description }}
+</div>
