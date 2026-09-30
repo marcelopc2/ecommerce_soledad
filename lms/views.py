@@ -10,12 +10,12 @@ from .models import Course, Lesson, Diploma, LessonProgress
 from .serializers import CourseListSerializer, CourseStudentSerializer
 from .services import (
     cursos_de, get_course_access, get_preview_sequence, get_sequence_access,
-    mark_lesson_completed,
+    mark_lesson_completed, membresia_del_aula,
 )
 
 
 def _get_membership(user):
-    return getattr(user, 'membership', None)
+    return membresia_del_aula(user)
 
 
 def _es_vista_previa(user):
@@ -28,9 +28,10 @@ def _es_vista_previa(user):
     mismos PDF e imágenes desde el panel (panel:lesson_preview_pdf), y además
     puede editarlos. Lo único que cambia es la comodidad de verlos montados.
 
-    Si la cuenta de gestión SÍ tiene membresía (por ejemplo la clienta compró un
-    kit para probar), manda su membresía real y no la vista previa: así ve
-    exactamente lo mismo que vería su alumno, goteo incluido.
+    Si la cuenta de gestión SÍ tiene membresía al día (por ejemplo la clienta
+    compró un kit para probar), manda su membresía real y no la vista previa:
+    así ve exactamente lo mismo que vería su alumno, goteo incluido. Una
+    vencida no cuenta (ver membresia_del_aula).
     """
     return bool(user.is_staff) and _get_membership(user) is None
 

@@ -44,6 +44,23 @@ log = logging.getLogger('ingenioblocks.pagos')
 # El alumno ve una sola lista ordenada por Course.order; las categorías son
 # maquinaria interna que él no necesita entender.
 
+def membresia_del_aula(user):
+    """La membresía con la que el usuario entra al Aula, o None.
+
+    Una cuenta de gestión con la membresía VENCIDA se trata como si no la
+    tuviera, y así entra en vista previa. Pasa con las cuentas que la
+    migración de WordPress trajo con una suscripción vieja de cuando la dueña
+    probaba la tienda: sin esto, la administradora veía "tu suscripción
+    venció" y no podía revisar los cursos. Si la cuenta de gestión tiene una
+    membresía AL DÍA (compró un kit para probar), manda esa: ve lo mismo que
+    su alumno, goteo incluido.
+    """
+    membership = getattr(user, 'membership', None)
+    if membership is not None and user.is_staff and not membership.is_active:
+        return None
+    return membership
+
+
 def _unlock_date(start_date, index, iniciales=1):
     """Fecha programada de liberación del curso en la posición `index` (0-based).
 

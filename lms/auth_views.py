@@ -16,7 +16,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import AvatarForm, ProfileSerializer
-from .services import send_reset_email
+from .services import membresia_del_aula, send_reset_email
 
 User = get_user_model()
 
@@ -143,7 +143,7 @@ class MeView(APIView):
 
     def get(self, request):
         user = request.user
-        membership = getattr(user, 'membership', None)
+        membership = membresia_del_aula(user)
         perfil = getattr(user, 'perfil', None)
         return Response({
             'email': user.email,
@@ -225,7 +225,7 @@ class ProfileView(APIView):
     def _datos(self, user, request=None):
         from .models import PerfilUsuario
 
-        m = getattr(user, 'membership', None)
+        m = membresia_del_aula(user)
         perfil = getattr(user, 'perfil', None)
         return {
             # El correo NO se edita acá: es la identidad de la cuenta (el
