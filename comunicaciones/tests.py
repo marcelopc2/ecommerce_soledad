@@ -481,7 +481,7 @@ class PanelTests(TestCase):
 
     def test_se_puede_crear_un_borrador(self):
         r = self.client.post(reverse('panel:correo_new'), {
-            'asunto': 'Hola', 'cuerpo': 'Texto', 'audiencia': 'TODOS',
+            'asunto': 'Hola', 'cuerpo_html': '<p>Texto</p>', 'audiencia': 'TODOS',
             'boton_texto': '', 'boton_url': ''})
         self.assertEqual(r.status_code, 302)
         e = EnvioMasivo.objects.get()
@@ -490,7 +490,7 @@ class PanelTests(TestCase):
 
     def test_un_boton_a_medias_no_se_acepta(self):
         r = self.client.post(reverse('panel:correo_new'), {
-            'asunto': 'Hola', 'cuerpo': 'Texto', 'audiencia': 'TODOS',
+            'asunto': 'Hola', 'cuerpo_html': '<p>Texto</p>', 'audiencia': 'TODOS',
             'boton_texto': 'Ver', 'boton_url': ''})
         self.assertEqual(r.status_code, 200)
         self.assertFalse(EnvioMasivo.objects.exists())

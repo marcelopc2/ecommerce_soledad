@@ -2423,6 +2423,10 @@ def correo_form(request, pk=None):
         if not obj.pk:
             obj.creado_por = request.user
         obj.save()
+        # "Guardar y enviar prueba" hace las dos cosas con un clic: la prueba
+        # se descubría recién después de guardar, en la columna de al lado.
+        if request.POST.get('accion') == 'prueba':
+            return correo_prueba(request, obj.pk)
         if obj.prueba_enviada_en and not obj.prueba_al_dia:
             messages.info(request, 'Guardado. Como cambiaste el correo, mándate '
                                    'una prueba nueva antes de enviarlo a todos.')
@@ -2684,3 +2688,42 @@ def suscripcion_reanudar(request, pk):
         _log_cobros.info('Suscripción %s reanudada por %s', s.pk, request.user.email or request.user.username)
         messages.success(request, f'Suscripción de {s.email} reanudada. Próximo cobro: {s.proximo_cobro:%d-%m-%Y}.')
     return _volver_a(request, s)
+
+
+#: Imágenes que se pueden poner en un correo masivo. Sin SVG: puede traer código.
+_FORMATOS_IMAGEN_CORREO = {'JPEG': 'jpg', 'PNG': 'png', 'GIF': 'gif', 'WEBP': 'webp'}
+
+
+@staff_required
+@require_POST
+def correo_imagen(request):
+    """Sube una imagen para ponerla dentro de un correo masivo.
+
+    Va a media/ (pública) y no a protected_media/: la tiene que poder bajar el
+    programa de correo de cada cliente, sin sesión. Se revisa que de verdad sea
+    una imagen abriéndola, no mirando el nombre del archivo.
+    """
+    import uuid
+    from django.core.files.storage import default_storage
+    from django.http import JsonResponse
+    from PIL import Image
+
+    archivo = request.FILES.get('imagen')
+    if not archivo:
+        return JsonResponse({'error': 'No llegó ninguna imagen.'}, status=400)
+    if archivo.size > 5 * 1024 * 1024:
+        return JsonResponse({'error': 'La imagen pesa más de 5 MB. Achícala antes de subirla.'}, status=400)
+    try:
+        img = Image.open(archivo)
+        img.verify()
+        formato = img.format
+    except Exception:
+        return JsonResponse({'error': 'Ese archivo no es una imagen.'}, status=400)
+    ext = _FORMATOS_IMAGEN_CORREO.get(formato)
+    if not ext:
+        return JsonResponse({'error': 'Usa una imagen JPG, PNG, GIF o WEBP.'}, status=400)
+
+    archivo.seek(0)
+    ruta = default_storage.save(f'correos/{uuid.uuid4().hex}.{ext}', archivo)
+    base = (settings.BACKEND_PUBLIC_URL or request.build_absolute_uri('/')).rstrip('/')
+    return JsonResponse({'url': base + default_storage.url(ruta)})

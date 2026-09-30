@@ -16,7 +16,7 @@
 {% endcomment %}
 <div class="row g-4">
   <div class="col-lg-7">
-    <form method="post" novalidate>
+    <form method="post" novalidate id="correo-form">
       {% csrf_token %}
       <div class="pnl-card"><div class="card-pad">
         <div class="form-section-title"><i class="bi bi-pencil"></i> 1. Redactar</div>
@@ -29,11 +29,34 @@
           {% for e in form.asunto.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
         </div>
 
+        {% comment %}
+          Editor visual (Quill). Lo que se escribe viaja en el campo oculto
+          cuerpo_html y el servidor lo limpia antes de guardarlo: solo quedan
+          formatos (comunicaciones/html_correo.py). El modo "HTML" es para
+          pegar o retocar código a mano; también pasa por esa limpieza.
+        {% endcomment %}
         <div class="mb-3">
-          <label class="form-label">{{ form.cuerpo.label }}</label>
-          {{ form.cuerpo }}
-          <div class="pnl-campo-ayuda"><i class="bi bi-info-circle"></i> {{ form.cuerpo.help_text }}</div>
-          {% for e in form.cuerpo.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          <div class="d-flex justify-content-between align-items-end mb-1">
+            <label class="form-label mb-0">{{ form.cuerpo_html.label }}</label>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Modo del editor">
+              <button type="button" class="btn btn-ghost active" data-modo="visual">Visual</button>
+              <button type="button" class="btn btn-ghost" data-modo="html">HTML</button>
+            </div>
+          </div>
+          {{ form.cuerpo_html }}
+          <div id="correo-editor-wrap" class="correo-editor-wrap">
+            <div id="correo-editor"></div>
+          </div>
+          <textarea id="correo-html" class="form-control font-monospace small d-none" rows="16"
+                    spellcheck="false" aria-label="HTML del correo"></textarea>
+          <div class="pnl-campo-ayuda mt-1">
+            <i class="bi bi-info-circle"></i>
+            Usa los títulos, colores, listas, enlaces e imágenes de la barra. El correo sale con el
+            logo y el pie de Ingenio Blocks. En el modo HTML se puede pegar código: al guardar se
+            limpia y quedan solo los formatos (títulos, negritas, colores, listas, enlaces, imágenes).
+          </div>
+          <div id="correo-editor-error" class="text-danger small mt-1"></div>
+          {% for e in form.cuerpo_html.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
         </div>
 
         <div class="row g-3 mb-3">
@@ -62,8 +85,11 @@
           </div>
         {% endfor %}
 
-        <div class="d-flex gap-2 mt-4">
+        <div class="d-flex gap-2 mt-4 flex-wrap">
           <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar</button>
+          <button type="submit" name="accion" value="prueba" class="btn btn-ghost">
+            <i class="bi bi-envelope-check me-1"></i> Guardar y enviar prueba a los administradores
+          </button>
         </div>
       </div></div>
     </form>
@@ -101,7 +127,7 @@
         {% endif %}
         <form method="post" action="{% url 'panel:correo_prueba' envio.pk %}">
           {% csrf_token %}
-          <button type="submit" class="btn btn-ghost"><i class="bi bi-envelope me-1"></i> Enviarme la prueba</button>
+          <button type="submit" class="btn btn-ghost"><i class="bi bi-envelope me-1"></i> Enviar prueba a los administradores</button>
         </form>
       </div></div>
 
@@ -120,11 +146,15 @@
       </div></div>
     {% else %}
       <div class="pnl-card"><div class="card-pad">
-        <p class="pnl-campo-ayuda mb-0">
-          <i class="bi bi-info-circle"></i>
-          Guarda el correo para poder mandarte la prueba. Nada sale a los
-          clientes hasta el último paso.
+        <div class="form-section-title"><i class="bi bi-send-check"></i> Prueba</div>
+        <p class="pnl-campo-ayuda">
+          Con <strong>«Guardar y enviar prueba a los administradores»</strong> el correo
+          llega, con "[PRUEBA]" en el asunto, solo a las cuentas de gestión:
         </p>
+        <ul class="small mb-2">
+          {% for c in equipo %}<li>{{ c }}</li>{% endfor %}
+        </ul>
+        <p class="pnl-campo-ayuda mb-0">Nada sale a los clientes hasta el último paso.</p>
       </div></div>
     {% endif %}
   </div>
@@ -138,4 +168,130 @@
     <p class="pnl-campo-ayuda mt-2 mb-0">Muestra lo último que guardaste.</p>
   </div></div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+<style>
+  .correo-editor-wrap { background:#fff; border-radius:12px; }
+  .correo-editor-wrap .ql-toolbar { border-radius:12px 12px 0 0; border-color:#e2d9ef; }
+  .correo-editor-wrap .ql-container { border-radius:0 0 12px 12px; border-color:#e2d9ef; min-height:320px;
+    font-family:Arial,Helvetica,sans-serif; font-size:15px; }
+  .correo-editor-wrap .ql-editor { min-height:320px; line-height:1.75; color:#314158; }
+  .correo-editor-wrap .ql-editor h2 { color:#2f0053; font-size:21px; }
+  .correo-editor-wrap .ql-editor h3 { color:#8200db; font-size:17px; }
+  .correo-editor-wrap .ql-editor a { color:#8200db; font-weight:bold; }
+  .correo-editor-wrap .ql-editor img { max-width:100%; border-radius:10px; }
+  .correo-editor-wrap .ql-editor blockquote { border-left:4px solid #8200db; background:#f8f4fe;
+    padding:10px 16px; border-radius:8px; }
+</style>
+<script>
+  (function () {
+    var URL_IMAGEN = '{% url "panel:correo_imagen" %}'
+
+    function cargarQuill(listo) {
+      if (window.Quill) return listo()
+      var s = document.createElement('script')
+      s.src = 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js'
+      s.onload = listo
+      document.head.appendChild(s)
+    }
+
+    function csrf() {
+      var c = document.querySelector('#correo-form [name=csrfmiddlewaretoken]')
+      return c ? c.value : ''
+    }
+
+    function iniciar() {
+      var form = document.getElementById('correo-form')
+      var caja = document.getElementById('correo-editor')
+      if (!form || !caja || caja.dataset.listo) return
+      caja.dataset.listo = '1'
+      var oculto = form.querySelector('input[name=cuerpo_html]')
+      var textarea = document.getElementById('correo-html')
+      var errorEl = document.getElementById('correo-editor-error')
+
+      cargarQuill(function () {
+        // Alineación y colores como estilo en línea y no como clase: los
+        // programas de correo no tienen la hoja de estilos de Quill.
+        Quill.register(Quill.import('attributors/style/align'), true)
+        Quill.register(Quill.import('attributors/style/color'), true)
+        Quill.register(Quill.import('attributors/style/background'), true)
+
+        var quill = new Quill(caja, {
+          theme: 'snow',
+          placeholder: 'Hola,\n\nTe contamos que…',
+          modules: {
+            toolbar: {
+              container: [
+                [{ header: [2, 3, false] }],
+                ['bold', 'italic', 'underline'],
+                [{ color: [] }, { background: [] }],
+                [{ align: [] }],
+                [{ list: 'ordered' }, { list: 'bullet' }, 'blockquote'],
+                ['link', 'image'],
+                ['clean'],
+              ],
+              handlers: { image: subirImagen },
+            },
+          },
+        })
+        if (oculto.value) quill.clipboard.dangerouslyPasteHTML(oculto.value)
+
+        // Las imágenes se suben al servidor y se ponen por dirección: pegadas
+        // dentro del correo (base64) lo harían pesadísimo y Gmail lo corta.
+        function subirImagen() {
+          var input = document.createElement('input')
+          input.type = 'file'
+          input.accept = 'image/png,image/jpeg,image/gif,image/webp'
+          input.onchange = function () {
+            if (!input.files[0]) return
+            errorEl.textContent = 'Subiendo imagen…'
+            var datos = new FormData()
+            datos.append('imagen', input.files[0])
+            fetch(URL_IMAGEN, { method: 'POST', body: datos, headers: { 'X-CSRFToken': csrf() } })
+              .then(function (r) { return r.json() })
+              .then(function (j) {
+                if (j.error) { errorEl.textContent = j.error; return }
+                errorEl.textContent = ''
+                var rango = quill.getSelection(true)
+                quill.insertEmbed(rango ? rango.index : quill.getLength(), 'image', j.url, 'user')
+              })
+              .catch(function () { errorEl.textContent = 'No se pudo subir la imagen.' })
+          }
+          input.click()
+        }
+
+        var modo = 'visual'
+        document.querySelectorAll('[data-modo]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            if (b.dataset.modo === modo) return
+            if (b.dataset.modo === 'html') {
+              textarea.value = quill.root.innerHTML
+              textarea.classList.remove('d-none')
+              document.getElementById('correo-editor-wrap').classList.add('d-none')
+            } else {
+              quill.setContents([])
+              quill.clipboard.dangerouslyPasteHTML(textarea.value)
+              textarea.classList.add('d-none')
+              document.getElementById('correo-editor-wrap').classList.remove('d-none')
+            }
+            modo = b.dataset.modo
+            document.querySelectorAll('[data-modo]').forEach(function (x) {
+              x.classList.toggle('active', x.dataset.modo === modo)
+            })
+          })
+        })
+
+        form.addEventListener('submit', function () {
+          oculto.value = modo === 'html' ? textarea.value : quill.root.innerHTML
+        })
+      })
+    }
+
+    document.addEventListener('DOMContentLoaded', iniciar)
+    document.body.addEventListener('htmx:afterSettle', iniciar)
+    iniciar()
+  })()
+</script>
 {% endblock %}

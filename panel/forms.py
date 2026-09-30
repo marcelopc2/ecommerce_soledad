@@ -2,6 +2,7 @@ import re
 from datetime import timedelta
 
 from django import forms
+from comunicaciones import html_correo
 from django.contrib.auth import get_user_model
 from django.db.models import Max, Q
 from django.utils import timezone
@@ -1040,18 +1041,16 @@ class EnvioMasivoForm(BootstrapFormMixin, forms.ModelForm):
 
     class Meta:
         model = EnvioMasivo
-        fields = ['asunto', 'cuerpo', 'boton_texto', 'boton_url', 'audiencia']
+        fields = ['asunto', 'cuerpo_html', 'boton_texto', 'boton_url', 'audiencia']
         labels = {
             'asunto': 'Asunto',
-            'cuerpo': 'Texto del correo',
+            'cuerpo_html': 'Contenido del correo',
             'audiencia': 'A quién se le manda',
         }
         widgets = {
             'asunto': forms.TextInput(attrs={'placeholder': 'Ej: ¡Estrenamos página nueva!'}),
-            'cuerpo': forms.Textarea(attrs={
-                'rows': 10,
-                'placeholder': 'Hola,\n\nTe contamos que...\n\nUn abrazo,\nEl equipo de Ingenio Blocks',
-            }),
+            # Lo llena el editor visual (ver correo_form.html).
+            'cuerpo_html': forms.HiddenInput(),
             'boton_texto': forms.TextInput(attrs={'placeholder': 'Conoce la nueva página'}),
             'boton_url': forms.URLInput(attrs={'placeholder': 'https://ingenioblocks.com'}),
             'audiencia': forms.RadioSelect,
@@ -1062,6 +1061,24 @@ class EnvioMasivoForm(BootstrapFormMixin, forms.ModelForm):
         # El mixin le pone `form-control` a todo lo que no reconoce, y a un
         # botón de radio eso lo deforma.
         self.fields['audiencia'].widget.attrs['class'] = 'form-check-input'
+        self.fields['cuerpo_html'].required = False
+        # Un borrador de antes del editor: su texto se abre ya pasado a HTML.
+        inst = self.instance
+        if inst and inst.pk and inst.cuerpo and not inst.cuerpo_html:
+            self.initial['cuerpo_html'] = html_correo.desde_texto(inst.cuerpo)
+
+    def clean_cuerpo_html(self):
+        limpio = html_correo.limpiar(self.cleaned_data.get('cuerpo_html'))
+        if not html_correo.a_texto(limpio) and '<img' not in limpio:
+            raise forms.ValidationError('Escribe el contenido del correo.')
+        return limpio
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        obj.cuerpo = html_correo.a_texto(obj.cuerpo_html)
+        if commit:
+            obj.save()
+        return obj
 
     def clean(self):
         datos = super().clean()

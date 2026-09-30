@@ -19,3 +19,5 @@ gunicorn==23.0.0
 # 3.2.13 y no 3.2.3: la 3.2.3 no publica rueda compilada para Python 3.14, que
 # es el que trae Ubuntu 26.04, y pip fallaba al desplegar en un servidor nuevo.
 psycopg[binary]==3.2.13
+# Limpia el HTML de los correos masivos que se escriben en el panel.
+nh3==0.3.7

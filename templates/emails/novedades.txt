@@ -1,7 +1,9 @@
 {{ titulo }}
-{% for parrafo in parrafos %}
+{% if texto %}
+{{ texto }}
+{% else %}{% for parrafo in parrafos %}
 {{ parrafo }}
-{% endfor %}{% if boton_url and boton_texto %}
+{% endfor %}{% endif %}{% if boton_url and boton_texto %}
 {{ boton_texto }}: {{ boton_url }}
 {% endif %}
 --

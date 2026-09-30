@@ -17,9 +17,14 @@
 {% block titulo %}{{ titulo }}{% endblock %}
 
 {% block contenido %}
-  {% for parrafo in parrafos %}
-    <p style="margin:0 0 14px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.75; color:#314158;">{{ parrafo|urlize|linebreaksbr }}</p>
-  {% endfor %}
+  {% if cuerpo_html %}
+    {# Escrito en el editor del panel: ya viene limpio y con estilos (comunicaciones/html_correo.py). #}
+    {{ cuerpo_html }}
+  {% else %}
+    {% for parrafo in parrafos %}
+      <p style="margin:0 0 14px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.75; color:#314158;">{{ parrafo|urlize|linebreaksbr }}</p>
+    {% endfor %}
+  {% endif %}
 
   {% if boton_url and boton_texto %}
     {% include 'emails/_boton.html' with url=boton_url texto=boton_texto %}

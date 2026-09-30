@@ -34,6 +34,7 @@ urlpatterns = [
     path('correos/<int:pk>/enviar/', views.correo_confirmar, name='correo_confirmar'),
     path('correos/<int:pk>/cancelar/', views.correo_cancelar, name='correo_cancelar'),
     path('correos/<int:pk>/eliminar/', views.correo_eliminar, name='correo_eliminar'),
+    path('correos/imagen/', views.correo_imagen, name='correo_imagen'),
     path('suscripciones/', views.suscripciones, name='suscripciones'),
     path('suscripciones/<int:pk>/cancelar/', views.suscripcion_cancelar, name='suscripcion_cancelar'),
     path('suscripciones/<int:pk>/', views.suscripcion_detalle, name='suscripcion_detalle'),

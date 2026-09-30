@@ -21,11 +21,13 @@ from collections import Counter
 from datetime import timedelta
 
 from django.conf import settings
+from django.utils.safestring import mark_safe
 from django.db import transaction
 from django.utils import timezone
 
 from core.emails import enviar_email
 
+from . import html_correo
 from .models import BajaDeCorreo, DestinatarioMasivo, EnvioMasivo
 from .preferencias import NOVEDADES, correos_de_gestion, normalizar
 
@@ -71,14 +73,28 @@ def cuantos(audiencia):
 
 
 def contexto_de(envio):
-    parrafos = envio.parrafos()
-    return {
+    ctx = {
         'titulo': envio.asunto,
-        'preheader': parrafos[0][:140] if parrafos else envio.asunto,
-        'parrafos': parrafos,
         'boton_texto': envio.boton_texto,
         'boton_url': envio.boton_url,
     }
+    if envio.cuerpo_html:
+        # Se vuelve a limpiar al mandar, aunque ya se limpió al guardar: es lo
+        # que sale a cientos de bandejas, y no cuesta nada.
+        limpio = html_correo.limpiar(envio.cuerpo_html)
+        texto = html_correo.a_texto(limpio)
+        ctx.update({
+            'cuerpo_html': mark_safe(html_correo.con_estilos(limpio)),
+            'texto': texto,
+            'preheader': texto.split('\n')[0][:140] if texto else envio.asunto,
+        })
+    else:
+        parrafos = envio.parrafos()
+        ctx.update({
+            'parrafos': parrafos,
+            'preheader': parrafos[0][:140] if parrafos else envio.asunto,
+        })
+    return ctx
 
 
 def enviar_a(envio, email, prueba=False):

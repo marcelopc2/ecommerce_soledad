@@ -66,9 +66,12 @@ class EnvioMasivo(models.Model):
     ]
 
     asunto = models.CharField(max_length=150)
-    cuerpo = models.TextField(
-        help_text='Separa los párrafos con una línea en blanco. Las direcciones '
-                  'web se vuelven enlaces solas.')
+    #: Versión de texto plano. En los correos nuevos se saca sola del HTML (es
+    #: la que viaja junto al HTML para los filtros de spam); en los antiguos,
+    #: los de antes del editor, era lo único que había.
+    cuerpo = models.TextField(blank=True)
+    #: Lo que se escribe en el editor del panel, ya limpio (html_correo.limpiar).
+    cuerpo_html = models.TextField(blank=True)
     boton_texto = models.CharField(
         'Texto del botón', max_length=40, blank=True,
         help_text='Opcional. Ej: "Conoce la nueva página".')
@@ -103,7 +106,8 @@ class EnvioMasivo(models.Model):
     def huella(self):
         """Resumen de lo que ve el destinatario. La audiencia no entra: cambiar
         a quién se manda no cambia lo que se probó."""
-        contenido = '\x1f'.join([self.asunto, self.cuerpo, self.boton_texto, self.boton_url])
+        contenido = '\x1f'.join([self.asunto, self.cuerpo, self.cuerpo_html,
+                                 self.boton_texto, self.boton_url])
         return hashlib.sha256(contenido.encode('utf-8')).hexdigest()
 
     @property
