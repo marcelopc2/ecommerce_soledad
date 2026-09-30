@@ -65,3 +65,11 @@ class LeerRespuestaTests(SimpleTestCase):
         r = _leer_respuesta_shipit({'id': 123})
         self.assertEqual(r['reference'], '123')
         self.assertIsInstance(r['reference'], str)
+
+
+class RecienCreadoTests(SimpleTestCase):
+    def test_sin_tracking_no_es_una_etiqueta(self):
+        """Así respondió Shipit el 30-09-2026 al crear un envío (sandbox)."""
+        r = _leer_respuesta_shipit({'id': 8977103, 'ticket_url': 'Sin tracking'})
+        self.assertEqual(r['reference'], '8977103')
+        self.assertEqual(r['label_url'], '')

@@ -486,10 +486,12 @@ def _leer_respuesta_shipit(data):
     Se prueban varios nombres y en orden porque la respuesta del POST puede no
     traer exactamente los mismos campos que el listado.
     """
-    def primero(*claves):
+    def primero(*claves, enlace=False):
         for k in claves:
             v = data.get(k)
-            if v:
+            # Recién creado, Shipit pone el texto "Sin tracking" donde después
+            # va la etiqueta: si no es una dirección, todavía no hay etiqueta.
+            if v and (not enlace or str(v).startswith('http')):
                 return v
         return ''
 
@@ -497,11 +499,12 @@ def _leer_respuesta_shipit(data):
         'reference': str(primero('id', 'reference')),
         'tracking_number': str(primero('tracking_number', 'tracking')),
         'label_url': str(primero(
+            enlace=True, *(
             'ticket_shipit_pdf_url',   # el PDF de Shipit: el que se imprime
             'ticket_url',              # la etiqueta del courier
             'old_ticket_url_courier',
             'label_url', 'label',      # por si algún día lo renombran
-        )),
+        ))),
     }
 
 
