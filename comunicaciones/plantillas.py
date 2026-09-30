@@ -19,7 +19,7 @@ MORADO = '#8200db'
 
 def _foto(nombre):
     base = (getattr(settings, 'BACKEND_PUBLIC_URL', '') or settings.FRONTEND_URL).rstrip('/')
-    return f'{base}/{settings.STATIC_URL.strip("/")}/emails/plantillas/{nombre}'
+    return f'{base}/{settings.STATIC_URL.strip("/")}/comunicaciones/plantillas/{nombre}'
 
 
 def plantillas():

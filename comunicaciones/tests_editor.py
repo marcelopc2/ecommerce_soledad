@@ -156,7 +156,7 @@ class PlantillasTests(TestCase):
             limpio = html_correo.limpiar(p['html'])
             for pedazo in ('<img src="', '<h2', 'color:#8200db', '<blockquote>'):
                 self.assertIn(pedazo, limpio, (p['clave'], pedazo))
-            self.assertIn('/static/emails/plantillas/', limpio)
+            self.assertIn('/static/comunicaciones/plantillas/', limpio)
             self.assertTrue(p['asunto'] and p['boton_texto'] and p['boton_url'].startswith('http'))
 
     def test_el_formulario_las_ofrece(self):
