@@ -393,3 +393,45 @@ class PanelCuponesTests(TestCase):
         pocos = self._consultas_del_listado(3)
         muchos = self._consultas_del_listado(30)
         self.assertEqual(pocos, muchos)
+
+
+class ProductoSinCuponTests(TestCase):
+    """Producto con "Acepta cupones" apagado: se cobra siempre a precio completo."""
+
+    def setUp(self):
+        self.con = Product.objects.create(
+            name='Kit Ingenio', slug='kit-ingenio', price=40000,
+            is_active=True, is_digital=True,
+        )
+        self.sin = Product.objects.create(
+            name='Pack Modelos', slug='pack-modelos', price=10000,
+            is_active=True, is_digital=True, acepta_cupones=False,
+        )
+        Coupon.objects.create(code='CYBER', discount_type=Coupon.PORCENTAJE, value=25)
+
+    def test_solo_ese_producto_rechaza_el_cupon_y_no_crea_la_orden(self):
+        order, error = build_order_from_request(datos_compra(self.sin, coupon_code='CYBER'))
+        self.assertIsNone(order)
+        self.assertIn('no se pueden comprar con cupón', error)
+
+    def test_en_un_carrito_mixto_solo_se_rebaja_el_que_acepta(self):
+        order, error = build_order_from_request(datos_compra(
+            self.con, product_ids=[self.con.id, self.sin.id], coupon_code='CYBER',
+        ))
+        self.assertIsNone(error)
+        self.assertEqual(order.discount_amount, 10000)        # 25% de 40.000, no de 50.000
+        self.assertEqual(order.total_amount, 40000)
+        precios = {i.name: i.unit_price for i in order.items.all()}
+        self.assertEqual(precios['Pack Modelos'], 10000)
+        self.assertEqual(precios['Kit Ingenio'], 30000)
+        self.assertEqual(sum(i.subtotal for i in order.items.all()), order.total_amount)
+
+    def test_la_revision_previa_dice_lo_mismo(self):
+        r = APIClient().post(reverse('cupon-validar'), {
+            'code': 'CYBER', 'product_ids': [self.sin.id],
+        }, format='json')
+        self.assertFalse(r.data['ok'])
+
+    def test_el_panel_guarda_el_interruptor(self):
+        from panel.forms import ProductForm
+        self.assertIn('acepta_cupones', ProductForm.Meta.fields)

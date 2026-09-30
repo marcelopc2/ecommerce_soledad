@@ -34,14 +34,24 @@ def buscar(codigo):
     return Coupon.objects.filter(code=codigo).first()
 
 
-def revisar(cupon, subtotal, email=''):
+def subtotal_con_cupon(productos):
+    """Lo que suman los productos que aceptan cupón: sobre eso se descuenta."""
+    return int(sum(p.effective_price for p in productos if p.acepta_cupones))
+
+
+def revisar(cupon, subtotal, email='', rebajable=None):
     """¿Se puede usar este cupón en esta compra? Devuelve (descuento, error).
 
     Si `error` no es None, el cupón NO se aplica y ese texto es lo que ve la
     persona: está escrito para el cliente, no para el log.
 
-    `subtotal` es el total de los PRODUCTOS, sin despacho.
+    `subtotal` es el total de los PRODUCTOS, sin despacho: contra eso se mide
+    la compra mínima. `rebajable` es la parte de ese subtotal que acepta
+    cupones (ver Product.acepta_cupones), y el descuento se calcula SOLO sobre
+    ella. Si no se pasa, se rebaja todo el subtotal.
     """
+    if rebajable is None:
+        rebajable = subtotal
     ahora = timezone.now()
 
     if not cupon.is_active:
@@ -72,15 +82,21 @@ def revisar(cupon, subtotal, email=''):
         if ya_uso:
             return 0, 'Ese cupón ya lo usaste en una compra anterior.'
 
-    descuento = cupon.descuento_sobre(subtotal)
+    if rebajable <= 0:
+        return 0, 'Los productos de tu compra no se pueden comprar con cupón.'
+
+    descuento = cupon.descuento_sobre(rebajable)
     if descuento <= 0:
         return 0, 'Ese cupón no aplica a esta compra.'
 
     return descuento, None
 
 
-def repartir(precios, descuento):
+def repartir(precios, descuento, rebajables=None):
     """Reparte el descuento entre las líneas, a prorrata de su precio.
+
+    `rebajables` dice, línea por línea, cuáles aceptan cupón; las que no, se
+    devuelven a precio completo y no absorben ni un peso del descuento.
 
     Hace falta porque la boleta electrónica exige que la suma del detalle sea
     EXACTAMENTE el total cobrado (ver invoicing/services.py): si el descuento
@@ -90,6 +106,14 @@ def repartir(precios, descuento):
     El redondeo se acumula y lo absorbe la última línea, así la suma calza al
     peso. Devuelve la lista de precios ya rebajados, en el mismo orden.
     """
+    if rebajables is not None:
+        indices = [i for i, si in enumerate(rebajables) if si]
+        rebajados = repartir([precios[i] for i in indices], descuento)
+        resultado = list(precios)
+        for i, precio in zip(indices, rebajados):
+            resultado[i] = precio
+        return resultado
+
     total = sum(precios)
     if total <= 0 or descuento <= 0:
         return list(precios)

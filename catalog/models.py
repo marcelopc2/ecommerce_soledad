@@ -63,6 +63,15 @@ class Product(models.Model):
                   "o planes que requieren haber comprado antes el kit con las piezas)",
     )
 
+    # --- Cupones ---
+    # Apagado, el producto se cobra siempre a precio completo: un cupón en el
+    # carrito rebaja solo los demás productos. Sirve para lo que ya va con
+    # descuento o no deja margen para regalar un porcentaje encima.
+    acepta_cupones = models.BooleanField(
+        default=True,
+        help_text="Si se apaga, los cupones no le descuentan nada a este producto",
+    )
+
     # --- Presentación en la landing (sección Nuestros Kits) ---
     show_on_landing = models.BooleanField(
         default=False, help_text="Mostrar este producto en la sección de kits de la portada (máximo 4)",

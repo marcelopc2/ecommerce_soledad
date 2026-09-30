@@ -372,7 +372,9 @@ class ValidarCuponView(APIView):
         # El correo puede no estar escrito todavía; en ese caso el límite "un uso
         # por correo" no se puede evaluar acá y se evalúa al crear la orden.
         email = (request.data.get('email') or '').strip()
-        descuento, problema = coupons.revisar(cupon, subtotal, email)
+        descuento, problema = coupons.revisar(
+            cupon, subtotal, email, rebajable=coupons.subtotal_con_cupon(productos),
+        )
         if problema:
             return Response({'ok': False, 'error': problema})
 

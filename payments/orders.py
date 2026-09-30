@@ -101,7 +101,10 @@ def build_order_from_request(data, user=None):
         cupon = coupons.buscar(codigo)
         if cupon is None:
             return None, 'Ese cupón no existe.'
-        descuento, problema = coupons.revisar(cupon, products_total, customer_email)
+        descuento, problema = coupons.revisar(
+            cupon, products_total, customer_email,
+            rebajable=coupons.subtotal_con_cupon(products),
+        )
         if problema:
             return None, problema
 
@@ -194,7 +197,10 @@ def build_order_from_request(data, user=None):
         # total: la boleta electrónica exige que el detalle sume exactamente lo
         # cobrado, así que una línea a precio de lista dejaría toda compra con
         # cupón sin poder boletearse (ver invoicing/services.py).
-        cobrados = coupons.repartir([int(p.effective_price) for p in products], descuento)
+        cobrados = coupons.repartir(
+            [int(p.effective_price) for p in products], descuento,
+            rebajables=[p.acepta_cupones for p in products],
+        )
         OrderItem.objects.bulk_create([
             OrderItem(
                 order=order, product=p, name=p.name,

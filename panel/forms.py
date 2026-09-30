@@ -75,6 +75,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'weight_kg', 'width_cm', 'height_cm', 'length_cm',
             # oferta / próximamente / compra restringida
             'is_on_sale', 'sale_price', 'is_coming_soon', 'requires_login',
+            'acepta_cupones',
             # cómo se ve la tarjeta en la portada
             'landing_badge', 'price_note', 'features', 'highlight',
         ]
@@ -97,6 +98,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'sale_price': 'Precio de oferta (CLP)',
             'is_coming_soon': 'Próximamente',
             'requires_login': 'Necesita membresía',
+            'acepta_cupones': 'Acepta cupones',
             'landing_badge': 'Etiqueta',
             'price_note': 'Nota del precio',
             'features': 'Beneficios',

@@ -583,8 +583,9 @@ export default function Checkout() {
           )}
 
           {/* Cupón. Va DESPUÉS del envío y antes del total, que es el orden en
-              que se leen las cifras: precio, despacho, descuento, total. */}
-          {cuponAplicado ? (
+              que se leen las cifras: precio, despacho, descuento, total.
+              No aparece si el producto no acepta cupones (se elige en el panel). */}
+          {product.acepta_cupones === false ? null : cuponAplicado ? (
             <div className="co-item co-cupon-ok">
               <span>
                 Cupón <strong>{cuponAplicado.code}</strong> ({cuponAplicado.label})

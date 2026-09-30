@@ -222,6 +222,20 @@
           </div>
 
           <div class="form-check form-switch">
+            {{ form.acepta_cupones }}
+            <label class="form-check-label" for="{{ form.acepta_cupones.id_for_label }}">
+              {{ form.acepta_cupones.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Apagado, este producto se cobra siempre a precio completo. Si
+                  en el carrito hay otros, el cupón les descuenta solo a ellos.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="form-check form-switch">
             {{ form.is_on_sale }}
             <label class="form-check-label" for="{{ form.is_on_sale.id_for_label }}">
               {{ form.is_on_sale.label }}
