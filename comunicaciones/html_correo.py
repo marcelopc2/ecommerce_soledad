@@ -51,10 +51,26 @@ BASE = {
 }
 
 
+_LISTA_QUILL = re.compile(r'<ol>((?:\s*<li[^>]*data-list="bullet"[^>]*>.*?</li>)+\s*)</ol>', re.S)
+
+
+def _desde_quill(crudo):
+    """Arregla el HTML interno del editor, por si llega así (borradores
+    guardados antes de que el panel mandara el HTML de verdad):
+
+    - Quill guarda las viñetas como <ol><li data-list="bullet">; sin el
+      atributo, que la limpieza quita, salían como lista numerada.
+    - `&nbsp;` en vez de espacios hace que el correo no corte las líneas.
+    """
+    t = (crudo or '').replace('&nbsp;', ' ').replace('\xa0', ' ')
+    t = _LISTA_QUILL.sub(lambda m: '<ul>' + m.group(1) + '</ul>', t)
+    return re.sub(r'<span class="ql-ui"[^>]*>\s*</span>', '', t)
+
+
 def limpiar(crudo):
     """Solo formato: sin scripts, sin eventos, sin estilos raros."""
     limpio = nh3.clean(
-        crudo or '',
+        _desde_quill(crudo),
         tags=ETIQUETAS,
         attributes=ATRIBUTOS,
         url_schemes={'http', 'https', 'mailto'},

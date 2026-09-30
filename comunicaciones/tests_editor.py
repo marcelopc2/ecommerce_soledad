@@ -166,3 +166,20 @@ class PlantillasTests(TestCase):
         self.assertContains(r, 'Cargar plantilla')
         self.assertContains(r, 'id="correo-plantillas"')
         self.assertNotContains(r, 'Cómo se envía')
+
+
+class HtmlDelEditorTests(TestCase):
+    """Lo que devuelve Quill 2 por dentro (visto con el editor de verdad)."""
+
+    def test_las_vinetas_no_salen_numeradas(self):
+        quill = ('<ol><li data-list="bullet"><span class="ql-ui" contenteditable="false"></span>uno</li>'
+                 '<li data-list="bullet"><span class="ql-ui" contenteditable="false"></span>dos</li></ol>'
+                 '<ol><li data-list="ordered"><span class="ql-ui" contenteditable="false"></span>tres</li></ol>')
+        limpio = html_correo.limpiar(quill)
+        self.assertIn('<ul><li>uno</li><li>dos</li></ul>', limpio)
+        self.assertIn('<ol><li>tres</li></ol>', limpio)
+        self.assertNotIn('ql-ui', limpio)
+
+    def test_los_nbsp_vuelven_a_ser_espacios(self):
+        limpio = html_correo.limpiar('<p>Hola&nbsp;a&nbsp;todos</p>')
+        self.assertEqual(limpio, '<p>Hola a todos</p>')
