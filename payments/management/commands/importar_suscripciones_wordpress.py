@@ -2,7 +2,6 @@
 
     python manage.py importar_suscripciones_wordpress --dump volcado.sql
     python manage.py importar_suscripciones_wordpress --dump volcado.sql --aplicar
-    python manage.py importar_suscripciones_wordpress --dump volcado.sql --verificar 5
 
 Qué trae
 --------
@@ -27,13 +26,14 @@ Se puede correr las veces que haga falta: actualiza por el id de WordPress
 en vez de duplicar. Lo normal es correrlo una última vez con el volcado del
 día del lanzamiento, para traer las fechas de próximo cobro al día.
 
-`--verificar N` le pregunta a Transbank por N tarjetas (consulta de BIN, que
-no cobra nada) para confirmar que las tarjetas del WordPress sirven con estas
-credenciales.
+Cómo se sabe que las tarjetas sirven: el WordPress las cobra todos los meses
+con el MISMO código de mall, tienda hija y llave que usa esta tienda. La
+consulta de BIN de Transbank (la única que no cobra) NO sirve para probarlo:
+responde "User not found" para las tarjetas inscritas por el plugin viejo,
+aunque se estén cobrando sin problema.
 """
 import html
 import os
-import random
 import re
 from collections import defaultdict
 from datetime import datetime, timezone as dt_timezone
@@ -77,8 +77,6 @@ class Command(BaseCommand):
         parser.add_argument('--producto', default='',
                             help='Slug del producto al que quedan asociadas. Por omisión, '
                                  'el primero marcado como suscripción.')
-        parser.add_argument('--verificar', type=int, default=0,
-                            help='Consulta N tarjetas al azar en Transbank (no cobra).')
 
     def handle(self, *args, **op):
         if not os.path.exists(op['dump']):
@@ -103,9 +101,6 @@ class Command(BaseCommand):
         self.stdout.write('  cada cuánto se cobran: ' + ', '.join(
             f'{n} cada {m} mes(es)' for m, n in sorted(por_periodo.items())))
         self.stdout.write(f'  quedan asociadas al producto: {producto.name}')
-
-        if op['verificar']:
-            self._verificar(tarjetas, op['verificar'])
 
         if not op['aplicar']:
             self.stdout.write(self.style.WARNING('\nEnsayo: no se guardó nada. Agrega --aplicar.'))
@@ -255,18 +250,3 @@ class Command(BaseCommand):
         # veces para el mismo cliente; en la base es una sola fila.
         unicas = {t['tbk_user']: t for t in tarjetas}
         return list(unicas.values()), subs, omitidas
-
-    def _verificar(self, tarjetas, n):
-        """Consulta de BIN en Transbank: dice el tipo de tarjeta y NO cobra."""
-        from transbank.webpay.oneclick.mall_bin_info import MallBinInfo
-        from payments.oneclick import _opciones
-
-        muestra = random.sample(tarjetas, min(n, len(tarjetas)))
-        ok = 0
-        for t in muestra:
-            try:
-                MallBinInfo(_opciones()).query_bin(t['tbk_user'])
-                ok += 1
-            except Exception as e:
-                self.stdout.write(f'  tarjeta ****{t["ultimos4"]}: Transbank no la reconoce ({type(e).__name__})')
-        self.stdout.write(f'  Verificadas en Transbank: {ok} de {len(muestra)} (consulta sin cobro)')
