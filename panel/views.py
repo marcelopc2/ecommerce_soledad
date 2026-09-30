@@ -32,6 +32,7 @@ from lms.services import (
 from comunicaciones import envio as masivos
 from comunicaciones.models import BajaDeCorreo, DestinatarioMasivo, EnvioMasivo
 from comunicaciones.preferencias import AULA, NOVEDADES, correos_de_gestion
+from comunicaciones.plantillas import plantillas as plantillas_de_correo
 from payments.models import AjustesCobros, Coupon, Order, Suscripcion
 from shipments.models import PuntoRetiro
 from shipments.services import send_dispatch_email, send_pickup_ready_email
@@ -2447,6 +2448,7 @@ def correo_form(request, pk=None):
         'opciones_audiencia': [dict(valor=a, etiqueta=l, **masivos.cuantos(a))
                                for a, l in EnvioMasivo.AUDIENCIAS],
         'motivo': masivos.motivo_para_no_enviar(envio) if envio else None,
+        'plantillas': plantillas_de_correo(),
         'section': 'correos',
     })
 

@@ -147,3 +147,22 @@ class ImagenTests(TestCase):
         with self.settings(MEDIA_ROOT=self.media):
             r = self.client.post(reverse('panel:correo_imagen'), {'imagen': self.png()})
         self.assertNotEqual(r.status_code, 200)
+
+
+class PlantillasTests(TestCase):
+    def test_cada_plantilla_pasa_la_limpieza_sin_perder_nada(self):
+        from .plantillas import plantillas
+        for p in plantillas():
+            limpio = html_correo.limpiar(p['html'])
+            for pedazo in ('<img src="', '<h2', 'color:#8200db', '<blockquote>'):
+                self.assertIn(pedazo, limpio, (p['clave'], pedazo))
+            self.assertIn('/static/emails/plantillas/', limpio)
+            self.assertTrue(p['asunto'] and p['boton_texto'] and p['boton_url'].startswith('http'))
+
+    def test_el_formulario_las_ofrece(self):
+        jefa = User.objects.create_user(username='jefa@ib.cl', email='jefa@ib.cl', is_staff=True)
+        self.client.force_login(jefa)
+        r = self.client.get(reverse('panel:correo_new'))
+        self.assertContains(r, 'Cargar plantilla')
+        self.assertContains(r, 'id="correo-plantillas"')
+        self.assertNotContains(r, 'Cómo se envía')

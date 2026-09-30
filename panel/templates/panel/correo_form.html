@@ -15,7 +15,7 @@
   prueba del contenido que está escrito AHORA.
 {% endcomment %}
 <div class="row g-4">
-  <div class="col-lg-7">
+  <div class="col-xl-9">
     <form method="post" novalidate id="correo-form">
       {% csrf_token %}
       <div class="pnl-card"><div class="card-pad">
@@ -38,12 +38,19 @@
         <div class="mb-3">
           <div class="d-flex justify-content-between align-items-end mb-1">
             <label class="form-label mb-0">{{ form.cuerpo_html.label }}</label>
+            <div class="d-flex gap-2 align-items-center">
+            <select id="correo-plantilla" class="form-select form-select-sm" style="width:auto">
+              <option value="">Cargar plantilla…</option>
+              {% for p in plantillas %}<option value="{{ p.clave }}">{{ p.nombre }}</option>{% endfor %}
+            </select>
             <div class="btn-group btn-group-sm" role="group" aria-label="Modo del editor">
               <button type="button" class="btn btn-ghost active" data-modo="visual">Visual</button>
               <button type="button" class="btn btn-ghost" data-modo="html">HTML</button>
             </div>
+            </div>
           </div>
           {{ form.cuerpo_html }}
+          {{ plantillas|json_script:"correo-plantillas" }}
           <div id="correo-editor-wrap" class="correo-editor-wrap">
             <div id="correo-editor"></div>
           </div>
@@ -91,6 +98,15 @@
             <i class="bi bi-send me-1"></i> Guardar y enviar
           </button>
         </div>
+        {% if envio.prueba_enviada_en and not envio.prueba_al_dia %}
+          <div class="alert alert-warning py-2 small mt-3 mb-0">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Cambiaste el correo después de la última prueba: envíalo de nuevo como Prueba antes de mandarlo a los clientes.
+          </div>
+        {% elif envio.prueba_al_dia %}
+          <div class="small text-success mt-3"><i class="bi bi-check-circle me-1"></i>
+            Prueba enviada el {{ envio.prueba_enviada_en|date:'d-m-Y H:i' }} con este contenido.</div>
+        {% endif %}
       </div></div>
     </form>
 
@@ -103,27 +119,6 @@
     {% endif %}
   </div>
 
-  <div class="col-lg-5">
-    <div class="pnl-card"><div class="card-pad">
-      <div class="form-section-title"><i class="bi bi-send-check"></i> Cómo se envía</div>
-      <p class="pnl-campo-ayuda">
-        Elige a quién en «{{ form.audiencia.label }}» y aprieta <strong>Guardar y enviar</strong>.
-        Con <strong>Prueba</strong> llega solo a los administradores, con "[PRUEBA]" en el asunto.
-        Para mandarlo a los clientes, primero hay que enviarlo de prueba.
-      </p>
-      {% if envio.prueba_al_dia %}
-        <div class="alert alert-success py-2 small mb-0">
-          <i class="bi bi-check-circle me-1"></i>
-          Prueba enviada el {{ envio.prueba_enviada_en|date:'d-m-Y \a \l\a\s H:i' }}, con este mismo contenido.
-        </div>
-      {% elif envio.prueba_enviada_en %}
-        <div class="alert alert-warning py-2 small mb-0">
-          <i class="bi bi-exclamation-triangle me-1"></i>
-          Cambiaste el correo después de la última prueba: vuelve a enviarlo de prueba.
-        </div>
-      {% endif %}
-    </div></div>
-  </div>
 </div>
 
 {% if envio %}
@@ -246,6 +241,26 @@
             document.querySelectorAll('[data-modo]').forEach(function (x) {
               x.classList.toggle('active', x.dataset.modo === modo)
             })
+          })
+        })
+
+        // Plantillas: reemplazan el contenido (preguntando si ya había algo) y
+        // llenan asunto y botón solo si están vacíos, para no pisar lo escrito.
+        var plantillas = JSON.parse(document.getElementById('correo-plantillas').textContent)
+        var selector = document.getElementById('correo-plantilla')
+        selector.addEventListener('change', function () {
+          var p = plantillas.find(function (x) { return x.clave === selector.value })
+          selector.value = ''
+          if (!p) return
+          var hayTexto = quill.getText().trim().length > 0 || quill.root.querySelector('img')
+          if (hayTexto && !confirm('La plantilla reemplaza lo que escribiste en el contenido. ¿Seguir?')) return
+          quill.setContents([])
+          quill.clipboard.dangerouslyPasteHTML(p.html)
+          textarea.value = quill.root.innerHTML
+          var campos = { asunto: p.asunto, boton_texto: p.boton_texto, boton_url: p.boton_url }
+          Object.keys(campos).forEach(function (nombre) {
+            var el = form.querySelector('[name=' + nombre + ']')
+            if (el && !el.value) el.value = campos[nombre]
           })
         })
 
