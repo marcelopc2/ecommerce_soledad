@@ -183,3 +183,15 @@ class HtmlDelEditorTests(TestCase):
     def test_los_nbsp_vuelven_a_ser_espacios(self):
         limpio = html_correo.limpiar('<p>Hola&nbsp;a&nbsp;todos</p>')
         self.assertEqual(limpio, '<p>Hola a todos</p>')
+
+
+class PlantillasSinFotosDeNinosTests(TestCase):
+    """Solo hay permiso para usar fotos de niños en la página, no en correos."""
+
+    def test_las_plantillas_usan_solo_los_banners_graficos(self):
+        import re
+        from .plantillas import plantillas
+        permitidas = {'novedad.jpg', 'modelos.jpg', 'promocion.jpg'}
+        for p in plantillas():
+            usadas = set(re.findall(r'/plantillas/([\w.-]+)"', p['html']))
+            self.assertTrue(usadas and usadas <= permitidas, (p['clave'], usadas))

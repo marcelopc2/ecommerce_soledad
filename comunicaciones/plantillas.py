@@ -8,9 +8,10 @@ Usan solo lo que el editor sabe mostrar y html_correo.limpiar deja pasar
 (títulos, negritas, colores, listas, citas, imágenes, alineación): una
 plantilla con tablas o botones de HTML se desarmaría al abrirla en el editor.
 
-Las fotos son las de la portada, pasadas a JPG (un correo no muestra bien
-WEBP) y servidas desde /static/, que no pide sesión: las tiene que poder bajar
-el programa de correo de cada cliente.
+Las imágenes son banners gráficos (bloques con los colores de la marca), SIN
+personas: el permiso para usar fotos de niños es solo para la página, no para
+los correos. Se sirven desde /static/, que no pide sesión: las tiene que poder
+bajar el programa de correo de cada cliente.
 """
 from django.conf import settings
 
@@ -32,7 +33,7 @@ def plantillas():
             'boton_texto': 'Conoce las novedades',
             'boton_url': web,
             'html': (
-                f'<p><img src="{_foto("taladro.jpg")}" alt="Niño armando un taladro de Ingenio Blocks"></p>'
+                f'<p><img src="{_foto("novedad.jpg")}" alt="Ingenio Blocks"></p>'
                 '<h2>¡Tenemos novedades para tu familia!</h2>'
                 '<p>Hola,</p>'
                 '<p>Queremos contarte algo que preparamos pensando en los pequeños ingenieros de la casa. '
@@ -52,7 +53,7 @@ def plantillas():
             'boton_texto': 'Ir a mis cursos',
             'boton_url': f'{web}/mis-cursos',
             'html': (
-                f'<p><img src="{_foto("armando.jpg")}" alt="Niño armando un modelo de Ingenio Blocks"></p>'
+                f'<p><img src="{_foto("modelos.jpg")}" alt="Modelos nuevos de Ingenio Blocks"></p>'
                 '<h2 style="text-align:center">¡Llegaron modelos nuevos!</h2>'
                 '<p style="text-align:center">Este mes sumamos nuevos desafíos al Aula Virtual para seguir '
                 'aprendiendo, creando y construyendo jugando.</p>'
@@ -72,7 +73,7 @@ def plantillas():
             'boton_texto': 'Ver los kits',
             'boton_url': f'{web}/#kits',
             'html': (
-                f'<p><img src="{_foto("kit.jpg")}" alt="Niña con el kit de Ingenio Blocks"></p>'
+                f'<p><img src="{_foto("promocion.jpg")}" alt="Un regalo de Ingenio Blocks"></p>'
                 '<h2 style="text-align:center">Un regalo para tu familia</h2>'
                 '<p style="text-align:center">Por ser parte de Ingenio Blocks, tienes un descuento especial '
                 'en tu próxima compra.</p>'
