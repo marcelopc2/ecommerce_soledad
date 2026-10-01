@@ -28,8 +28,20 @@ from payments.models import Order
 from . import envio as masivos
 from .models import BajaDeCorreo, DestinatarioMasivo, EnvioMasivo
 from .preferencias import (
-    AULA, NOVEDADES, dar_de_baja, esta_de_baja, token_de, url_baja_un_clic,
+    AULA, NOVEDADES, dar_de_baja, esta_de_baja, leer_token, token_de, url_baja_un_clic,
     url_preferencias)
+
+
+def _duenos_de_enlaces(texto, ruta='preferencias'):
+    """De quién es cada enlace de baja que aparece en el texto.
+
+    Se compara leyendo el token y no el texto del enlace: el token lleva la
+    hora de firma (al segundo), así que uno generado aparte para comparar no
+    calza si entre medio pasó un segundo, y el test fallaba según lo lento
+    que anduviera el computador.
+    """
+    import re
+    return [leer_token(t) for t in re.findall(r'/api/correos/%s/([^/\s"<>]+)/' % ruta, texto)]
 
 User = get_user_model()
 
@@ -87,22 +99,22 @@ class CategoriasTests(TestCase):
         enviar_email('curso_desbloqueado', 'Nuevo', ['a@x.cl', 'b@x.cl'], AVISO_CTX)
         self.assertEqual(len(mail.outbox), 2)
         cuerpos = [m.body for m in mail.outbox]
-        self.assertIn(url_preferencias('a@x.cl', AULA), cuerpos[0])
-        self.assertIn(url_preferencias('b@x.cl', AULA), cuerpos[1])
-        self.assertNotIn(url_preferencias('b@x.cl', AULA), cuerpos[0])
+        self.assertEqual(set(_duenos_de_enlaces(cuerpos[0])), {('a@x.cl', AULA)})
+        self.assertEqual(set(_duenos_de_enlaces(cuerpos[1])), {('b@x.cl', AULA)})
 
     def test_lleva_la_cabecera_estandar_de_baja(self):
         """La que hace que Gmail muestre su botón "Cancelar suscripción"."""
         enviar_email('curso_desbloqueado', 'Nuevo', ['a@x.cl'], AVISO_CTX)
         m = mail.outbox[0]
-        self.assertEqual(m.extra_headers['List-Unsubscribe'],
-                         '<%s>' % url_baja_un_clic('a@x.cl', AULA))
+        cabecera = m.extra_headers['List-Unsubscribe']
+        self.assertTrue(cabecera.startswith('<') and cabecera.endswith('>'))
+        self.assertEqual(_duenos_de_enlaces(cabecera, 'baja'), [('a@x.cl', AULA)])
         self.assertEqual(m.extra_headers['List-Unsubscribe-Post'], 'List-Unsubscribe=One-Click')
 
     def test_el_enlace_va_tambien_en_el_html(self):
         enviar_email('curso_desbloqueado', 'Nuevo', ['a@x.cl'], AVISO_CTX)
         html = mail.outbox[0].alternatives[0][0]
-        self.assertIn(url_preferencias('a@x.cl', AULA), html)
+        self.assertIn(('a@x.cl', AULA), _duenos_de_enlaces(html))
         self.assertIn('Darte de baja', html)
 
     def test_los_del_servicio_no_llevan_enlace_de_baja(self):
@@ -233,7 +245,7 @@ class EnlaceDesdeMiCuentaTests(TestCase):
         api.force_authenticate(m.user)
         r = api.get('/api/correos/mi-enlace/')
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()['url'], url_preferencias('ana@correo.cl', NOVEDADES))
+        self.assertEqual(_duenos_de_enlaces(r.json()['url']), [('ana@correo.cl', NOVEDADES)])
 
 
 # ---------------------------------------------------------------------------
