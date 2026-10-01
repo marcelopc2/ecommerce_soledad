@@ -6,6 +6,9 @@
 {% block heading %}{{ s.email }}{% endblock %}
 
 {% block actions %}
+{% if alumno %}
+  <a href="{% url 'panel:membership_detail' alumno.pk %}" class="btn btn-ghost"><i class="bi bi-person me-1"></i> Ver alumno</a>
+{% endif %}
 <a href="{% url 'panel:suscripciones' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
 {% endblock %}
 
@@ -21,6 +24,7 @@
         {% else %}<span class="badge-soft red">Suspendida</span>{% endif %}
       </div>
       <dl class="small mb-3">
+        <dt>Alumno</dt><dd>{% if alumno %}<a href="{% url 'panel:membership_detail' alumno.pk %}">{{ alumno.student_name|default:alumno.user.email }}</a>{% else %}<span class="text-muted">No tiene cuenta en el Aula con este correo</span>{% endif %}</dd>
         <dt>Qué paga</dt><dd>{{ s.nombre|default:s.producto.name }}</dd>
         <dt>Cuánto</dt><dd>${{ s.monto|intcomma }} {% if s.cada_meses == 1 %}al mes{% else %}cada {{ s.cada_meses }} meses{% endif %}</dd>
         <dt>Tarjeta</dt><dd>{{ s.tarjeta.tipo|default:'Tarjeta' }} terminada en {{ s.tarjeta.ultimos4 }}</dd>

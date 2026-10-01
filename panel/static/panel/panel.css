@@ -755,6 +755,7 @@ tr.pnl-drag-row:hover { background: var(--purple-50); }
 .mfilter-pill.gray { background: #f0edf3; color: #8a8095; }
 .mfilter-pill.red { background: #fdecea; color: #c03434; }
 .mfilter-pill.purple { background: var(--purple-100); color: var(--purple-600); }
+.mfilter-pill.blue { background: #e6f1ff; color: #1d5fb8; }
 .mfilter-pill.active { border-color: currentColor; }
 
 /* pnl-pagination: pie de tabla con "1-30 de 200" + números de página. Números

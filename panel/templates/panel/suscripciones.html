@@ -34,6 +34,7 @@
           <tr>
             <td>
               <div class="cell-title"><a href="{% url 'panel:suscripcion_detalle' s.pk %}">{{ s.email }}</a></div>
+              {% if s.alumno %}<div class="cell-sub"><a href="{% url 'panel:membership_detail' s.alumno.pk %}"><i class="bi bi-person"></i> {{ s.alumno.student_name|default:'Ver alumno' }}</a></div>{% endif %}
               <div class="cell-sub">{{ s.tarjeta.tipo|default:'Tarjeta' }} ****{{ s.tarjeta.ultimos4 }} · desde {{ s.creada_en|date:'d-m-Y' }}</div>
             </td>
             <td>

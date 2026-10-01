@@ -7,6 +7,12 @@
         {% if m.es_legado %}
           <span class="badge-soft purple mleg-badge" title="Cuenta migrada del sitio anterior">Legado</span>
         {% endif %}
+        {% with s=row.suscripcion %}{% if s and s.estado == 'ACTIVA' or s and s.estado == 'PAUSADA' %}
+          <a href="{% url 'panel:suscripcion_detalle' s.pk %}" class="badge-soft {% if s.estado == 'ACTIVA' %}green{% else %}yellow{% endif %} mleg-badge text-decoration-none"
+             title="${{ s.monto }} {% if s.cada_meses == 1 %}al mes{% else %}cada {{ s.cada_meses }} meses{% endif %}{% if s.estado == 'ACTIVA' %} · próximo cobro {{ s.proximo_cobro|date:'d-m-Y' }}{% endif %}">
+            <i class="bi bi-arrow-repeat"></i> Suscripción{% if s.estado == 'PAUSADA' %} pausada{% endif %}
+          </a>
+        {% endif %}{% endwith %}
       </div>
       <div class="cell-sub">{{ m.user.email }}</div>
     </td>

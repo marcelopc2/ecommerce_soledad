@@ -77,10 +77,10 @@
     </div></div>
   </div>
 
-  {# ---------- Suscripción ---------- #}
+  {# ---------- Acceso al Aula ---------- #}
   <div class="col-lg-6">
     <div class="pnl-card h-100"><div class="card-pad">
-      <div class="form-section-title"><i class="bi bi-calendar-check"></i> Suscripción</div>
+      <div class="form-section-title"><i class="bi bi-calendar-check"></i> Acceso al Aula</div>
       <div class="mdetail-kv"><span>Estado</span><strong>{% include 'panel/partials/membership_status_badge.html' with m=m %}</strong></div>
       <div class="mdetail-kv"><span>Activación</span><strong>{{ m.created_at|date:'d M Y' }}</strong></div>
       <div class="mdetail-kv">
@@ -165,6 +165,39 @@
       </form>
     </div></div>
   </div>
+
+  {% comment %}
+    Cobro automático (Tienda → Suscripciones). Va aparte del acceso al Aula:
+    el acceso es hasta cuándo entra; esto es si se le cobra solo. Se muestra
+    solo si tiene alguna, para no llenar de vacío a los que pagaron una vez.
+  {% endcomment %}
+  {% if suscripciones %}
+  <div class="col-12">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-arrow-repeat"></i> Cobro automático</div>
+      {% for s in suscripciones %}
+        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+          <div>
+            <div class="fw-semibold">
+              {{ s.nombre|default:s.producto.name }}
+              {% if s.estado == 'ACTIVA' %}<span class="badge-soft green ms-1">Activa</span>
+              {% elif s.estado == 'PAUSADA' %}<span class="badge-soft yellow ms-1">Pausada</span>
+              {% elif s.estado == 'CANCELADA' %}<span class="badge-soft gray ms-1">Cancelada</span>
+              {% else %}<span class="badge-soft red ms-1">Suspendida</span>{% endif %}
+              {% if s.origen == 'WORDPRESS' %}<span class="badge-soft yellow ms-1">De WordPress</span>{% endif %}
+            </div>
+            <div class="cell-sub">
+              ${{ s.monto }} {% if s.cada_meses == 1 %}al mes{% else %}cada {{ s.cada_meses }} meses{% endif %}
+              · {{ s.tarjeta.tipo|default:'Tarjeta' }} ****{{ s.tarjeta.ultimos4 }}
+              {% if s.estado == 'ACTIVA' %}· próximo cobro {{ s.proximo_cobro|date:'d-m-Y' }}{% endif %}
+            </div>
+          </div>
+          <a href="{% url 'panel:suscripcion_detalle' s.pk %}" class="btn btn-sm btn-ghost">Ver suscripción <i class="bi bi-arrow-right-short"></i></a>
+        </div>
+      {% endfor %}
+    </div></div>
+  </div>
+  {% endif %}
 
   {# ---------- Facturas ---------- #}
   <div class="col-12">

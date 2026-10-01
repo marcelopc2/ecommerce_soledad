@@ -7,6 +7,7 @@ from functools import wraps
 from django.conf import settings
 from django.contrib import messages
 from django.db.models import Q, Sum, Max, Count
+from django.db.models.functions import Lower
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.http import HttpResponse, FileResponse, Http404
 from django.contrib.auth.password_validation import validate_password
@@ -687,6 +688,37 @@ MEMBERSHIP_DB_SORT_FIELDS = {
 MEMBERSHIP_SORT_COLUMNS = ['alumno', 'apoderado', 'inicio', 'vencimiento', 'progreso', 'estado']
 
 
+# ---------- Alumnos <-> suscripciones ----------
+#
+# Son dos pantallas a propósito (el acceso al Aula y el cobro automático son
+# cosas distintas, y la mayoría de los alumnos pagó una sola vez), pero es la
+# misma persona: se cruzan por correo, que es lo que comparten. La suscripción
+# no apunta al usuario porque las traídas de WordPress se importan antes que
+# las cuentas y tienen que sobrevivir a una re-importación de alumnos.
+
+def _correo_de(m):
+    return (m.user.email or m.user.username or '').strip().lower()
+
+
+def _suscripciones_por_correo(correos):
+    """{correo: suscripción a mostrar} — la vigente si hay, si no la más nueva."""
+    prioridad = {Suscripcion.ACTIVA: 0, Suscripcion.PAUSADA: 1, Suscripcion.SUSPENDIDA: 2,
+                 Suscripcion.CANCELADA: 3}
+    salida = {}
+    subs = (Suscripcion.objects.filter(email__in={c for c in correos if c})
+            .select_related('producto').order_by('-creada_en'))
+    for s in subs:
+        actual = salida.get(s.email)
+        if actual is None or prioridad[s.estado] < prioridad[actual.estado]:
+            salida[s.email] = s
+    return salida
+
+
+def _correos_con_suscripcion_vigente():
+    return set(Suscripcion.objects.filter(estado__in=[Suscripcion.ACTIVA, Suscripcion.PAUSADA])
+               .values_list('email', flat=True))
+
+
 @staff_required
 def memberships(request):
     q = request.GET.get('q', '').strip()
@@ -698,6 +730,9 @@ def memberships(request):
     # Mismo criterio que `legado`: tampoco es un estado, es cómo quedó la
     # membresía al migrarla, y se combina con los demás.
     sin_venc = request.GET.get('sin_venc', '').strip() == '1'
+    # Los que pagan con cobro automático (activa o pausada). Se combina con
+    # los demás filtros, igual que `legado`.
+    con_sub = request.GET.get('con_sub', '').strip() == '1'
     sort, direction, next_dir = _sort_params(request, MEMBERSHIP_SORT_COLUMNS)
 
     base = Membership.objects.select_related('user').prefetch_related('courses')
@@ -713,6 +748,10 @@ def memberships(request):
     expired_count = base.filter(paused_at__isnull=True).exclude(Membership.VIGENTE).count()
     legado_count = base.filter(es_legado=True).count()
     sin_venc_count = base.filter(sin_vencimiento=True).count()
+    correos_sub = _correos_con_suscripcion_vigente()
+    con_sub_ids = list(base.annotate(_correo=Lower('user__email')).filter(_correo__in=correos_sub)
+                       .values_list('pk', flat=True))
+    con_sub_count = len(con_sub_ids)
 
     items = base
     if estado == 'activa':
@@ -725,6 +764,8 @@ def memberships(request):
         items = items.filter(es_legado=True)
     if sin_venc:
         items = items.filter(sin_vencimiento=True)
+    if con_sub:
+        items = items.filter(pk__in=con_sub_ids)
 
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
@@ -764,6 +805,7 @@ def memberships(request):
     # Los 44 cursos y sus pasos son los mismos para todos: se leen una vez para
     # toda la página en vez de una vez por alumno (ver precargar_listado).
     precarga = precargar_listado(a_calcular)
+    sub_de = _suscripciones_por_correo({_correo_de(m) for m in a_calcular})
     rows = []
     for m in a_calcular:
         access = get_course_access(m, precarga)
@@ -788,6 +830,7 @@ def memberships(request):
             'status_rank': status_rank,
             'dias_restantes': dias,
             'dias_vencida': -dias,
+            'suscripcion': sub_de.get(_correo_de(m)),
         })
 
     if not ordenable_en_bd:
@@ -811,15 +854,17 @@ def memberships(request):
         'expired_count': expired_count,
         'legado_count': legado_count,
         'sin_venc_count': sin_venc_count,
+        'con_sub_count': con_sub_count,
         'section': 'memberships',
         'q': q,
         'estado': estado,
         'legado': legado,
         'sin_venc': sin_venc,
+        'con_sub': con_sub,
         # Para la pantalla de "no hay resultados": sin esto decía "aún no hay
         # membresías" aunque hubiera 296, y quien filtraba creía que el filtro
         # estaba roto en vez de ver que no calzaba nada.
-        'hay_filtros': bool(q or estado or legado or sin_venc),
+        'hay_filtros': bool(q or estado or legado or sin_venc or con_sub),
         'sort': sort,
         'dir': direction,
         'next_dir': next_dir,
@@ -887,6 +932,8 @@ def _membership_detail_response(request, m, form=None, expiry_form=None):
         'section': 'memberships',
     }
     ctx.update(_membership_context(m))
+    ctx['suscripciones'] = list(Suscripcion.objects.filter(email__iexact=_correo_de(m))
+                                .select_related('producto', 'tarjeta'))
     template = (
         'panel/partials/membership_detail_body.html'
         if is_htmx_partial_request(request)
@@ -2586,6 +2633,13 @@ def suscripciones(request):
     lista = base.filter(estado=estado) if estado else base
     estados = [(clave, nombre, base.filter(estado=clave).count())
                for clave, nombre in Suscripcion.ESTADOS]
+    lista = list(lista)
+    membresias = {
+        _correo_de(m): m for m in Membership.objects.select_related('user').annotate(
+            _correo=Lower('user__email')).filter(_correo__in={s.email for s in lista})
+    }
+    for s in lista:
+        s.alumno = membresias.get(s.email)
     return render(request, 'panel/suscripciones.html', {
         'suscripciones': lista, 'estado': estado, 'estados': estados,
         'total': base.count(), 'section': 'suscripciones',
@@ -2605,6 +2659,11 @@ def suscripcion_cancelar(request, pk):
 
 
 _log_cobros = logging.getLogger('ingenioblocks.pagos')
+
+
+def _membresia_de_correo(correo):
+    return (Membership.objects.select_related('user')
+            .filter(Q(user__email__iexact=correo) | Q(user__username__iexact=correo)).first())
 
 
 def _volver_a(request, s):
@@ -2662,7 +2721,7 @@ def suscripcion_detalle(request, pk):
     cobros = Order.objects.filter(Q(suscripcion=s) | Q(suscripcion_iniciada=s)).order_by('-created_at')
     return render(request, 'panel/suscripcion_detalle.html', {
         's': s, 'cobros': cobros, 'error': error, 'section': 'suscripciones',
-        'hoy': timezone.localdate(),
+        'hoy': timezone.localdate(), 'alumno': _membresia_de_correo(s.email),
     })
 
 

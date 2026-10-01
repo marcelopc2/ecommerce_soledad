@@ -7,20 +7,20 @@
 {% block actions %}
 <div class="d-flex gap-2 mfilter-group">
   <a class="mfilter-pill{% if not estado %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">Todas ({{ total_count }})</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">Todas ({{ total_count }})</a>
   <a class="mfilter-pill green{% if estado == 'activa' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=activa&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">{{ active_count }} activas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=activa&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">{{ active_count }} activas</a>
   <a class="mfilter-pill yellow{% if estado == 'pausada' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pausada&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">{{ paused_count }} pausadas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pausada&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">{{ paused_count }} pausadas</a>
   <a class="mfilter-pill gray{% if estado == 'vencida' %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=vencida&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">{{ expired_count }} vencidas</a>
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=vencida&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">{{ expired_count }} vencidas</a>
   {% comment %}
     Aparte del grupo de arriba a propósito: "legado" no es un estado, es el
     origen de la cuenta, y puede combinarse con cualquiera de los otros (un
     migrado también puede estar activo, pausado o vencido).
   {% endcomment %}
   <a class="mfilter-pill purple{% if legado %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}{% else %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}">
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}{% else %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">
     <i class="bi bi-archive"></i> {{ legado_count }} legado
   </a>
   {% comment %}
@@ -30,8 +30,16 @@
     filtro no existe.
   {% endcomment %}
   <a class="mfilter-pill teal{% if sin_venc %} active{% endif %}"
-     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}{% else %}1{% endif %}">
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}{% else %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">
     <i class="bi bi-infinity"></i> {{ sin_venc_count }} sin vencimiento
+  </a>
+  {% comment %}
+    Los que pagan con cobro automático (Tienda → Suscripciones). Se cruzan por
+    correo; cada fila lleva además su etiqueta, que lleva a la suscripción.
+  {% endcomment %}
+  <a class="mfilter-pill blue{% if con_sub %} active{% endif %}"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}{% else %}1{% endif %}">
+    <i class="bi bi-arrow-repeat"></i> {{ con_sub_count }} con suscripción
   </a>
 </div>
 {% endblock %}
@@ -47,7 +55,7 @@
              hx-trigger="input changed delay:300ms, search"
              hx-target="#memberships-tbody"
              hx-swap="innerHTML"
-             hx-include="[name='estado'], [name='sort'], [name='dir'], [name='legado']"
+             hx-include="[name='estado'], [name='sort'], [name='dir'], [name='legado'], [name='sin_venc'], [name='con_sub']"
              hx-indicator="#memberships-spin">
       <span id="memberships-spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
     </div>
@@ -55,6 +63,8 @@
     <input type="hidden" name="sort" value="{{ sort }}">
     <input type="hidden" name="dir" value="{{ dir }}">
     <input type="hidden" name="legado" value="{% if legado %}1{% endif %}">
+    <input type="hidden" name="sin_venc" value="{% if sin_venc %}1{% endif %}">
+    <input type="hidden" name="con_sub" value="{% if con_sub %}1{% endif %}">
   </div>
   <div class="table-responsive">
     <table class="table pnl-table">
