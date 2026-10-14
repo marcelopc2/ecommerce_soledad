@@ -92,9 +92,19 @@ def _send_order_confirmation(order, tiene_acceso):
     )
 
 class CreateWebpayTransactionView(APIView):
+    """Pago único con Webpay Plus (el kit, los packs).
+
+    Una suscripción no puede ir por acá: Webpay Plus no deja la tarjeta
+    guardada para volver a cobrar. Esa va por Oneclick.
+    """
     throttle_scope = 'payment'
 
     def post(self, request):
+        if _trae_suscripcion(request.data):
+            return Response(
+                {'error': 'Este producto es una suscripción y se paga registrando la tarjeta.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         # Arma la orden (+ envío si corresponde) y valida el costo de envío en el servidor.
         order, error = build_order_from_request(request.data, user=request.user)
         if error:
@@ -143,51 +153,88 @@ class CommitWebpayTransactionView(APIView):
         return self.process_commit(request)
 
     def process_commit(self, request):
-        # Transbank envía el token en GET o POST
-        token_ws = request.GET.get('token_ws') or request.POST.get('token_ws')
-        
-        # Si no hay token, el usuario abortó el pago en la página de Webpay
-        if not token_ws:
-            return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=aborted')
+        """Los cuatro regresos posibles desde Webpay (manual de validación):
 
-        # Buscar la orden
-        try:
-            order = Order.objects.get(tbk_token=token_ws)
-        except Order.DoesNotExist:
-            return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=invalid_token')
+        - solo token_ws: pago terminado -> se confirma (commit).
+        - solo TBK_TOKEN (+ TBK_ORDEN_COMPRA, TBK_ID_SESION): el cliente anuló
+          en el formulario. NO se confirma.
+        - token_ws Y TBK_TOKEN: hubo un error en el formulario y el cliente
+          apretó "intentar nuevamente". NO se confirma.
+        - sin ningún token, solo TBK_ORDEN_COMPRA y TBK_ID_SESION: se le acabó
+          el tiempo (5 min sin hacer nada). NO se confirma.
+        """
+        datos = request.POST if request.method == 'POST' else request.GET
+        token_ws = datos.get('token_ws') or request.GET.get('token_ws')
+        tbk_token = datos.get('TBK_TOKEN') or request.GET.get('TBK_TOKEN')
+        orden_tbk = datos.get('TBK_ORDEN_COMPRA') or request.GET.get('TBK_ORDEN_COMPRA')
+        sesion = datos.get('TBK_ID_SESION') or request.GET.get('TBK_ID_SESION')
 
-        # Confirmar en Transbank.
-        #
-        # OJO: commit_webpay_transaction() es la llamada que COBRA. Si lanza una
-        # excepción no sabemos de qué lado quedó: puede no haber cobrado nada, o
-        # puede haber cobrado y habérsenos caído la red al recibir la respuesta.
-        # El token es de un solo uso, así que no se puede reintentar. Por eso el
-        # except deja la orden en REVIEW y no en FAILED: dar por perdida una
-        # compra que sí se cobró es peor que pedir una revisión manual.
-        try:
-            response = commit_webpay_transaction(token_ws)
-        except Exception:
-            order.status = 'REVIEW'
+        if not token_ws or tbk_token:
+            order = _orden_webpay_abandonada(token_ws or tbk_token, orden_tbk, sesion)
+            motivo = 'error' if (token_ws and tbk_token) else 'aborted'
+            if order is not None and order.status == 'PENDING':
+                order.status = 'FAILED'
+                order.save(update_fields=['status', 'updated_at'])
+                log.info('Orden %s sin pagar por Webpay (%s)', order.order_id,
+                         'error en el formulario' if motivo == 'error'
+                         else 'anulada' if tbk_token else 'tiempo agotado')
+            return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason={motivo}')
+
+        # La fila queda bloqueada mientras se confirma: si el navegador vuelve
+        # dos veces (recarga, doble envío), la segunda espera y encuentra la
+        # orden ya pagada en vez de confirmar otra vez.
+        entregar = False
+        with transaction.atomic():
+            order = Order.objects.select_for_update().filter(tbk_token=token_ws).first()
+            if order is None:
+                return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=invalid_token')
+            if order.status == 'PAID':
+                return redirect(f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}')
+            if order.status != 'PENDING':
+                return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=rejected')
+
+            # OJO: commit es la llamada que COBRA. Si lanza una excepción no
+            # sabemos de qué lado quedó, y el token es de un solo uso: la orden
+            # queda en REVIEW y no en FAILED, para revisarla contra el portal.
+            try:
+                response = commit_webpay_transaction(token_ws)
+            except Exception:
+                order.status = 'REVIEW'
+                order.save(update_fields=['status', 'updated_at'])
+                log.exception(
+                    'REVISAR A MANO: el commit de Webpay falló para la orden %s '
+                    '(token %s, monto %s). Puede haberse cobrado igual: confirmar en '
+                    'el portal de Transbank antes de decidir.',
+                    order.order_id, token_ws, order.total_amount,
+                )
+                return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=error')
+
+            if response.get('status') == 'AUTHORIZED' and response.get('response_code') in (0, None):
+                order.status = 'PAID'
+                entregar = True
+                log.info('Orden %s PAGADA por Webpay (monto %s)', order.order_id, order.total_amount)
+            else:
+                order.status = 'FAILED'
+                log.info('Orden %s rechazada por Webpay (status %s)', order.order_id, response.get('status'))
             order.save(update_fields=['status', 'updated_at'])
-            log.exception(
-                'REVISAR A MANO: el commit de Webpay falló para la orden %s '
-                '(token %s, monto %s). Puede haberse cobrado igual: confirmar en '
-                'el portal de Transbank antes de decidir.',
-                order.order_id, token_ws, order.total_amount,
-            )
-            return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=error')
 
-        if response.get('status') == 'AUTHORIZED':
-            order.status = 'PAID'
-            order.save(update_fields=['status', 'updated_at'])
-            log.info('Orden %s PAGADA por Webpay (monto %s)', order.order_id, order.total_amount)
+        if entregar:
             _entregar_compra(order)
             return redirect(f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}')
-
-        order.status = 'FAILED'
-        order.save(update_fields=['status', 'updated_at'])
-        log.info('Orden %s rechazada por Webpay (status %s)', order.order_id, response.get('status'))
         return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=rejected')
+
+
+def _orden_webpay_abandonada(token, orden_tbk, sesion):
+    """La orden de un pago que no se terminó, por el token o, si no vino
+    (tiempo agotado), por la sesión que se mandó al crear la transacción.
+    Se cruza con la orden de compra para no marcar una orden ajena."""
+    if token:
+        return Order.objects.filter(tbk_token=token).first()
+    if sesion and str(sesion).isdigit():
+        order = Order.objects.filter(pk=int(sesion), pasarela=Order.WEBPAY).first()
+        if order and (not orden_tbk or str(order.order_id)[:26] == orden_tbk):
+            return order
+    return None
 
 from .services import create_mercadopago_preference, get_mercadopago_payment
 

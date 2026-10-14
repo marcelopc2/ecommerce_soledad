@@ -308,24 +308,29 @@ export default function Checkout() {
       }
     }
     try {
-      // Transbank Oneclick es la pasarela con tarjeta: la tienda no tiene
-      // Webpay Plus contratado. La persona registra su tarjeta en la página de
-      // Transbank y al volver se le cobra (y, si es suscripción, cada mes).
+      // Con tarjeta hay dos caminos de Transbank:
+      //  - Webpay Plus para una compra de una vez (el kit, un pack): se paga y listo.
+      //  - Oneclick para una suscripción: la tarjeta queda registrada para
+      //    volver a cobrar cada mes. Y para quien ya tiene una tarjeta guardada.
       if (gateway === 'guardada') {
         // Se cobra en el servidor y vuelve la página de resultado.
         const { data } = await api.post('/payments/oneclick/pagar-guardada/', { ...payload, tarjeta_id: tarjetaId })
         window.location.assign(data.url)
         return
       }
-      const url = gateway === 'oneclick' ? '/payments/oneclick/create/' : '/payments/mp-create/'
+      const url = {
+        webpay: '/payments/create/',
+        oneclick: '/payments/oneclick/create/',
+      }[gateway] || '/payments/mp-create/'
       const { data } = await api.post(url, payload)
-      if (gateway === 'oneclick') {
-        // Transbank exige llegar con un form POST que lleve el token.
+      if (gateway === 'webpay' || gateway === 'oneclick') {
+        // Transbank exige llegar con un form POST que lleve el token, y cada
+        // producto lo llama distinto.
         const form = document.createElement('form')
         form.method = 'POST'
         form.action = data.url
         const input = document.createElement('input')
-        input.type = 'hidden'; input.name = 'TBK_TOKEN'; input.value = data.token
+        input.type = 'hidden'; input.name = gateway === 'webpay' ? 'token_ws' : 'TBK_TOKEN'; input.value = data.token
         form.appendChild(input)
         document.body.appendChild(form)
         form.submit()
@@ -676,7 +681,7 @@ export default function Checkout() {
               </button>
             ))}
             <button className="co-btn-pagar co-btn-webpay"
-              disabled={!puedePagar} onClick={() => handleCheckout('oneclick')}>
+              disabled={!puedePagar} onClick={() => handleCheckout(esSuscripcion ? 'oneclick' : 'webpay')}>
               {paying ? <><Cargando />Procesando…</> : (tarjetas.length ? 'Pagar con otra tarjeta' : 'Pagar con tarjeta')}
             </button>
             {/* MercadoPago no deja la tarjeta guardada para volver a cobrar,

@@ -5,19 +5,32 @@ from transbank.common.integration_type import IntegrationType
 from transbank.common.options import WebpayOptions
 
 def get_webpay_transaction():
-    """
-    Configura y retorna la instancia de Transacción de Webpay Plus.
-    Ambiente según TBK_ENVIRONMENT en .env: INTEGRACION (pruebas, default) o PRODUCCION.
-    Las llaves por defecto son las de integración PÚBLICAS de Transbank (documentadas).
-    """
-    commerce_code = os.environ.get("TBK_API_KEY_ID", "597055555532")
-    api_key = os.environ.get("TBK_API_KEY_SECRET", "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C")
+    """La transacción de Webpay Plus, con SUS credenciales.
 
-    environment = os.environ.get("TBK_ENVIRONMENT", "INTEGRACION").upper()
-    integration_type = IntegrationType.LIVE if environment == "PRODUCCION" else IntegrationType.TEST
+    Webpay Plus y Oneclick son productos distintos de Transbank, con código y
+    llave propios: antes esto leía TBK_API_KEY_ID/SECRET, que son los de
+    Oneclick, y en producción Webpay Plus fallaba con credenciales ajenas.
 
-    options = WebpayOptions(commerce_code, api_key, integration_type)
-    return Transaction(options)
+        TBK_WEBPAY_CODIGO   código de comercio de Webpay Plus (597053103970)
+        TBK_WEBPAY_LLAVE    su Tbk-Api-Key-Secret
+        TBK_WEBPAY_AMBIENTE INTEGRACION o PRODUCCION (si falta, TBK_ENVIRONMENT)
+
+    En producción no hay valores por omisión: caer a los de prueba mandaría la
+    plata a la tienda de pruebas de Transbank. Mejor que falle.
+    """
+    from django.core.exceptions import ImproperlyConfigured
+    from transbank.common.integration_api_keys import IntegrationApiKeys
+    from transbank.common.integration_commerce_codes import IntegrationCommerceCodes
+
+    ambiente = (os.environ.get("TBK_WEBPAY_AMBIENTE") or os.environ.get("TBK_ENVIRONMENT", "INTEGRACION")).upper()
+    codigo = os.environ.get("TBK_WEBPAY_CODIGO", "").strip()
+    llave = os.environ.get("TBK_WEBPAY_LLAVE", "").strip()
+    if ambiente == "PRODUCCION":
+        if not (codigo and llave):
+            raise ImproperlyConfigured("Faltan TBK_WEBPAY_CODIGO / TBK_WEBPAY_LLAVE en el .env.")
+        return Transaction(WebpayOptions(codigo, llave, IntegrationType.LIVE))
+    return Transaction(WebpayOptions(codigo or IntegrationCommerceCodes.WEBPAY_PLUS,
+                                     llave or IntegrationApiKeys.WEBPAY, IntegrationType.TEST))
 
 def create_webpay_transaction(buy_order, session_id, amount, return_url):
     """
