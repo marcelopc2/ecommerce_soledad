@@ -34,6 +34,7 @@ from comunicaciones import envio as masivos
 from comunicaciones.models import BajaDeCorreo, DestinatarioMasivo, EnvioMasivo
 from comunicaciones.preferencias import AULA, NOVEDADES, correos_de_gestion
 from comunicaciones.plantillas import plantillas as plantillas_de_correo
+from . import busqueda
 from payments.models import AjustesCobros, Coupon, Order, Suscripcion
 from shipments.models import PuntoRetiro
 from shipments.services import send_dispatch_email, send_pickup_ready_email
@@ -737,8 +738,12 @@ def memberships(request):
 
     base = Membership.objects.select_related('user').prefetch_related('courses')
     if q:
-        base = base.filter(
-            Q(user__email__icontains=q) | Q(student_name__icontains=q) | Q(parent_name__icontains=q)
+        # En todos los campos, sin tildes y en cualquier orden (ver busqueda.py).
+        base = busqueda.filtrar(
+            base, q,
+            campos=('user__email', 'user__username', 'user__first_name', 'user__last_name',
+                    'student_name', 'parent_name'),
+            telefonos=('phone',),
         )
 
     now = timezone.now()

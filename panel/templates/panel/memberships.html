@@ -49,7 +49,7 @@
   <div class="pnl-toolbar">
     <div class="pnl-search">
       <i class="bi bi-search"></i>
-      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por alumno, apoderado o correo…"
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, apoderado, correo o teléfono…"
              autocomplete="off"
              hx-get="{% url 'panel:memberships' %}"
              hx-trigger="input changed delay:300ms, search"
