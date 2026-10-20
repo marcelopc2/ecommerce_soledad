@@ -41,11 +41,13 @@ class GestionConMembresiaViejaTests(TestCase):
         # El encabezado del Aula tampoco le debe mostrar "venció".
         self.assertIsNone(self.api.get('/api/auth/me/').data['membership'])
 
-    def test_gestion_con_membresia_al_dia_usa_la_suya(self):
-        self._cuenta('prueba@ib.cl', is_staff=True, vence_en_dias=30)
+    def test_gestion_que_compro_un_kit_igual_ve_todo(self):
+        """La dueña compró un kit probando la tienda y dejó de ver los cursos."""
+        self._cuenta('duena@ib.cl', is_staff=True, vence_en_dias=1900)
         r = self.api.get('/api/lms/my-courses/')
-        self.assertFalse(r.data.get('preview', False))
-        self.assertTrue(r.data['membership']['active'])
+        self.assertTrue(r.data.get('preview'))
+        self.assertIsNone(r.data['membership'])
+        self.assertEqual(self.api.get('/api/lms/courses/taladro/').status_code, 200)
 
     def test_alumno_vencido_sigue_viendo_que_vencio(self):
         self._cuenta('alumno@b.cl', is_staff=False, vence_en_dias=-10)

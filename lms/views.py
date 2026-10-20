@@ -28,10 +28,8 @@ def _es_vista_previa(user):
     mismos PDF e imágenes desde el panel (panel:lesson_preview_pdf), y además
     puede editarlos. Lo único que cambia es la comodidad de verlos montados.
 
-    Si la cuenta de gestión SÍ tiene membresía al día (por ejemplo la clienta
-    compró un kit para probar), manda su membresía real y no la vista previa:
-    así ve exactamente lo mismo que vería su alumno, goteo incluido. Una
-    vencida no cuenta (ver membresia_del_aula).
+    Vale aunque la cuenta de gestión tenga una membresía de alumna (por haber
+    comprado un kit para probar): ver membresia_del_aula.
     """
     return bool(user.is_staff) and _get_membership(user) is None
 

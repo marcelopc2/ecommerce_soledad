@@ -47,18 +47,18 @@ log = logging.getLogger('ingenioblocks.pagos')
 def membresia_del_aula(user):
     """La membresía con la que el usuario entra al Aula, o None.
 
-    Una cuenta de gestión con la membresía VENCIDA se trata como si no la
-    tuviera, y así entra en vista previa. Pasa con las cuentas que la
-    migración de WordPress trajo con una suscripción vieja de cuando la dueña
-    probaba la tienda: sin esto, la administradora veía "tu suscripción
-    venció" y no podía revisar los cursos. Si la cuenta de gestión tiene una
-    membresía AL DÍA (compró un kit para probar), manda esa: ve lo mismo que
-    su alumno, goteo incluido.
+    Una cuenta de gestión entra SIEMPRE en vista previa (todos los cursos, sin
+    goteo), tenga o no membresía de alumna. Las administradoras terminan con
+    una sin querer: comprando un kit para probar la tienda, o porque el
+    WordPress les trae una (a la dueña, una vigente hasta 2031). Con la regla
+    anterior -"si la tiene al día, se ve como alumna"- dejaban de poder
+    revisar los cursos, y parecía que la compra les había quitado el permiso
+    de gestión. Para ver la experiencia de un alumno están las cuentas de
+    prueba.
     """
-    membership = getattr(user, 'membership', None)
-    if membership is not None and user.is_staff and not membership.is_active:
+    if user.is_staff:
         return None
-    return membership
+    return getattr(user, 'membership', None)
 
 
 def _unlock_date(start_date, index, iniciales=1):
