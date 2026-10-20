@@ -57,3 +57,30 @@ class BuscadorAlumnosTests(TestCase):
             html = self.buscar(q)
             self.assertIn(esperado, html, q)
             self.assertNotIn(no, html, q)
+
+
+class FechasYEstadoTests(TestCase):
+    def setUp(self):
+        admin = User.objects.create_user(username='admin@ib.cl', email='admin@ib.cl', is_staff=True)
+        self.client.force_login(admin)
+        from datetime import datetime
+        tz = timezone.get_current_timezone()
+        for correo, alumno, vence in [('a@correo.cl', 'Tomás', datetime(2027, 4, 20, 12, tzinfo=tz)),
+                                      ('b@correo.cl', 'Isidora', datetime(2025, 10, 5, 12, tzinfo=tz))]:
+            u = User.objects.create_user(username=correo, email=correo)
+            Membership.objects.create(user=u, student_name=alumno, expires_at=vence)
+
+    def buscar(self, q):
+        return self.client.get(reverse('panel:memberships'), {'q': q}).content.decode()
+
+    def test_por_fecha_escrita_de_varias_formas(self):
+        for q in ('20-04-2027', '20/04/2027', '20/04', 'abril 2027', '20 de abril'):
+            html = self.buscar(q)
+            self.assertIn('Tomás', html, q)
+            self.assertNotIn('Isidora', html, q)
+
+    def test_por_estado_y_combinado(self):
+        self.assertIn('Isidora', self.buscar('vencida'))
+        self.assertNotIn('Tomás', self.buscar('vencida'))
+        self.assertIn('Tomás', self.buscar('activa abril'))
+        self.assertNotIn('Tomás', self.buscar('vencida abril'))

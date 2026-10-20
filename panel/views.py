@@ -689,6 +689,22 @@ MEMBERSHIP_DB_SORT_FIELDS = {
 MEMBERSHIP_SORT_COLUMNS = ['alumno', 'apoderado', 'inicio', 'vencimiento', 'progreso', 'estado']
 
 
+def _estado_para_buscar(fila):
+    """Las palabras con que alguien buscaría a un alumno por su estado."""
+    palabras = []
+    if fila['paused_at']:
+        palabras.append('pausada pausado en pausa')
+    elif fila['sin_vencimiento'] or fila['expires_at'] > timezone.now():
+        palabras.append('activa activo vigente')
+    else:
+        palabras.append('vencida vencido')
+    if fila['sin_vencimiento']:
+        palabras.append('sin vencimiento')
+    if fila['es_legado']:
+        palabras.append('legado migrado wordpress')
+    return ' '.join(palabras)
+
+
 # ---------- Alumnos <-> suscripciones ----------
 #
 # Son dos pantallas a propósito (el acceso al Aula y el cobro automático son
@@ -744,6 +760,9 @@ def memberships(request):
             campos=('user__email', 'user__username', 'user__first_name', 'user__last_name',
                     'student_name', 'parent_name'),
             telefonos=('phone',),
+            fechas=('created_at', 'expires_at'),
+            etiquetas=_estado_para_buscar,
+            extra=('paused_at', 'sin_vencimiento', 'es_legado'),
         )
 
     now = timezone.now()

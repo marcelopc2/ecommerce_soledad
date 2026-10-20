@@ -47,16 +47,43 @@ def coincide(consulta, campos, telefonos=()):
     return True
 
 
-def filtrar(queryset, consulta, campos, telefonos=()):
+MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+         'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre')
+
+
+def texto_de_fecha(valor):
+    """Una fecha escrita de todas las formas en que alguien la buscaría:
+    20-10-2026, 20/10/2026, 20-10, 20/10, "20 de octubre de 2026", "octubre 2026"."""
+    if not valor:
+        return ''
+    from datetime import datetime
+    from django.utils import timezone
+    if isinstance(valor, datetime):
+        if timezone.is_aware(valor):
+            valor = timezone.localtime(valor)
+        valor = valor.date()
+    mes = MESES[valor.month - 1]
+    return (f'{valor:%d-%m-%Y} {valor:%d/%m/%Y} {valor:%d-%m} {valor:%d/%m} {valor:%Y-%m-%d} '
+            f'{valor.day} de {mes} de {valor.year} {mes} {valor.year}')
+
+
+def filtrar(queryset, consulta, campos, telefonos=(), fechas=(), etiquetas=None, extra=()):
     """Deja en el queryset solo las filas que calzan con la consulta.
 
-    `campos` y `telefonos` son rutas de campo (ej. 'user__email', 'phone').
+    `campos`, `telefonos` y `fechas` son rutas de campo (ej. 'user__email',
+    'phone', 'expires_at'). `etiquetas(fila)` puede sumar palabras calculadas,
+    como el estado ("vencida"); recibe la fila como dict, con los `extra`
+    que necesite leer.
     """
     if not normalizar(consulta).strip():
         return queryset
-    ids = [
-        fila[0]
-        for fila in queryset.values_list('pk', *campos, *telefonos)
-        if coincide(consulta, fila[1:1 + len(campos)], fila[1 + len(campos):])
-    ]
+    rutas = ('pk', *campos, *telefonos, *fechas, *extra)
+    ids = []
+    for fila in queryset.values(*rutas):
+        textos = [fila[c] for c in campos]
+        textos += [texto_de_fecha(fila[f]) for f in fechas]
+        if etiquetas:
+            textos.append(etiquetas(fila))
+        if coincide(consulta, textos, [fila[t] for t in telefonos]):
+            ids.append(fila['pk'])
     return queryset.filter(pk__in=ids)
