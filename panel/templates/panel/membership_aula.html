@@ -1,0 +1,106 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Aula de {{ m.student_name|default:m.user.email }}{% endblock %}
+{% block crumb %}Panel · Academia · Alumnos{% endblock %}
+{% block heading %}Así ve el Aula {{ m.student_name|default:m.user.email }}{% endblock %}
+
+{% block actions %}
+<a href="{% url 'panel:membership_detail' m.pk %}" class="btn btn-ghost"><i class="bi bi-person me-1"></i> Ver detalle</a>
+<a href="{% url 'panel:memberships' %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  Las tarjetas salen de lms.services.get_sequence_access, el mismo cálculo que
+  usa el Aula del alumno: goteo semanal, terminar el anterior, vencimiento y
+  cuántos bloqueados se muestran (Ritmo de entrega). Esta página solo mira.
+{% endcomment %}
+<style>
+  .aula-resumen { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; }
+  .aula-dato { background:#fff; border:1px solid #ece5f4; border-radius:14px; padding:14px 16px; }
+  .aula-dato b { display:block; font-size:22px; color:#2f0053; line-height:1.2; }
+  .aula-dato span { font-size:12.5px; color:#8a8095; }
+  .aula-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:16px; }
+  .aula-card { background:#fff; border:1px solid #ece5f4; border-radius:16px; overflow:hidden; position:relative; }
+  .aula-card .portada { aspect-ratio:16/10; background:#f3eefa center/cover no-repeat; display:flex; align-items:center; justify-content:center; }
+  .aula-card.bloqueado .portada { filter:grayscale(1) opacity(.45); }
+  .aula-card .candado { position:absolute; top:52px; left:50%; transform:translateX(-50%); font-size:30px; color:#590599;
+    background:rgba(255,255,255,.9); border-radius:50%; width:56px; height:56px; display:flex; align-items:center; justify-content:center; }
+  .aula-card .cuerpo { padding:12px 14px 14px; }
+  .aula-card .titulo { font-weight:700; font-size:14px; color:#2f0053; line-height:1.3; }
+  .aula-card .barra { height:7px; background:#f0eaf8; border-radius:9px; margin-top:10px; overflow:hidden; }
+  .aula-card .barra i { display:block; height:100%; background:#8200db; }
+  .aula-card .nota { font-size:12.5px; color:#6b6178; margin-top:8px; }
+  .aula-card.diploma .portada { background:linear-gradient(135deg,#ffcb00,#f0b100); font-size:46px; color:#fff; }
+  .aula-card.diploma.bloqueado .portada { background:#e9e4ef; color:#b9b0c4; filter:none; }
+</style>
+
+<div class="aula-resumen mb-4">
+  <div class="aula-dato"><b>{{ abiertos }} / {{ total }}</b><span>modelos desbloqueados</span></div>
+  <div class="aula-dato"><b>{{ terminados }}</b><span>terminados</span></div>
+  <div class="aula-dato"><b>{{ diplomas }}</b><span>diploma{{ diplomas|pluralize }} ganado{{ diplomas|pluralize }}</span></div>
+  <div class="aula-dato">
+    {% if en_curso %}<b style="font-size:15px">{{ en_curso.course.title }}</b><span>va en {{ en_curso.pct }}% · en curso</span>
+    {% else %}<b style="font-size:15px">—</b><span>no tiene un modelo a medias</span>{% endif %}
+  </div>
+  <div class="aula-dato">
+    {% if proximo %}
+      <b style="font-size:15px">{{ proximo.course.title }}</b>
+      <span>
+        {% if proximo.lock_reason == 'vencida' %}cerrado: su acceso venció
+        {% elif proximo.unlock_date and proximo.unlock_date > hoy %}se abre el {{ proximo.unlock_date|date:'d-m-Y' }}
+        {% else %}se abre al terminar el anterior{% endif %}
+      </span>
+    {% else %}<b style="font-size:15px">—</b><span>ya tiene todo abierto</span>{% endif %}
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div class="cell-sub">
+    Acceso: {% include 'panel/partials/membership_status_badge.html' with m=m %}
+    {% if not m.sin_vencimiento %} · vence el {{ m.expires_at|date:'d-m-Y' }}{% endif %}
+  </div>
+  {% if ocultos %}
+    <div class="cell-sub"><i class="bi bi-eye-slash"></i> Hay {{ ocultos }} modelo{{ ocultos|pluralize }} más que el alumno todavía no ve (según «Ritmo de entrega»).</div>
+  {% endif %}
+</div>
+
+<div class="aula-grid">
+  {% for t in tarjetas %}
+    {% if t.type == 'course' %}
+      {% with c=t.course %}
+      <div class="aula-card{% if not t.unlocked %} bloqueado{% endif %}">
+        <div class="portada" {% if c.portada_url %}style="background-image:url('{{ c.portada_url }}')"{% endif %}></div>
+        {% if not t.unlocked %}<div class="candado"><i class="bi bi-lock-fill"></i></div>{% endif %}
+        <div class="cuerpo">
+          <div class="titulo">{{ c.title }}</div>
+          {% if t.completed %}
+            <span class="badge-soft green mt-2">Terminado</span>
+          {% elif t.unlocked %}
+            <div class="barra"><i style="width:{{ t.pct }}%"></i></div>
+            <div class="nota">{{ t.done }} de {{ t.total }} pasos · {{ t.pct }}%</div>
+          {% elif t.lock_reason == 'vencida' %}
+            <div class="nota">Cerrado: su acceso venció</div>
+          {% elif t.lock_reason == 'previo' and t.required_course %}
+            <div class="nota">Termina «{{ t.required_course.title }}» para desbloquear</div>
+          {% elif t.lock_reason == 'fecha' and t.unlock_date %}
+            <div class="nota">Se abre el {{ t.unlock_date|date:'d-m-Y' }}</div>
+          {% else %}
+            <div class="nota">Bloqueado</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endwith %}
+    {% else %}
+      <div class="aula-card diploma{% if not t.unlocked %} bloqueado{% endif %}">
+        <div class="portada"><i class="bi bi-award-fill"></i></div>
+        <div class="cuerpo">
+          <div class="titulo">{{ t.diploma.title }}</div>
+          {% if t.unlocked %}<span class="badge-soft green mt-2">Ganado{% if t.awarded_at %} el {{ t.awarded_at|date:'d-m-Y' }}{% endif %}</span>
+          {% else %}<div class="nota">Todavía no lo gana</div>{% endif %}
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

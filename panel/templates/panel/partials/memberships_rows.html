@@ -56,12 +56,18 @@
         <div class="mprogress"><div class="mprogress-bar" style="width: {{ row.pct }}%"></div></div>
         <span class="mprogress-label">{{ row.completed }}/{{ row.total }}</span>
       </div>
+      <div class="cell-sub" title="Modelos que ya puede abrir en el Aula">{{ row.abiertos }} desbloqueado{{ row.abiertos|pluralize }}</div>
     </td>
     <td>{% include 'panel/partials/membership_status_badge.html' with m=m %}</td>
     <td class="text-end">
-      <a href="{% url 'panel:membership_detail' m.pk %}" class="btn-icon" title="Ver detalle">
-        <i class="bi bi-eye"></i>
-      </a>
+      <div class="d-inline-flex gap-1">
+        <a href="{% url 'panel:membership_aula' m.pk %}" class="btn-icon" title="Ver su Aula (como la ve el alumno)">
+          <i class="bi bi-display"></i>
+        </a>
+        <a href="{% url 'panel:membership_detail' m.pk %}" class="btn-icon" title="Ver detalle">
+          <i class="bi bi-eye"></i>
+        </a>
+      </div>
     </td>
   </tr>
   {% endwith %}

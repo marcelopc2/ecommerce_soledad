@@ -834,6 +834,7 @@ def memberships(request):
     for m in a_calcular:
         access = get_course_access(m, precarga)
         completed = sum(1 for a in access if a['completed'])
+        abiertos = sum(1 for a in access if a['unlocked'])
         current = next((a for a in access if a['unlocked'] and not a['completed']), None)
         if m.is_paused:
             status_rank = 1
@@ -848,6 +849,7 @@ def memberships(request):
         rows.append({
             'm': m,
             'completed': completed,
+            'abiertos': abiertos,
             'total': len(access),
             'pct': round(completed / len(access) * 100) if access else 0,
             'current_course': current['course'] if current else None,
@@ -2849,3 +2851,29 @@ def envios_ajustes(request):
     messages.success(request, 'Los pedidos pagados %s a Ventas de Shipit solos.' % (
         'se mandan' if a.enviar_a_shipit_al_pagar else 'ya NO se mandan'))
     return redirect('panel:orders')
+
+
+@staff_required
+def membership_aula(request, pk):
+    """El Aula tal como la ve este alumno: las mismas tarjetas, con el mismo
+    cálculo (lms.services.get_sequence_access), así que no puede mostrar algo
+    distinto de lo que el alumno ve. Solo mirar: no marca avance."""
+    from lms.services import get_course_access, get_sequence_access
+    m = get_object_or_404(Membership.objects.select_related('user'), pk=pk)
+    acceso = get_course_access(m)
+    tarjetas = get_sequence_access(m)
+    en_curso = next((a for a in acceso if a['unlocked'] and not a['completed']), None)
+    proximo = next((a for a in acceso if not a['unlocked']), None)
+    return render(request, 'panel/membership_aula.html', {
+        'm': m,
+        'tarjetas': tarjetas,
+        'total': len(acceso),
+        'abiertos': sum(1 for a in acceso if a['unlocked']),
+        'terminados': sum(1 for a in acceso if a['completed']),
+        'diplomas': sum(1 for t in tarjetas if t['type'] == 'diploma' and t.get('unlocked')),
+        'en_curso': en_curso,
+        'proximo': proximo,
+        'ocultos': len(acceso) - sum(1 for t in tarjetas if t['type'] == 'course'),
+        'hoy': timezone.localdate(),
+        'section': 'memberships',
+    })
