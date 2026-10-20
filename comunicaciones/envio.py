@@ -58,6 +58,8 @@ def correos_de_la_audiencia(audiencia):
                .exclude(user__email=''))
     if audiencia == EnvioMasivo.VIGENTES:
         alumnos = alumnos.filter(Membership.VIGENTE)
+    elif audiencia == EnvioMasivo.VENCIDOS:
+        alumnos = alumnos.exclude(Membership.VIGENTE)
     correos = {normalizar(e) for e in alumnos.values_list('user__email', flat=True)}
 
     if audiencia == EnvioMasivo.TODOS:

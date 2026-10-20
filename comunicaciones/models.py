@@ -61,12 +61,16 @@ class EnvioMasivo(models.Model):
     PRUEBA = 'PRUEBA'
     TODOS = 'TODOS'
     VIGENTES = 'VIGENTES'
+    VENCIDOS = 'VENCIDOS'
     AUDIENCIAS = [
         # Va primera y es la que viene marcada: lo que se escribe se prueba
         # antes de mandarlo a los clientes.
         (PRUEBA, 'Prueba: solo a los administradores'),
         (TODOS, 'Todos los clientes'),
         (VIGENTES, 'Solo con membresía vigente'),
+        # Los que ya no tienen acceso (vencida o en pausa): para invitarlos a
+        # renovar, sin molestar a quien está al día.
+        (VENCIDOS, 'Solo con membresía vencida'),
     ]
 
     asunto = models.CharField(max_length=150)

@@ -195,3 +195,26 @@ class PlantillasSinFotosDeNinosTests(TestCase):
         for p in plantillas():
             usadas = set(re.findall(r'/plantillas/([\w.-]+)"', p['html']))
             self.assertTrue(usadas and usadas <= permitidas, (p['clave'], usadas))
+
+
+class AudienciaVencidosTests(TestCase):
+    """Correo masivo solo a quienes ya no tienen acceso (para invitarlos a renovar)."""
+
+    def test_solo_los_que_no_estan_vigentes(self):
+        def alumno(correo, dias, **extra):
+            u = User.objects.create_user(username=correo, email=correo)
+            return Membership.objects.create(user=u, expires_at=timezone.now() + timedelta(days=dias), **extra)
+        alumno('vencida@correo.cl', -20)
+        alumno('pausada@correo.cl', 40, paused_at=timezone.now())
+        alumno('al.dia@correo.cl', 40)
+        alumno('abierta@correo.cl', -400, sin_vencimiento=True)
+        User.objects.create_user(username='jefa@ib.cl', email='jefa@ib.cl', is_staff=True)
+        self.assertEqual(masivos.correos_de_la_audiencia(EnvioMasivo.VENCIDOS),
+                         ['pausada@correo.cl', 'vencida@correo.cl'])
+        self.assertEqual(masivos.correos_de_la_audiencia(EnvioMasivo.VIGENTES),
+                         ['abierta@correo.cl', 'al.dia@correo.cl'])
+
+    def test_aparece_en_el_formulario(self):
+        jefa = User.objects.create_user(username='jefa2@ib.cl', email='jefa2@ib.cl', is_staff=True)
+        self.client.force_login(jefa)
+        self.assertContains(self.client.get(reverse('panel:correo_new')), 'Solo con membresía vencida')
