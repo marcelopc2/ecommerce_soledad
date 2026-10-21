@@ -733,6 +733,20 @@ def _historial_wp(m):
     registros = list(H.objects.filter(email__iexact=_correo_de(m)))
     if not registros:
         return None
+
+    # Para la tabla: lo más nuevo arriba y, el mismo día, la compra antes que
+    # el periodo que abrió. Los periodos de cero días son el rastro de un
+    # cambio de plan en el mismo momento de la compra: no dicen nada y ensucian.
+    orden = {H.COMPRA: 0, H.RENOVACION: 0, H.RESUSCRIPCION: 0, H.SUSCRIPCION: 1, H.PERIODO: 2}
+    tabla = sorted(
+        (r for r in registros
+         if not (r.tipo == H.PERIODO and r.fecha_fin and (r.fecha_fin - r.fecha) < _td(days=1))),
+        key=lambda r: (-r.fecha.date().toordinal(), orden[r.tipo]),
+    )
+    for r in tabla:
+        producto, _, cada = r.detalle.partition(' · ')
+        r.producto = producto or '—'
+        r.extra = ' · '.join(x for x in (cada, r.medio_pago) if x)
     compras = [r for r in registros if r.tipo in (H.COMPRA, H.RENOVACION, H.RESUSCRIPCION)]
     pagadas = [r for r in compras if r.pagado]
     ahora = timezone.now()
@@ -746,7 +760,7 @@ def _historial_wp(m):
             tramos.append([r.fecha, fin])
     dias = sum(((fin or ahora) - inicio).days for inicio, fin in tramos)
     return {
-        'registros': registros,
+        'registros': tabla,
         'compras': len(pagadas),
         'total': sum(r.monto for r in pagadas),
         'renovaciones': sum(1 for r in pagadas if r.tipo == H.RENOVACION),

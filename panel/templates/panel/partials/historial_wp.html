@@ -2,50 +2,84 @@
 {% comment %}
   La historia de la familia en la página anterior (WooCommerce + PMPro), traída
   con `historial_desde_wordpress`. Solo para consultar: no cambia su acceso.
+  El resumen lo arma panel.views._historial_wp.
 {% endcomment %}
 <div class="col-12">
-  <div class="pnl-card"><div class="card-pad pb-2">
-    <div class="form-section-title"><i class="bi bi-clock-history"></i> Historial en la página anterior</div>
-    <div class="hwp-resumen mb-3">
-      <div class="hwp-dato"><b>{{ h.compras }}</b><span>compra{{ h.compras|pluralize }} pagada{{ h.compras|pluralize }}</span></div>
-      <div class="hwp-dato"><b>${{ h.total|intcomma }}</b><span>pagado en total</span></div>
-      <div class="hwp-dato"><b>{{ h.renovaciones }}</b><span>renovaci{{ h.renovaciones|pluralize:"ón,ones" }} automática{{ h.renovaciones|pluralize }}</span></div>
-      <div class="hwp-dato"><b>{{ h.meses }}</b><span>mes{{ h.meses|pluralize:"es" }} con acceso</span></div>
-      <div class="hwp-dato"><b>{{ h.cortes }}</b><span>{% if h.cortes == 1 %}vez que se le cortó{% else %}veces que se le cortó{% endif %}</span></div>
-      <div class="hwp-dato"><b>{{ h.reactivaciones }}</b><span>{% if h.reactivaciones == 1 %}vez que volvió{% else %}veces que volvió{% endif %}</span></div>
-      {% if h.fallidas %}<div class="hwp-dato"><b class="text-danger">{{ h.fallidas }}</b><span>cobro{{ h.fallidas|pluralize }} fallido{{ h.fallidas|pluralize }}</span></div>{% endif %}
+  <div class="pnl-card hwp">
+    <div class="card-pad">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+          <div class="form-section-title mb-1"><i class="bi bi-clock-history"></i> Historial en la página anterior</div>
+          <div class="cell-sub">
+            Cliente desde el {{ h.desde|date:'d-m-Y' }}{% if h.ultima_compra %} · última compra el {{ h.ultima_compra|date:'d-m-Y' }}{% endif %}
+          </div>
+        </div>
+        <span class="badge-soft gray"><i class="bi bi-info-circle"></i> Solo para consultar</span>
+      </div>
+
+      <div class="hwp-resumen">
+        <div class="hwp-dato">
+          <span class="hwp-num">{{ h.compras }}</span>
+          <span class="hwp-txt">compra{{ h.compras|pluralize }} pagada{{ h.compras|pluralize }}</span>
+          {% if h.renovaciones %}<span class="hwp-sub">{{ h.renovaciones }} automática{{ h.renovaciones|pluralize }}</span>{% endif %}
+        </div>
+        <div class="hwp-dato">
+          <span class="hwp-num">${{ h.total|intcomma }}</span>
+          <span class="hwp-txt">pagado en total</span>
+        </div>
+        <div class="hwp-dato">
+          <span class="hwp-num">{{ h.meses }}</span>
+          <span class="hwp-txt">mes{{ h.meses|pluralize:"es" }} con acceso</span>
+        </div>
+        <div class="hwp-dato">
+          {% if h.cortes %}
+            <span class="hwp-num">{{ h.cortes }}</span>
+            <span class="hwp-txt">{% if h.cortes == 1 %}vez que se le cortó{% else %}veces que se le cortó{% endif %}</span>
+            <span class="hwp-sub">{% if h.reactivaciones %}volvió {{ h.reactivaciones }} vez{{ h.reactivaciones|pluralize:"es" }}{% else %}no ha vuelto{% endif %}</span>
+          {% else %}
+            <span class="hwp-num text-success"><i class="bi bi-check-circle"></i></span>
+            <span class="hwp-txt">nunca se le cortó</span>
+          {% endif %}
+        </div>
+        {% if h.fallidas %}
+          <div class="hwp-dato hwp-alerta">
+            <span class="hwp-num">{{ h.fallidas }}</span>
+            <span class="hwp-txt">cobro{{ h.fallidas|pluralize }} fallido{{ h.fallidas|pluralize }}</span>
+          </div>
+        {% endif %}
+      </div>
     </div>
-    <p class="cell-sub mb-2">
-      Cliente desde el {{ h.desde|date:'d-m-Y' }}{% if h.ultima_compra %} · última compra el {{ h.ultima_compra|date:'d-m-Y' }}{% endif %}.
-      Solo para consultar: esto no cambia su acceso.
-    </p>
-  </div>
-  <details class="hwp-detalle">
-    <summary class="card-pad py-2">Ver el detalle ({{ h.registros|length }})</summary>
-    <div class="table-responsive">
-      <table class="table pnl-table">
-        <thead><tr><th>Fecha</th><th>Qué</th><th>Detalle</th><th>Estado</th><th class="text-end">Monto</th></tr></thead>
-        <tbody>
-          {% for r in h.registros %}
-            <tr>
-              <td class="cell-sub" style="white-space:nowrap">
-                {{ r.fecha|date:'d-m-Y' }}{% if r.fecha_fin %} → {{ r.fecha_fin|date:'d-m-Y' }}{% endif %}
-              </td>
-              <td>
-                <span class="badge-soft {% if r.tipo == 'COMPRA' %}purple{% elif r.tipo == 'RENOVACION' %}teal{% elif r.tipo == 'RESUSCRIPCION' %}green{% elif r.tipo == 'SUSCRIPCION' %}blue{% else %}gray{% endif %}">{{ r.get_tipo_display }}</span>
-              </td>
-              <td class="cell-sub">{{ r.detalle|default:'—' }}{% if r.medio_pago %} · {{ r.medio_pago }}{% endif %}</td>
-              <td>
-                {% if r.pagado or r.estado == 'Activa' or r.estado == 'Vigente' %}<span class="badge-soft green">{{ r.estado }}</span>
-                {% elif r.estado == 'Falló el pago' or r.estado == 'Cancelado' or r.estado == 'Cancelada' or r.estado == 'Cancelado por la tienda' %}<span class="badge-soft red">{{ r.estado }}</span>
-                {% else %}<span class="badge-soft gray">{{ r.estado|default:'—' }}</span>{% endif %}
-              </td>
-              <td class="text-end">{% if r.monto %}${{ r.monto|intcomma }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </details>
+
+    <details class="hwp-detalle">
+      <summary><i class="bi bi-chevron-right"></i> Ver el detalle <span class="cell-sub">({{ h.registros|length }})</span></summary>
+      <div class="table-responsive">
+        <table class="table pnl-table mb-0">
+          <thead><tr><th>Fecha</th><th>Qué</th><th>Producto</th><th>Estado</th><th class="text-end">Monto</th></tr></thead>
+          <tbody>
+            {% for r in h.registros %}
+              <tr>
+                <td style="white-space:nowrap">
+                  {{ r.fecha|date:'d-m-Y' }}
+                  {% if r.fecha_fin %}<div class="cell-sub">hasta {{ r.fecha_fin|date:'d-m-Y' }}</div>{% endif %}
+                </td>
+                <td>
+                  <span class="badge-soft {% if r.tipo == 'COMPRA' %}purple{% elif r.tipo == 'RENOVACION' %}teal{% elif r.tipo == 'RESUSCRIPCION' %}green{% elif r.tipo == 'SUSCRIPCION' %}blue{% else %}gray{% endif %}">{{ r.get_tipo_display }}</span>
+                </td>
+                <td>
+                  {{ r.producto }}
+                  {% if r.extra %}<div class="cell-sub">{{ r.extra }}</div>{% endif %}
+                </td>
+                <td>
+                  {% if r.pagado or r.estado == 'Activa' or r.estado == 'Vigente' %}<span class="badge-soft green">{{ r.estado }}</span>
+                  {% elif r.estado == 'Falló el pago' or r.estado == 'Cancelado' or r.estado == 'Cancelada' or r.estado == 'Cancelado por la tienda' %}<span class="badge-soft red">{{ r.estado }}</span>
+                  {% else %}<span class="badge-soft gray">{{ r.estado|default:'—' }}</span>{% endif %}
+                </td>
+                <td class="text-end fw-semibold">{% if r.monto %}${{ r.monto|intcomma }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
   </div>
 </div>

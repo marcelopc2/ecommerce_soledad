@@ -1340,8 +1340,17 @@ body.login-body {
 .campo-clave-ojo:focus-visible { outline: 2px solid var(--purple-600); outline-offset: 1px; }
 
 /* Historial en la página anterior (ficha del alumno). */
-.hwp-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-.hwp-dato { background: #faf8fc; border: 1px solid #ece5f4; border-radius: 12px; padding: 10px 12px; }
-.hwp-dato b { display: block; font-size: 18px; color: #2f0053; line-height: 1.2; }
-.hwp-dato span { font-size: 12px; color: #8a8095; }
-.hwp-detalle summary { cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--purple-600); border-top: 1px solid var(--line); }
+.hwp-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.hwp-dato { display: flex; flex-direction: column; gap: 2px; background: #faf8fc; border: 1px solid #ece5f4;
+  border-radius: 14px; padding: 14px 16px; }
+.hwp-num { font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 22px; color: #2f0053; line-height: 1.15; }
+.hwp-txt { font-size: 13px; color: #6b6178; }
+.hwp-sub { font-size: 12px; color: #a39bb0; }
+.hwp-alerta { background: #fdecea; border-color: #f6cfcb; }
+.hwp-alerta .hwp-num { color: #c03434; }
+.hwp-detalle > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  padding: 12px 24px; border-top: 1px solid var(--line); font-weight: 600; font-size: 14px; color: var(--purple-600); }
+.hwp-detalle > summary::-webkit-details-marker { display: none; }
+.hwp-detalle > summary:hover { background: #faf8fc; }
+.hwp-detalle > summary .bi { transition: transform .15s ease; }
+.hwp-detalle[open] > summary .bi { transform: rotate(90deg); }
