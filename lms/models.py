@@ -48,7 +48,8 @@ class CourseCategory(models.Model):
     cursos_iniciales = models.PositiveIntegerField(
         default=3,
         help_text='Solo en modo goteo: cuántos modelos quedan disponibles apenas '
-                  'se compra. Del siguiente en adelante se libera uno por semana.',
+                  'se compra. Del siguiente en adelante se libera uno por semana. '
+                  'Al renovar después de vencerse se abre uno solo.',
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -498,7 +499,8 @@ class AjustesAula(models.Model):
     cursos_iniciales = models.PositiveIntegerField(
         default=3,
         help_text='Cuántos modelos quedan disponibles apenas se compra. Del siguiente '
-                  'en adelante se libera uno por semana.',
+                  'en adelante se libera uno por semana. Al renovar después de vencerse '
+                  'se abre uno solo.',
     )
     bloqueados_visibles = models.PositiveIntegerField(
         default=1,

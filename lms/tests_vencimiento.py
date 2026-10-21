@@ -157,12 +157,10 @@ class VencimientoYRenovacionTests(TestCase):
     def test_al_renovar_el_goteo_sigue_desde_el_ultimo_terminado(self):
         """Terminó 4 de 10 y se le venció. Al renovar NO recibe los 10 de golpe.
 
-        Los "3 modelos al comprar" son un permiso de FECHA: habilitan tres
-        posiciones sin esperar la semana, pero la cadena de "termina el anterior"
-        sigue mandando, igual que en una compra nueva. Así que quedan abiertos
-        los 4 que ya terminó más el siguiente, y el 6º y el 7º esperan a que los
-        vaya completando —sin semana de por medio—, mientras que el 8º sí espera
-        su semana.
+        Quedan abiertos los 4 que ya terminó más el siguiente, y de ahí uno por
+        semana. Los "3 modelos al comprar" son el regalo de bienvenida y no se
+        vuelven a dar al renovar: antes el 6º y el 7º quedaban con la fecha
+        cumplida y la clienta veía dos modelos nuevos de golpe.
         """
         self._comprada_hace(300)   # el calendario ya había liberado los 10
         self._terminar(4)
@@ -175,15 +173,10 @@ class VencimientoYRenovacionTests(TestCase):
                          'los 4 terminados más el siguiente de la fila')
         self.assertTrue(acceso[4]['unlocked'], 'retoma justo donde quedó')
 
-        # El 6º y el 7º ya tienen la fecha cumplida: lo único que los traba es
-        # terminar el anterior. Es la parte "se abren en orden, sin esperar".
-        for i in (5, 6):
-            self.assertEqual(acceso[i]['lock_reason'], 'previo')
-            self.assertEqual(acceso[i]['unlock_date'], timezone.localdate())
-
-        # El 8º es el primero que vuelve a depender del calendario semanal.
-        self.assertEqual(acceso[7]['unlock_date'],
-                         timezone.localdate() + timedelta(days=7))
+        # Del 6º en adelante, uno por semana.
+        for semanas, i in enumerate((5, 6, 7), start=1):
+            self.assertEqual(acceso[i]['unlock_date'],
+                             timezone.localdate() + timedelta(days=7 * semanas))
 
     def test_al_renovar_el_siguiente_llega_una_semana_despues_y_no_antes(self):
         self._comprada_hace(300)
@@ -192,7 +185,7 @@ class VencimientoYRenovacionTests(TestCase):
         self._renovar()
 
         acceso = get_course_access(self.membresia)
-        self.assertEqual(acceso[7]['unlock_date'],
+        self.assertEqual(acceso[5]['unlock_date'],
                          timezone.localdate() + timedelta(days=7))
 
     def test_renovar_no_le_quita_nada_de_lo_que_ya_tenia(self):
@@ -264,7 +257,7 @@ class VencimientoYRenovacionTests(TestCase):
         acceso = get_course_access(self.membresia)
         self.assertEqual(len([a for a in acceso if a['unlocked']]), 5,
                          'retoma donde quedó y no le entrega los 10 de una')
-        self.assertEqual(acceso[7]['unlock_date'],
+        self.assertEqual(acceso[5]['unlock_date'],
                          timezone.localdate() + timedelta(days=7))
 
     def test_renovar_antes_de_que_se_venza_no_toca_el_calendario(self):
@@ -306,6 +299,36 @@ class VencimientoYRenovacionTests(TestCase):
         self._renovar()
 
         acceso = get_course_access(self.membresia)
-        self.assertEqual(acceso[7]['unlock_date'],
+        self.assertEqual(acceso[5]['unlock_date'],
                          timezone.localdate() + timedelta(days=7),
                          'los 30 días de pausa vieja no deben mover el calendario nuevo')
+
+    def test_renovar_abre_un_solo_modelo_nuevo(self):
+        """El caso que reportó la clienta: con Bienvenida + modelo 1 abiertos al
+        comprar (2 iniciales), quien renovaba tras vencerse recibía 2 modelos
+        nuevos. Debe recibir solo el siguiente."""
+        self.categoria.cursos_iniciales = 2
+        self.categoria.save(update_fields=['cursos_iniciales'])
+        self._comprada_hace(300)
+        self._terminar(4)
+        self._vencer()
+        self._renovar()
+
+        acceso = get_course_access(self.membresia)
+        self.assertTrue(acceso[4]['unlocked'])
+        self._terminar(5)
+        acceso = get_course_access(self.membresia)
+        self.assertFalse(acceso[5]['unlocked'], 'el segundo nuevo espera su semana')
+        self.assertEqual(acceso[5]['lock_reason'], 'fecha')
+
+    def test_renovar_sin_nada_terminado_tambien_abre_uno_solo(self):
+        self.categoria.cursos_iniciales = 2
+        self.categoria.save(update_fields=['cursos_iniciales'])
+        self._comprada_hace(300)
+        self._vencer()
+        self._renovar()
+        self._terminar(1)
+
+        acceso = get_course_access(self.membresia)
+        self.assertEqual(acceso[1]['lock_reason'], 'fecha')
+        self.assertEqual(acceso[1]['unlock_date'], timezone.localdate() + timedelta(days=7))

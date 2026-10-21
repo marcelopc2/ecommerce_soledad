@@ -301,10 +301,15 @@ def _estado_en_categoria(mc, comp, today):
     # desde el día uno y el conteo semanal parte del siguiente.
     entregados = mc.entregados_al_reanudar if mc.reanudada_en else 0
 
+    # Los "disponibles al comprar" son para la primera compra (con 2: la
+    # Bienvenida, que no es un modelo, más el modelo 1). Al renovar tras vencerse
+    # se abre UNO solo y de ahí uno por semana; antes recibía dos de golpe.
+    iniciales = 1 if mc.reanudada_en else categoria.cursos_iniciales
+
     bloqueado = False
     for i, curso in enumerate(cursos):
         fecha = (inicio if i < entregados
-                 else _unlock_date(inicio, i - entregados, categoria.cursos_iniciales))
+                 else _unlock_date(inicio, i - entregados, iniciales))
         info = comp.get(curso.id)
         falta_fecha = today < fecha
         abierto = not falta_fecha and not bloqueado
@@ -822,9 +827,9 @@ def reanudar_goteo(membership):
 
     Sin esto, quien renueva después de vencerse recibe de golpe todos los modelos
     cuya fecha pasó mientras no pagaba: el ritmo semanal —que es el producto— se
-    evapora justo en la compra que debía renovarlo. Reanclando, la renovación se
-    comporta igual que la compra inicial (los primeros `cursos_iniciales` de una
-    vez, después uno por semana), solo que empezando donde quedó y no en cero.
+    evapora justo en la compra que debía renovarlo. Reanclando, la renovación
+    abre el modelo siguiente al último terminado y después sigue uno por semana.
+    Los `cursos_iniciales` no se vuelven a regalar (ver _estado_en_categoria).
 
     Se reanudan todas sus categorías y no solo las de esta orden: lo que se
     reactiva es la cuenta, no un paquete.
