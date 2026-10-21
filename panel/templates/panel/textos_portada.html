@@ -2,7 +2,7 @@
 
 {% block title %}Textos de la portada{% endblock %}
 {% block crumb %}Panel · Portada{% endblock %}
-{% block heading %}Portada: textos, fotos y temporada{% endblock %}
+{% block heading %}Textos de la portada{% endblock %}
 
 {% block actions %}
 <a href="{{ frontend_url }}" target="_blank" rel="noopener" hx-boost="false" class="btn btn-ghost">
@@ -30,9 +30,11 @@
         <i class="bi {{ icono }}"></i> {{ titulo }}
       </button>
     {% endfor %}
+    {% if con_fotos %}
     <button type="button" class="tp-seccion tp-seccion-fotos" data-seccion="fotos">
       <i class="bi bi-image"></i> Fotos y temporada
     </button>
+    {% endif %}
   </div>
 
   <div class="row g-4">
@@ -63,7 +65,8 @@
         </div></div>
       {% endfor %}
 
-      {# ---------- Fotos y temporada ---------- #}
+      {# ---------- Fotos y temporada (oculta: settings.PORTADA_FOTOS_Y_TEMPORADA) ---------- #}
+      {% if con_fotos %}
       <div class="pnl-card tp-panel d-none" data-panel="fotos"><div class="card-pad">
         <div class="form-section-title"><i class="bi bi-balloon"></i> Temporada</div>
         <p class="pnl-campo-ayuda mt-0">
@@ -118,6 +121,7 @@
           </div>
         {% endfor %}
       </div></div>
+      {% endif %}
 
       <div class="pnl-card mt-3"><div class="card-pad py-3 d-flex align-items-center gap-3 flex-wrap">
         <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar y publicar</button>
@@ -243,7 +247,7 @@
       })
       // La vista previa muestra la temporada elegida aunque sus fechas no
       // hayan llegado: es para ver cómo va a quedar.
-      datos.tema = form.elements.tema.value
+      if (form.elements.tema) datos.tema = form.elements.tema.value
       ;['hero_imagen', 'quienes_imagen'].forEach(function (k) {
         if (form.elements['quitar_' + k] && form.elements['quitar_' + k].checked) datos[k] = ''
         else if (fotosNuevas[k]) datos[k] = fotosNuevas[k]

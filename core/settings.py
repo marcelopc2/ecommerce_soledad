@@ -409,6 +409,11 @@ COBROS_AUTOMATICOS = _sitio_real()
 # Lo demás (prender los cobros, incluir las de WordPress, pausar una) se
 # decide en el panel: ver payments.models.AjustesCobros.
 # Bandeja que recibe los mensajes del formulario de contacto de la landing.
+# Fotos y temporadas de la portada (Navidad, Halloween…): está hecho y probado
+# pero OCULTO por decisión de la clienta (oct-2026). En True aparece la pestaña
+# «Fotos y temporada» en Panel → Portada y la portada respeta lo que se elija ahí.
+PORTADA_FOTOS_Y_TEMPORADA = False
+
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'contacto@ingenioblocks.com')
 
 

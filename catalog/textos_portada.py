@@ -130,8 +130,12 @@ def fechas_sugeridas(hoy=None):
 def portada_para_el_sitio(request=None):
     """Lo que pide la portada: los textos, las fotos (None = la original) y el
     tema de temporada que corresponde hoy."""
+    from django.conf import settings
     from .models import TextosPortada
     fila = TextosPortada.obtener()
+    if not settings.PORTADA_FOTOS_Y_TEMPORADA:
+        # Función oculta: aunque haya algo guardado, la portada sale normal.
+        return {**textos_actuales(), 'hero_imagen': None, 'quienes_imagen': None, 'tema': TextosPortada.NORMAL}
 
     def url(archivo):
         if not archivo:

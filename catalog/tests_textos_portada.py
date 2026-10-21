@@ -4,7 +4,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from catalog.models import TextosPortada
@@ -68,6 +68,7 @@ class TextosPortadaTests(TestCase):
         self.assertEqual(json.loads(copia.read_text(encoding='utf-8')), ORIGINALES)
 
 
+@override_settings(PORTADA_FOTOS_Y_TEMPORADA=True)
 class TemporadaYFotosTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(username='admin@ib.cl', email='admin@ib.cl', is_staff=True)
@@ -136,3 +137,20 @@ class TemporadaYFotosTests(TestCase):
         en_el_sitio = set(re.findall(r'^  (\w+): \{', js, re.M))
         en_el_panel = {t for t, _ in TextosPortada.TEMAS} - {TextosPortada.NORMAL}
         self.assertEqual(en_el_sitio, en_el_panel)
+
+
+class FuncionOcultaTests(TestCase):
+    """Fotos y temporada están ocultas por ahora (settings.PORTADA_FOTOS_Y_TEMPORADA)."""
+
+    def test_no_aparece_en_el_panel_y_la_portada_sale_normal(self):
+        admin = User.objects.create_user(username='admin@ib.cl', email='admin@ib.cl', is_staff=True)
+        self.client.force_login(admin)
+        fila = TextosPortada.obtener()
+        fila.tema = 'navidad'
+        fila.save()
+        self.assertNotContains(self.client.get(reverse('panel:textos_portada')), 'Fotos y temporada')
+        self.assertEqual(self.client.get(reverse('textos-portada')).json()['tema'], 'normal')
+        # Guardar textos sin la pestaña no toca lo de temporada.
+        r = self.client.post(reverse('panel:textos_portada'), {**ORIGINALES, 'hero_boton': 'comprar ya'})
+        self.assertRedirects(r, reverse('panel:textos_portada'))
+        self.assertEqual(TextosPortada.obtener().tema, 'navidad')

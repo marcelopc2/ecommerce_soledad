@@ -1442,15 +1442,16 @@ def textos_portada(request):
     """Los textos fijos de la portada (títulos, párrafos, contacto, redes)."""
     from catalog.models import TextosPortada
     from catalog.textos_portada import SECCIONES, textos_actuales
-    from .forms import TextosPortadaForm
+    from .forms import PortadaVisualForm, TextosPortadaForm
 
-    from .forms import PortadaVisualForm
-
+    # Fotos y temporada: ocultas por ahora (ver settings.PORTADA_FOTOS_Y_TEMPORADA).
+    con_fotos = settings.PORTADA_FOTOS_Y_TEMPORADA
     fila = TextosPortada.obtener()
     form = TextosPortadaForm(request.POST or None, actuales=textos_actuales())
-    visual = PortadaVisualForm(request.POST or None, request.FILES or None, instance=fila)
-    if request.method == 'POST' and form.is_valid() and visual.is_valid():
-        fila = visual.save(commit=False)
+    visual = PortadaVisualForm(request.POST or None, request.FILES or None, instance=fila) if con_fotos else None
+    if request.method == 'POST' and form.is_valid() and (visual is None or visual.is_valid()):
+        if visual is not None:
+            fila = visual.save(commit=False)
         fila.textos = form.cambiados()
         fila.actualizado_por = request.user.email or request.user.get_username()
         fila.save()
@@ -1467,9 +1468,10 @@ def textos_portada(request):
                  for titulo, icono, slug, campos in SECCIONES]
     return render(request, 'panel/textos_portada.html', {
         'form': form, 'visual': visual, 'secciones': secciones, 'fila': fila, 'originales': ORIGINALES,
-        'sugeridas': fechas_sugeridas(), 'hoy': timezone.localdate(),
+        'con_fotos': con_fotos,
+        'sugeridas': fechas_sugeridas() if con_fotos else [], 'hoy': timezone.localdate(),
         'fotos': [(visual['hero_imagen'], visual['quitar_hero_imagen'], fila.hero_imagen),
-                  (visual['quienes_imagen'], visual['quitar_quienes_imagen'], fila.quienes_imagen)],
+                  (visual['quienes_imagen'], visual['quitar_quienes_imagen'], fila.quienes_imagen)] if con_fotos else [],
         'cambiados': len(fila.textos or {}),
         'section': 'cfg-textos',
     })
