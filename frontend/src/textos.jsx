@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api, PANEL_URL } from './api'
-import ORIGINALES from './textosPortada.json'
+import TEXTOS_ORIGINALES from './textosPortada.json'
+import { TEMAS } from './temas'
+
+// Además de los textos: las fotos (null = la del diseño) y la temporada.
+const ORIGINALES = { ...TEXTOS_ORIGINALES, hero_imagen: null, quienes_imagen: null, tema: 'normal' }
 
 /* Textos fijos de la portada que se editan en el panel (Portada → Textos de la
    portada). Se piden UNA vez y se comparten: la portada, el contacto y el pie
@@ -55,6 +59,7 @@ export const enVistaPrevia = typeof window !== 'undefined'
 /** Dónde está cada sección del panel en la portada (ver catalog/textos_portada.py). */
 const SECCIONES_VISTA_PREVIA = {
   hero: '.lp-hero',
+  fotos: '.lp-hero',
   como: '#como-funciona',
   beneficios: '#beneficios',
   productos: '#kits',
@@ -71,9 +76,18 @@ if (enVistaPrevia) {
   window.addEventListener('message', (e) => {
     if (e.origin !== origenPanel || e.data?.tipo !== 'ib-textos') return
     const recibidos = e.data.textos || {}
-    const textos = { ...ORIGINALES }
-    for (const clave of Object.keys(ORIGINALES)) {
-      if (typeof recibidos[clave] === 'string' && recibidos[clave].trim()) textos[clave] = recibidos[clave]
+    const textos = { ...ORIGINALES, ...(cargados || {}) }
+    for (const clave of Object.keys(TEXTOS_ORIGINALES)) {
+      textos[clave] = typeof recibidos[clave] === 'string' && recibidos[clave].trim()
+        ? recibidos[clave] : TEXTOS_ORIGINALES[clave]
+    }
+    if (recibidos.tema in TEMAS || recibidos.tema === 'normal') textos.tema = recibidos.tema
+    // Fotos: '' = volver a la original; una foto recién elegida llega como
+    // data:image/…, que no puede traer código. Cualquier otra cosa se ignora.
+    for (const clave of ['hero_imagen', 'quienes_imagen']) {
+      const v = recibidos[clave]
+      if (v === '') textos[clave] = null
+      else if (typeof v === 'string' && v.startsWith('data:image/')) textos[clave] = v
     }
     publicar(textos)
 

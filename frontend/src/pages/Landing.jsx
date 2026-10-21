@@ -5,6 +5,7 @@ import { api } from '../api'
 import { useAuth } from '../auth'
 import { ocultarPreloader } from '../preloader'
 import { cargarTextos, Parrafos, Resaltado, useTextos } from '../textos'
+import { TEMAS } from '../temas'
 import {
   Contacto, LandingFooter, LandingHeader, PlusDeco, Sparkle, useScrollReveal,
   IconInstagram, IconFacebook, IconYoutube,
@@ -184,6 +185,52 @@ const KIT_DESC = 'Kit de bloques Ingenio Blocks con más de 400 piezas + motor y
 
 /* ---------- Secciones ---------- */
 
+/* Dónde van los adornos de temporada: los mismos lugares que las chispitas
+   del diseño, para que la composición no cambie, solo los motivos. */
+const PUESTOS_ADORNOS = [
+  { top: '17%', right: '3.5%' }, { top: '48%', left: '39%' }, { top: '70%', left: '12%' },
+  { top: '12%', left: '30%' }, { top: '21%', left: '9%' }, { top: '48%', right: '4%' },
+  { top: '62%', left: '61%' }, { top: '82%', left: '28%' }, { top: '9%', right: '22%' },
+  { top: '43%', left: '2.5%' }, { top: '26%', left: '55%' }, { top: '74%', left: '3%' },
+]
+
+function AdornosDeTemporada({ tema }) {
+  // Posición, tamaño y ritmo fijos por índice (no al azar): al azar cambiarían
+  // en cada render y los adornos saltarían de lugar mientras se edita.
+  const lluvia = tema.lluvia || []
+  return (
+    <>
+      {PUESTOS_ADORNOS.map((puesto, i) => (
+        <span
+          key={i}
+          className="lp-deco lp-tema-adorno"
+          aria-hidden="true"
+          style={{ ...puesto, '--dur': `${6 + (i % 4)}s`, '--delay': `${(i * 0.7) % 3}s`, fontSize: `${26 + (i * 7) % 20}px` }}
+        >
+          {tema.flotan[i % tema.flotan.length]}
+        </span>
+      ))}
+      {lluvia.length > 0 && (
+        <div className={`lp-tema-lluvia ${tema.sentido === 'sube' ? 'sube' : 'cae'}`} aria-hidden="true">
+          {Array.from({ length: 16 }).map((_, i) => (
+            <span
+              key={i}
+              style={{
+                left: `${(i * 37) % 100}%`,
+                fontSize: `${18 + (i * 5) % 16}px`,
+                animationDuration: `${9 + (i * 3) % 8}s`,
+                animationDelay: `${-((i * 1.9) % 12)}s`,
+              }}
+            >
+              {lluvia[i % lluvia.length]}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 function Hero({ activeSection }) {
   const t = useTextos()
   return (
@@ -198,28 +245,30 @@ function Hero({ activeSection }) {
           <a href="#kits" className="lp-btn-yellow lp-btn-cta">{t.hero_boton}</a>
         </div>
         <div className="lp-hero-photo">
-          <img src={heroNino} alt="Niño construyendo con bloques Ingenio Blocks" />
+          <img src={t.hero_imagen || heroNino} alt="Niño construyendo con bloques Ingenio Blocks" />
         </div>
       </div>
-      {/* decoraciones flotantes */}
-      <Sparkle size={26} style={{ top: '17%', right: '3.5%', '--dur': '5s' }} />
-      <Sparkle size={22} color="rgba(255,255,255,0.7)" style={{ top: '48%', left: '39%', '--dur': '7s', '--delay': '1.2s' }} />
-      <Sparkle size={16} style={{ top: '70%', left: '12%', '--dur': '6s', '--delay': '0.5s' }} />
-      <Sparkle size={18} color="rgba(255,255,255,0.55)" style={{ top: '12%', left: '30%', '--dur': '8s', '--delay': '2s' }} />
-      <PlusDeco style={{ top: '21%', left: '9%', '--dur': '9s' }} />
-      <PlusDeco style={{ top: '48%', right: '4%', '--dur': '6.5s', '--delay': '1.8s' }} color="rgba(255,203,0,0.7)" />
-      <PlusDeco style={{ top: '62%', left: '61%', '--dur': '7.5s', '--delay': '0.8s' }} />
-      <PlusDeco style={{ top: '82%', left: '28%', '--dur': '8.5s', '--delay': '2.4s' }} color="rgba(255,203,0,0.55)" />
-      <PlusDeco style={{ top: '9%', right: '22%', '--dur': '10s', '--delay': '1s' }} />
-      <svg className="lp-deco" width="20" height="20" viewBox="0 0 20 20" style={{ top: '43%', left: '2.5%', '--dur': '7s' }} aria-hidden="true">
-        <polygon points="3,2 17,10 3,18" fill="#ffcb00" />
-      </svg>
-      <svg className="lp-deco" width="14" height="14" viewBox="0 0 20 20" style={{ top: '26%', left: '55%', '--dur': '9s', '--delay': '3s' }} aria-hidden="true">
-        <polygon points="3,2 17,10 3,18" fill="rgba(255,255,255,0.5)" transform="rotate(120 10 10)" />
-      </svg>
-      <span className="lp-deco lp-deco-dot" style={{ top: '20%', left: '52%', '--dur': '6s' }} aria-hidden="true" />
-      <span className="lp-deco lp-deco-dot" style={{ top: '74%', left: '3%', '--dur': '8s', '--delay': '1.5s' }} aria-hidden="true" />
-      <span className="lp-deco lp-deco-dot lp-deco-dot-yellow" style={{ top: '34%', right: '46%', '--dur': '7s', '--delay': '2.2s' }} aria-hidden="true" />
+      {/* decoraciones flotantes: las del diseño, o las de la temporada */}
+      {TEMAS[t.tema] ? <AdornosDeTemporada tema={TEMAS[t.tema]} /> : <>
+        <Sparkle size={26} style={{ top: '17%', right: '3.5%', '--dur': '5s' }} />
+        <Sparkle size={22} color="rgba(255,255,255,0.7)" style={{ top: '48%', left: '39%', '--dur': '7s', '--delay': '1.2s' }} />
+        <Sparkle size={16} style={{ top: '70%', left: '12%', '--dur': '6s', '--delay': '0.5s' }} />
+        <Sparkle size={18} color="rgba(255,255,255,0.55)" style={{ top: '12%', left: '30%', '--dur': '8s', '--delay': '2s' }} />
+        <PlusDeco style={{ top: '21%', left: '9%', '--dur': '9s' }} />
+        <PlusDeco style={{ top: '48%', right: '4%', '--dur': '6.5s', '--delay': '1.8s' }} color="rgba(255,203,0,0.7)" />
+        <PlusDeco style={{ top: '62%', left: '61%', '--dur': '7.5s', '--delay': '0.8s' }} />
+        <PlusDeco style={{ top: '82%', left: '28%', '--dur': '8.5s', '--delay': '2.4s' }} color="rgba(255,203,0,0.55)" />
+        <PlusDeco style={{ top: '9%', right: '22%', '--dur': '10s', '--delay': '1s' }} />
+        <svg className="lp-deco" width="20" height="20" viewBox="0 0 20 20" style={{ top: '43%', left: '2.5%', '--dur': '7s' }} aria-hidden="true">
+          <polygon points="3,2 17,10 3,18" fill="#ffcb00" />
+        </svg>
+        <svg className="lp-deco" width="14" height="14" viewBox="0 0 20 20" style={{ top: '26%', left: '55%', '--dur': '9s', '--delay': '3s' }} aria-hidden="true">
+          <polygon points="3,2 17,10 3,18" fill="rgba(255,255,255,0.5)" transform="rotate(120 10 10)" />
+        </svg>
+        <span className="lp-deco lp-deco-dot" style={{ top: '20%', left: '52%', '--dur': '6s' }} aria-hidden="true" />
+        <span className="lp-deco lp-deco-dot" style={{ top: '74%', left: '3%', '--dur': '8s', '--delay': '1.5s' }} aria-hidden="true" />
+        <span className="lp-deco lp-deco-dot lp-deco-dot-yellow" style={{ top: '34%', right: '46%', '--dur': '7s', '--delay': '2.2s' }} aria-hidden="true" />
+      </>}
     </section>
   )
 }
@@ -671,7 +720,7 @@ function QuienesSomos() {
           <span className="lp-circle-gray" aria-hidden="true" />
           <span className="lp-circle-yellow" aria-hidden="true" />
           <span className="lp-circle-purple" aria-hidden="true" />
-          <img src={quienesSomosNino} alt="Niño construyendo un modelo motorizado" />
+          <img src={t.quienes_imagen || quienesSomosNino} alt="Niño construyendo un modelo motorizado" />
         </div>
         <div className="lp-quienes-texto">
           <Parrafos texto={t.quienes_texto} />
@@ -1227,11 +1276,13 @@ export default function Landing() {
     // si el overlay se destapa antes de que termine de bajar, queda un hueco en
     // blanco justo donde debería estar el niño, que es EXACTAMENTE el efecto de
     // "carga a la vista" que se quiere evitar.
-    const foto = new Promise(resolve => {
+    // Si en el panel subieron otra foto (Navidad, Halloween…), es esa la
+    // que hay que esperar, no la original.
+    const foto = cargarTextos().then(t => new Promise(resolve => {
       const img = new Image()
       img.onload = img.onerror = resolve
-      img.src = heroNino
-    })
+      img.src = t.hero_imagen || heroNino
+    }))
 
     // document.fonts.ready evita el destello de texto sin estilo (se ve con la
     // tipografía del sistema un instante y salta a Quicksand/Outfit).

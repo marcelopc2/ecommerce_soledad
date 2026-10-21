@@ -96,8 +96,8 @@ class TextosPortadaView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from .textos_portada import textos_actuales
-        return Response(textos_actuales())
+        from .textos_portada import portada_para_el_sitio
+        return Response(portada_para_el_sitio(request))
 
 
 class ClubView(APIView):

@@ -511,12 +511,58 @@ class TextosPortada(models.Model):
     texto original. Ver catalog/textos_portada.py. Fila única.
     """
     textos = models.JSONField(default=dict, blank=True)
+
+    # --- Imágenes y temporada (Halloween, Navidad...) ---
+    # Vacías = las del diseño original, que vienen dentro del sitio.
+    hero_imagen = models.FileField(
+        upload_to='portada/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Foto de la portada principal',
+        help_text='Ideal: PNG o WebP con fondo transparente, como la original, de unos 1200 px de ancho.')
+    quienes_imagen = models.FileField(
+        upload_to='portada/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Foto de Quiénes somos',
+        help_text='Ideal: PNG o WebP con fondo transparente, como la original.')
+
+    NORMAL = 'normal'
+    #: Los adornos de cada tema se dibujan en el sitio (frontend/src/temas.js).
+    TEMAS = [
+        (NORMAL, 'Normal (sin temporada)'),
+        ('ano_nuevo', 'Año Nuevo'),
+        ('verano', 'Vacaciones de verano'),
+        ('san_valentin', 'San Valentín'),
+        ('vuelta_clases', 'Vuelta a clases'),
+        ('pascua', 'Pascua de Resurrección'),
+        ('dia_madre', 'Día de la Madre'),
+        ('dia_padre', 'Día del Padre'),
+        ('invierno', 'Vacaciones de invierno'),
+        ('dia_nino', 'Día del Niño'),
+        ('fiestas_patrias', 'Fiestas Patrias'),
+        ('halloween', 'Halloween'),
+        ('navidad', 'Navidad'),
+    ]
+    tema = models.CharField(max_length=20, choices=TEMAS, default=NORMAL, verbose_name='Temporada')
+    tema_desde = models.DateField(null=True, blank=True, verbose_name='Desde')
+    tema_hasta = models.DateField(null=True, blank=True, verbose_name='Hasta',
+                                  help_text='Pasada esta fecha la portada vuelve sola a la normal.')
+
     actualizado = models.DateTimeField(auto_now=True)
     actualizado_por = models.CharField(max_length=254, blank=True)
 
     class Meta:
         verbose_name = 'Textos de la portada'
         verbose_name_plural = 'Textos de la portada'
+
+    def tema_vigente(self, hoy=None):
+        """El tema que se ve HOY: fuera de sus fechas, la portada es la normal."""
+        from django.utils import timezone
+        hoy = hoy or timezone.localdate()
+        if self.tema == self.NORMAL:
+            return self.NORMAL
+        if (self.tema_desde and hoy < self.tema_desde) or (self.tema_hasta and hoy > self.tema_hasta):
+            return self.NORMAL
+        return self.tema
 
     def __str__(self):
         return f'Textos de la portada ({len(self.textos or {})} cambiados)'

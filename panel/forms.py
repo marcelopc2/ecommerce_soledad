@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
-    SeccionClub, SeccionConcurso, GanadorConcurso,
+    SeccionClub, SeccionConcurso, GanadorConcurso, TextosPortada,
 )
 from comunicaciones.models import EnvioMasivo
 from payments.models import Coupon
@@ -1209,3 +1209,52 @@ class TextosPortadaForm(forms.Form):
             if valor and valor != ORIGINALES[clave]:
                 salida[clave] = valor
         return salida
+
+
+class PortadaVisualForm(BootstrapFormMixin, forms.ModelForm):
+    """Fotos y temporada de la portada (va en la misma página que los textos)."""
+    quitar_hero_imagen = forms.BooleanField(required=False, label='Volver a la foto original')
+    quitar_quienes_imagen = forms.BooleanField(required=False, label='Volver a la foto original')
+
+    class Meta:
+        model = TextosPortada
+        fields = ['tema', 'tema_desde', 'tema_hasta', 'hero_imagen', 'quienes_imagen']
+        widgets = {
+            'tema_desde': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'tema_hasta': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'hero_imagen': forms.FileInput(attrs={'accept': 'image/png,image/jpeg,image/webp'}),
+            'quienes_imagen': forms.FileInput(attrs={'accept': 'image/png,image/jpeg,image/webp'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for nombre in ('quitar_hero_imagen', 'quitar_quienes_imagen'):
+            self.fields[nombre].widget.attrs['class'] = 'form-check-input'
+
+    def _foto(self, nombre):
+        foto = self.cleaned_data.get(nombre)
+        if foto and getattr(foto, 'size', 0) > 5 * 1024 * 1024:
+            raise forms.ValidationError('La foto no puede pesar más de 5 MB.')
+        return foto
+
+    def clean_hero_imagen(self):
+        return self._foto('hero_imagen')
+
+    def clean_quienes_imagen(self):
+        return self._foto('quienes_imagen')
+
+    def clean(self):
+        datos = super().clean()
+        desde, hasta = datos.get('tema_desde'), datos.get('tema_hasta')
+        if desde and hasta and hasta < desde:
+            self.add_error('tema_hasta', 'Termina antes de empezar.')
+        return datos
+
+    def save(self, commit=True):
+        fila = super().save(commit=False)
+        for campo in ('hero_imagen', 'quienes_imagen'):
+            if self.cleaned_data.get('quitar_' + campo):
+                setattr(fila, campo, '')
+        if commit:
+            fila.save()
+        return fila

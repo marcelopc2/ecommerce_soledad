@@ -2,7 +2,7 @@
 
 {% block title %}Textos de la portada{% endblock %}
 {% block crumb %}Panel · Portada{% endblock %}
-{% block heading %}Textos de la portada{% endblock %}
+{% block heading %}Portada: textos, fotos y temporada{% endblock %}
 
 {% block actions %}
 <a href="{{ frontend_url }}" target="_blank" rel="noopener" hx-boost="false" class="btn btn-ghost">
@@ -21,7 +21,7 @@
   y una línea en blanco entre párrafos (es lo que entiende la portada y no deja
   meter HTML). El editor solo traduce: la negrita del editor <-> **…**.
 {% endcomment %}
-<form method="post" id="textos-form" novalidate>
+<form method="post" id="textos-form" enctype="multipart/form-data" novalidate>
   {% csrf_token %}
 
   <div class="tp-secciones mb-3" role="tablist">
@@ -30,6 +30,9 @@
         <i class="bi {{ icono }}"></i> {{ titulo }}
       </button>
     {% endfor %}
+    <button type="button" class="tp-seccion tp-seccion-fotos" data-seccion="fotos">
+      <i class="bi bi-image"></i> Fotos y temporada
+    </button>
   </div>
 
   <div class="row g-4">
@@ -59,6 +62,62 @@
           </p>
         </div></div>
       {% endfor %}
+
+      {# ---------- Fotos y temporada ---------- #}
+      <div class="pnl-card tp-panel d-none" data-panel="fotos"><div class="card-pad">
+        <div class="form-section-title"><i class="bi bi-balloon"></i> Temporada</div>
+        <p class="pnl-campo-ayuda mt-0">
+          Cambia los adornos que flotan en la portada principal (copos, murciélagos, volantines…).
+          Con fechas se prende y se apaga sola; sin fechas queda hasta que la vuelvas a «Normal».
+        </p>
+        <div class="row g-3 mb-2">
+          <div class="col-12">
+            <label class="form-label" for="{{ visual.tema.id_for_label }}">{{ visual.tema.label }}</label>
+            {{ visual.tema }}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="{{ visual.tema_desde.id_for_label }}">{{ visual.tema_desde.label }}</label>
+            {{ visual.tema_desde }}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="{{ visual.tema_hasta.id_for_label }}">{{ visual.tema_hasta.label }}</label>
+            {{ visual.tema_hasta }}
+            {% for e in visual.tema_hasta.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+        {% if fila.tema != 'normal' %}
+          <div class="mb-3">
+            {% if fila.tema_vigente == fila.tema %}<span class="badge-soft green"><i class="bi bi-broadcast"></i> Se está viendo ahora</span>
+            {% else %}<span class="badge-soft gray"><i class="bi bi-clock"></i> Guardada, fuera de sus fechas</span>{% endif %}
+          </div>
+        {% endif %}
+        <label class="form-label">Fechas sugeridas <span class="cell-sub">(un clic las pone)</span></label>
+        <div class="tp-sugeridas mb-4">
+          {% for tema, nombre, desde, hasta in sugeridas %}
+            <button type="button" class="tp-sugerida" data-tema="{{ tema }}" data-desde="{{ desde|date:'Y-m-d' }}" data-hasta="{{ hasta|date:'Y-m-d' }}">
+              <b>{{ nombre }}</b><span>{{ desde|date:'j M' }} – {{ hasta|date:'j M' }}</span>
+            </button>
+          {% endfor %}
+        </div>
+
+        <div class="form-section-title"><i class="bi bi-image"></i> Fotos</div>
+        {% for campo, quitar, actual in fotos %}
+          <div class="tp-foto mb-3">
+            <div class="tp-foto-mini">
+              {% if actual %}<img src="{{ actual.url }}" alt="">{% else %}<span>Original</span>{% endif %}
+            </div>
+            <div class="flex-grow-1">
+              <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+              {{ campo }}
+              <div class="pnl-campo-ayuda">{{ campo.help_text }}</div>
+              {% for e in campo.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+              {% if actual %}
+                <div class="form-check mt-1">{{ quitar }}<label class="form-check-label" for="{{ quitar.id_for_label }}">{{ quitar.label }}</label></div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div></div>
 
       <div class="pnl-card mt-3"><div class="card-pad py-3 d-flex align-items-center gap-3 flex-wrap">
         <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar y publicar</button>
@@ -96,6 +155,17 @@
     padding:7px 14px; font-size:13px; font-weight:600; display:inline-flex; gap:6px; align-items:center; }
   .tp-seccion:hover { border-color:#8200db; color:#590599; }
   .tp-seccion.active { background:#590599; border-color:#590599; color:#fff; }
+  .tp-seccion-fotos { border-color:#ffcb00; }
+  .tp-sugeridas { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .tp-sugerida { text-align:left; border:1.5px solid #ece5f4; background:#faf8fc; border-radius:12px; padding:8px 10px;
+    display:flex; flex-direction:column; gap:1px; }
+  .tp-sugerida b { font-size:13px; color:#2f0053; }
+  .tp-sugerida span { font-size:12px; color:#8a8095; }
+  .tp-sugerida:hover, .tp-sugerida.active { border-color:#8200db; background:#f1e8fc; }
+  .tp-foto { display:flex; gap:14px; align-items:flex-start; }
+  .tp-foto-mini { flex:0 0 84px; height:84px; border-radius:12px; background:#590599; display:flex; align-items:center;
+    justify-content:center; overflow:hidden; color:#fff; font-size:12px; font-weight:600; }
+  .tp-foto-mini img { max-width:100%; max-height:100%; object-fit:contain; }
   .tp-original { border:0; background:none; padding:0; font-size:12px; color:#a39bb0; text-decoration:underline; }
   .tp-original:hover { color:#590599; }
   .tp-editor { background:#fff; }
@@ -161,11 +231,22 @@
     }
 
     // ---- vista previa ------------------------------------------------------
+    // Fotos elegidas en el computador y todavía sin guardar: se le mandan a
+    // la vista previa como datos (data:), porque el archivo aún no está en el
+    // servidor. '' = volver a la original; undefined = la que ya está.
+    var fotosNuevas = {}
     function valores() {
       var datos = {}
       Object.keys(ORIGINALES).forEach(function (k) {
         var el = form.elements[k]
         datos[k] = (el && el.value.trim()) || ORIGINALES[k]
+      })
+      // La vista previa muestra la temporada elegida aunque sus fechas no
+      // hayan llegado: es para ver cómo va a quedar.
+      datos.tema = form.elements.tema.value
+      ;['hero_imagen', 'quienes_imagen'].forEach(function (k) {
+        if (form.elements['quitar_' + k] && form.elements['quitar_' + k].checked) datos[k] = ''
+        else if (fotosNuevas[k]) datos[k] = fotosNuevas[k]
       })
       return datos
     }
@@ -215,8 +296,29 @@
     })
 
     // ---- campos ------------------------------------------------------------
-    form.querySelectorAll('input:not([type=hidden])').forEach(function (el) {
+    form.querySelectorAll('input:not([type=hidden]):not([type=file]), select').forEach(function (el) {
       el.addEventListener('input', avisar)
+      el.addEventListener('change', avisar)
+    })
+
+    form.querySelectorAll('input[type=file]').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var archivo = el.files[0]
+        if (!archivo) { delete fotosNuevas[el.name]; avisar(); return }
+        var lector = new FileReader()
+        lector.onload = function () { fotosNuevas[el.name] = lector.result; avisar() }
+        lector.readAsDataURL(archivo)
+      })
+    })
+
+    form.querySelectorAll('.tp-sugerida').forEach(function (b) {
+      b.addEventListener('click', function () {
+        form.elements.tema.value = b.dataset.tema
+        form.elements.tema_desde.value = b.dataset.desde
+        form.elements.tema_hasta.value = b.dataset.hasta
+        form.querySelectorAll('.tp-sugerida').forEach(function (x) { x.classList.toggle('active', x === b) })
+        avisar()
+      })
     })
 
     form.querySelectorAll('[data-original]').forEach(function (b) {

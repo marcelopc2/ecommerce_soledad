@@ -1444,20 +1444,32 @@ def textos_portada(request):
     from catalog.textos_portada import SECCIONES, textos_actuales
     from .forms import TextosPortadaForm
 
+    from .forms import PortadaVisualForm
+
     fila = TextosPortada.obtener()
     form = TextosPortadaForm(request.POST or None, actuales=textos_actuales())
-    if request.method == 'POST' and form.is_valid():
+    visual = PortadaVisualForm(request.POST or None, request.FILES or None, instance=fila)
+    if request.method == 'POST' and form.is_valid() and visual.is_valid():
+        fila = visual.save(commit=False)
         fila.textos = form.cambiados()
         fila.actualizado_por = request.user.email or request.user.get_username()
         fila.save()
-        messages.success(request, 'Textos guardados. Ya se ven en la portada.')
+        vigente = fila.tema_vigente()
+        aviso = 'Portada guardada. Ya se ven los cambios.'
+        if fila.tema != fila.NORMAL and vigente == fila.NORMAL:
+            aviso = (f'Portada guardada. La temporada «{fila.get_tema_display()}» '
+                     f'se verá entre las fechas que pusiste.')
+        messages.success(request, aviso)
         return redirect('panel:textos_portada')
 
-    from catalog.textos_portada import ORIGINALES
+    from catalog.textos_portada import ORIGINALES, fechas_sugeridas
     secciones = [(titulo, icono, slug, [form[clave] for clave, _, _ in campos])
                  for titulo, icono, slug, campos in SECCIONES]
     return render(request, 'panel/textos_portada.html', {
-        'form': form, 'secciones': secciones, 'fila': fila, 'originales': ORIGINALES,
+        'form': form, 'visual': visual, 'secciones': secciones, 'fila': fila, 'originales': ORIGINALES,
+        'sugeridas': fechas_sugeridas(), 'hoy': timezone.localdate(),
+        'fotos': [(visual['hero_imagen'], visual['quitar_hero_imagen'], fila.hero_imagen),
+                  (visual['quienes_imagen'], visual['quitar_quienes_imagen'], fila.quienes_imagen)],
         'cambiados': len(fila.textos or {}),
         'section': 'cfg-textos',
     })

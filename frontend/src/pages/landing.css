@@ -2414,3 +2414,29 @@ figure.lp-gmodal-card { cursor: default; }
 /* Vista previa del panel (Textos de la portada): marca la sección que se está
    editando, para que se vea de inmediato dónde cae cada texto. */
 .lp-editando { outline: 3px dashed #ffcb00; outline-offset: -3px; }
+
+/* ---------- Temporada (Navidad, Halloween…): ver temas.js ---------- */
+.lp .lp-tema-adorno { line-height: 1; filter: drop-shadow(0 4px 10px rgba(15, 0, 30, 0.35)); }
+.lp-tema-lluvia { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+.lp-tema-lluvia span {
+  position: absolute;
+  line-height: 1;
+  opacity: 0.85;
+  animation-name: lp-caer;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.lp-tema-lluvia.sube span { animation-name: lp-subir; }
+@keyframes lp-caer {
+  from { top: -8%; transform: translateX(0) rotate(0deg); }
+  50% { transform: translateX(24px) rotate(180deg); }
+  to { top: 105%; transform: translateX(-12px) rotate(360deg); }
+}
+@keyframes lp-subir {
+  from { top: 105%; transform: translateX(0); }
+  50% { transform: translateX(-20px); }
+  to { top: -8%; transform: translateX(14px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-tema-lluvia { display: none; }
+}
