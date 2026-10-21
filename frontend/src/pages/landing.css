@@ -1064,6 +1064,13 @@ figure.lp-gmodal-card { cursor: default; }
   width: var(--lp-content);
   margin-bottom: 44px;
 }
+/* Con menos de 3 productos: misma tarjeta (un tercio del ancho, descontando
+   los dos espacios de 32px) y centradas. Solo en pantalla ancha: bajo 1200px
+   ya van de a una por fila (ver la media query de más abajo). */
+@media (min-width: 1201px) {
+  .lp-cards-1 { grid-template-columns: calc((100% - 64px) / 3); justify-content: center; }
+  .lp-cards-2 { grid-template-columns: repeat(2, calc((100% - 64px) / 3)); justify-content: center; }
+}
 .lp-card {
   position: relative;
   background: #fff;

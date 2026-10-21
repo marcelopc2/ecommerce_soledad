@@ -681,7 +681,9 @@ function Kits({ products }) {
       <PagosSeguros />
 
       {grid.length > 0 && (
-        <div className="lp-cards">
+        // La clase dice cuántas hay: con 1 o 2, las tarjetas mantienen el ancho
+        // de un tercio y se centran, en vez de pegarse a la izquierda.
+        <div className={`lp-cards lp-cards-${grid.length}`}>
           {grid.map(p => <KitCard key={p.id} product={p} onBuy={comprar} />)}
         </div>
       )}
