@@ -721,9 +721,11 @@ def _correo_de(m):
 def _historial_wp(m):
     """La historia de esta familia en la página anterior, con un resumen.
 
-    "Reactivaciones" cuenta las veces que tuvo un periodo de acceso que empezó
-    DESPUÉS de que se le terminara el anterior (más de un día de corte). Un
-    cambio de plan sin corte no cuenta: no se fue, solo se cambió.
+    PMPro abre un periodo nuevo en cada renovación y cada cambio de plan, así
+    que contar periodos no dice nada: alguien que pagó 14 meses seguidos tiene
+    14. Por eso se juntan en TRAMOS de acceso continuo (un corte de hasta 2 días
+    no cuenta: es el reintento de un cobro). Cada tramo que se cerró es una vez
+    que se le cortó el acceso; cada tramo después del primero, una vez que volvió.
     """
     from datetime import timedelta as _td
     from lms.models import HistorialWordPress as H
@@ -733,21 +735,25 @@ def _historial_wp(m):
         return None
     compras = [r for r in registros if r.tipo in (H.COMPRA, H.RENOVACION, H.RESUSCRIPCION)]
     pagadas = [r for r in compras if r.pagado]
-    periodos = sorted((r for r in registros if r.tipo == H.PERIODO), key=lambda r: r.fecha)
-    reactivaciones = sum(
-        1 for antes, despues in zip(periodos, periodos[1:])
-        if antes.fecha_fin and despues.fecha - antes.fecha_fin > _td(days=1)
-    )
+    ahora = timezone.now()
+    tramos = []   # [inicio, fin]; fin None = sigue abierto
+    for r in sorted((r for r in registros if r.tipo == H.PERIODO), key=lambda r: r.fecha):
+        fin = r.fecha_fin if r.fecha_fin and r.fecha_fin < ahora else None
+        if tramos and (tramos[-1][1] is None or r.fecha - tramos[-1][1] <= _td(days=2)):
+            if tramos[-1][1] is not None:
+                tramos[-1][1] = None if fin is None else max(tramos[-1][1], fin)
+        else:
+            tramos.append([r.fecha, fin])
+    dias = sum(((fin or ahora) - inicio).days for inicio, fin in tramos)
     return {
         'registros': registros,
         'compras': len(pagadas),
         'total': sum(r.monto for r in pagadas),
         'renovaciones': sum(1 for r in pagadas if r.tipo == H.RENOVACION),
         'fallidas': sum(1 for r in compras if r.estado == 'Falló el pago'),
-        'periodos': len(periodos),
-        'vencimientos': sum(1 for r in periodos if r.estado in ('Venció', 'Terminó', 'Cancelado',
-                                                               'Cancelado por la tienda')),
-        'reactivaciones': reactivaciones,
+        'meses': round(dias / 30.4),
+        'cortes': sum(1 for _, fin in tramos if fin is not None),
+        'reactivaciones': max(len(tramos) - 1, 0),
         'desde': min(r.fecha for r in registros),
         'ultima_compra': max((r.fecha for r in pagadas), default=None),
     }

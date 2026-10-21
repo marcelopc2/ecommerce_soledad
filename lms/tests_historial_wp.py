@@ -112,10 +112,23 @@ class HistorialWordPressTests(TestCase):
         self.assertEqual(h['total'], 58900 + 8900)
         self.assertEqual(h['renovaciones'], 1)
         self.assertEqual(h['fallidas'], 1)
-        self.assertEqual(h['periodos'], 3)
-        self.assertEqual(h['vencimientos'], 1)
-        self.assertEqual(h['reactivaciones'], 1)      # el cambio de plan sin corte no cuenta
+        # Ene-Mar (cambio de plan) + Mar-May seguidos son UN tramo; julio es otro.
+        self.assertEqual(h['cortes'], 1)
+        self.assertEqual(h['reactivaciones'], 1)
         self.assertContains(r, 'Historial en la página anterior')
+
+    def test_renovar_todos_los_meses_no_cuenta_como_cortes(self):
+        """PMPro abre un periodo por cada renovación: 12 meses pagados seguidos
+        son 12 filas, pero el acceso nunca se cortó."""
+        from panel.views import _historial_wp
+        inicio = timezone.now() - timedelta(days=360)
+        for i in range(12):
+            H.objects.create(tipo=H.PERIODO, wp_id=900 + i, email='beto@correo.cl', estado='Terminó',
+                             fecha=inicio + timedelta(days=30 * i),
+                             fecha_fin=inicio + timedelta(days=30 * (i + 1)) if i < 11 else None)
+        h = _historial_wp(self.m_beto)
+        self.assertEqual((h['cortes'], h['reactivaciones']), (0, 0))
+        self.assertEqual(h['meses'], 12)
 
     def test_sin_historial_no_aparece(self):
         admin = User.objects.create_user(username='admin@ib.cl', email='admin@ib.cl', is_staff=True)

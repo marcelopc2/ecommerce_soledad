@@ -10,9 +10,9 @@
       <div class="hwp-dato"><b>{{ h.compras }}</b><span>compra{{ h.compras|pluralize }} pagada{{ h.compras|pluralize }}</span></div>
       <div class="hwp-dato"><b>${{ h.total|intcomma }}</b><span>pagado en total</span></div>
       <div class="hwp-dato"><b>{{ h.renovaciones }}</b><span>renovaci{{ h.renovaciones|pluralize:"ón,ones" }} automática{{ h.renovaciones|pluralize }}</span></div>
-      <div class="hwp-dato"><b>{{ h.periodos }}</b><span>periodo{{ h.periodos|pluralize }} con acceso</span></div>
-      <div class="hwp-dato"><b>{{ h.vencimientos }}</b><span>veces que se le terminó</span></div>
-      <div class="hwp-dato"><b>{{ h.reactivaciones }}</b><span>veces que volvió</span></div>
+      <div class="hwp-dato"><b>{{ h.meses }}</b><span>mes{{ h.meses|pluralize:"es" }} con acceso</span></div>
+      <div class="hwp-dato"><b>{{ h.cortes }}</b><span>{% if h.cortes == 1 %}vez que se le cortó{% else %}veces que se le cortó{% endif %}</span></div>
+      <div class="hwp-dato"><b>{{ h.reactivaciones }}</b><span>{% if h.reactivaciones == 1 %}vez que volvió{% else %}veces que volvió{% endif %}</span></div>
       {% if h.fallidas %}<div class="hwp-dato"><b class="text-danger">{{ h.fallidas }}</b><span>cobro{{ h.fallidas|pluralize }} fallido{{ h.fallidas|pluralize }}</span></div>{% endif %}
     </div>
     <p class="cell-sub mb-2">
