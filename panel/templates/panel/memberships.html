@@ -5,7 +5,6 @@
 {% block heading %}Alumnos{% endblock %}
 
 {% block actions %}
-<a href="{% url 'panel:membership_new' %}" class="btn btn-brand me-2"><i class="bi bi-person-plus me-1"></i> Nuevo alumno</a>
 <div class="d-flex gap-2 mfilter-group">
   <a class="mfilter-pill{% if not estado %} active{% endif %}"
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">Todas ({{ total_count }})</a>
@@ -66,6 +65,8 @@
     <input type="hidden" name="legado" value="{% if legado %}1{% endif %}">
     <input type="hidden" name="sin_venc" value="{% if sin_venc %}1{% endif %}">
     <input type="hidden" name="con_sub" value="{% if con_sub %}1{% endif %}">
+    {# Acá y no arriba con los filtros: allá quedaba montado sobre las pastillas. #}
+    <a href="{% url 'panel:membership_new' %}" class="btn btn-brand btn-sm ms-auto"><i class="bi bi-person-plus me-1"></i> Nuevo alumno</a>
   </div>
   <div class="table-responsive">
     <table class="table pnl-table">
