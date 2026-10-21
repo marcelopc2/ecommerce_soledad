@@ -9,7 +9,7 @@
 <div class="pnl-card mb-4">
   <div class="card-pad">
     <div class="form-section-title"><i class="bi bi-person-plus"></i> Agregar una cuenta</div>
-    <p class="pnl-hint mb-3">
+    <p class="pnl-campo-ayuda mt-0 mb-3">
       <i class="bi bi-info-circle"></i>
       Quien entra con una cuenta de gestión puede administrar la tienda, los
       cursos y las membresías. No puede crear ni borrar cuentas: eso queda solo
@@ -30,13 +30,13 @@
       <div class="col-md-4">
         <label class="form-label" for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
         {{ form.nombre }}
-        <div class="pnl-hint mt-1">{{ form.nombre.help_text }}</div>
+        <div class="pnl-campo-ayuda">{{ form.nombre.help_text }}</div>
       </div>
       <div class="col-md-4">
         <label class="form-label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
         {{ form.password }}
         {% if form.password.errors %}<div class="pnl-field-error">{{ form.password.errors.0 }}</div>{% endif %}
-        <div class="pnl-hint mt-1">{{ form.password.help_text }}</div>
+        <div class="pnl-campo-ayuda">{{ form.password.help_text }}</div>
       </div>
       <div class="col-12">
         <button type="submit" class="btn btn-brand btn-sm">
@@ -98,6 +98,9 @@
                       {% else %}<i class="bi bi-play-fill"></i> Activar{% endif %}
                     </button>
                   </form>
+                  <button type="button" class="btn btn-ghost btn-sm" data-bs-toggle="modal" data-bs-target="#clave-{{ c.pk }}">
+                    <i class="bi bi-key"></i> Contraseña
+                  </button>
                   <form method="post" action="{% url 'panel:staff_user_delete' c.pk %}"
                         hx-confirm="¿Eliminar la cuenta de {{ c.email }}? Perderá el acceso al panel. Esta acción no se puede deshacer.">
                     {% csrf_token %}
@@ -106,23 +109,6 @@
                     </button>
                   </form>
                 </div>
-
-                <details class="mdetail-manual mt-2 text-start">
-                  <summary>Cambiar su contraseña</summary>
-                  <p class="pnl-hint mt-2 mb-2">
-                    <i class="bi bi-info-circle"></i>
-                    Se muestra una sola vez, para que se la dictes.
-                  </p>
-                  <form method="post" action="{% url 'panel:staff_user_password' c.pk %}"
-                        class="d-flex gap-2 flex-wrap align-items-center">
-                    {% csrf_token %}
-                    <input type="text" name="password" class="form-control" style="max-width:260px"
-                           placeholder="Contraseña nueva" required autocomplete="off" minlength="8">
-                    <button type="submit" class="btn btn-brand btn-sm">
-                      <i class="bi bi-key"></i> Asignar
-                    </button>
-                  </form>
-                </details>
               {% endif %}
             </td>
           </tr>
@@ -133,5 +119,29 @@
     </table>
   </div>
 </div>
+
+{% for c in cuentas %}{% if c.pk != request.user.pk and not c.is_superuser %}
+<div class="modal fade" id="clave-{{ c.pk }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" action="{% url 'panel:staff_user_password' c.pk %}" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title fs-6"><i class="bi bi-key me-1"></i> Nueva contraseña para {{ c.email }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="clave-input-{{ c.pk }}">Contraseña nueva</label>
+        <input type="text" name="password" id="clave-input-{{ c.pk }}" class="form-control"
+               required autocomplete="off" minlength="8">
+        <div class="pnl-campo-ayuda">Mínimo 8 caracteres. Se muestra una sola vez, para que se la dictes.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="bi bi-check-lg me-1"></i> Asignar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}{% endfor %}
 
 {% endblock %}
