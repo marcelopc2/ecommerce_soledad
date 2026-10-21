@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep, extract_youtube_id,
-    SeccionConcurso, GanadorConcurso,
+    SeccionClub, SeccionConcurso, GanadorConcurso,
 )
 from comunicaciones.models import EnvioMasivo
 from payments.models import Coupon
@@ -784,6 +784,32 @@ class AjustesAulaForm(BootstrapFormMixin, forms.ModelForm):
             raise forms.ValidationError('Tiene que ser al menos 1: si no, quien compra '
                                         'entra a un aula sin nada disponible.')
         return n
+
+
+class SeccionClubForm(BootstrapFormMixin, forms.ModelForm):
+    """Si se muestra la sección "Club Ingenio Blocks" y sus textos (fila única)."""
+
+    class Meta:
+        model = SeccionClub
+        fields = ['visible', 'etiqueta', 'titulo', 'intro',
+                  'bloque1_titulo', 'bloque1_puntos', 'bloque2_titulo', 'bloque2_puntos',
+                  'bloque3_titulo', 'bloque3_puntos', 'boton_texto', 'boton_enlace', 'imagen']
+        widgets = {
+            'intro': forms.Textarea(attrs={'rows': 3}),
+            'bloque1_puntos': forms.Textarea(attrs={'rows': 3}),
+            'bloque2_puntos': forms.Textarea(attrs={'rows': 4}),
+            'bloque3_puntos': forms.Textarea(attrs={'rows': 5}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['visible'].widget.attrs['class'] = 'form-check-input'
+
+    def clean_imagen(self):
+        imagen = self.cleaned_data.get('imagen')
+        if imagen and getattr(imagen, 'size', 0) > 4 * 1024 * 1024:
+            raise forms.ValidationError('La imagen no puede pesar más de 4 MB.')
+        return imagen
 
 
 class SeccionConcursoForm(BootstrapFormMixin, forms.ModelForm):

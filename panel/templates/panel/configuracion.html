@@ -193,6 +193,83 @@
       </div>
     </div>
 
+    <div class="tab-pane fade{% if tab == 'club' %} show active{% endif %}" id="tab-club" role="tabpanel">
+      <div class="pnl-toolbar">
+        <span class="pnl-hint">
+          <i class="bi bi-info-circle"></i>
+          La sección "Club Ingenio Blocks" de la portada, entre los productos y el concurso.
+        </span>
+      </div>
+
+      {# enctype: sin esto la imagen se pierde en silencio al guardar. #}
+      <form method="post" enctype="multipart/form-data" class="card-pad" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="form" value="club">
+
+        <div class="form-check form-switch mb-1">
+          {{ club_form.visible }}
+          <label class="form-check-label fw-semibold" for="{{ club_form.visible.id_for_label }}">{{ club_form.visible.label }}</label>
+          {% if club_form.instance.visible %}<span class="badge-soft green ms-1">Visible</span>{% else %}<span class="badge-soft gray ms-1">Oculta</span>{% endif %}
+        </div>
+        <div class="pnl-campo-ayuda mb-4">{{ club_form.visible.help_text }}</div>
+
+        <div class="form-section-title"><i class="bi bi-type"></i> Textos</div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">{{ club_form.etiqueta.label }}</label>
+            {{ club_form.etiqueta }}
+            <div class="pnl-campo-ayuda">{{ club_form.etiqueta.help_text }}</div>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">{{ club_form.titulo.label }}</label>
+            {{ club_form.titulo }}
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label">{{ club_form.intro.label }}</label>
+          {{ club_form.intro }}
+        </div>
+
+        <div class="form-section-title"><i class="bi bi-question-circle"></i> Preguntas</div>
+        <div class="pnl-campo-ayuda mb-3">Una respuesta por línea: cada línea sale como una viñeta. Si dejas una pregunta vacía, no aparece.</div>
+        {% for titulo, puntos in club_bloques %}
+          <div class="row g-3 mb-3">
+            <div class="col-md-5">
+              <label class="form-label">{{ titulo.label }}</label>
+              {{ titulo }}
+            </div>
+            <div class="col-md-7">
+              <label class="form-label">{{ puntos.label }}</label>
+              {{ puntos }}
+            </div>
+          </div>
+        {% endfor %}
+
+        <div class="form-section-title mt-4"><i class="bi bi-hand-index"></i> Botón e imagen</div>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label">{{ club_form.boton_texto.label }}</label>
+            {{ club_form.boton_texto }}
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">{{ club_form.boton_enlace.label }}</label>
+            {{ club_form.boton_enlace }}
+            <div class="pnl-campo-ayuda">{{ club_form.boton_enlace.help_text }}</div>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">{{ club_form.imagen.label }}</label>
+            {{ club_form.imagen }}
+            <div class="pnl-campo-ayuda">{{ club_form.imagen.help_text }}</div>
+            {% for e in club_form.imagen.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-brand btn-sm">
+          <i class="bi bi-check-lg me-1"></i> Guardar
+        </button>
+      </form>
+    </div>
+
     <div class="tab-pane fade{% if tab == 'aula' %} show active{% endif %}" id="tab-aula" role="tabpanel">
       <div class="pnl-toolbar">
         <span class="pnl-hint">

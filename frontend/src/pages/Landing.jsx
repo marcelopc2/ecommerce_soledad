@@ -1018,57 +1018,30 @@ function TestimonioModal({ testimonio: t, onClose }) {
   )
 }
 
-/* Sección "Club Ingenio Blocks" (reemplaza a la antigua de Concurso: los
-   concursos ahora se explican acá dentro). El texto es el del diseño de la
-   clienta, tal cual, salvo dos erratas evidentes del original: "pueden
-   pertenecen" → "pueden pertenecer" y el paréntesis sin cerrar de las ruedas. */
-const CLUB_BLOQUES = [
-  {
-    titulo: '¿Quiénes pueden pertenecer al Club Ingenio Blocks?',
-    puntos: [
-      'Todos aquellos que ya tengan nuestro Kit y una suscripción vigente.',
-      'Si ya venció tu suscripción y quieres ser parte del club, sólo tienes que suscribirte a Ingenio Plus o comprar un pack de 8 modelos (2 meses – 1 modelo cada semana).',
-    ],
-  },
-  {
-    titulo: '¿Qué haremos en el Club?',
-    puntos: [
-      'Tendremos concursos periódicos en 2 categorías: de 6 a 8 años y de 9 a 12 años.',
-      'Podrás hacer volar tu imaginación para crear modelos originales utilizando sólo las piezas del kit más motor y batería.',
-      'Los ganadores se darán a conocer a través de nuestra página web además de premios personales.',
-    ],
-  },
-  {
-    titulo: '¿Qué premios tendremos?',
-    puntos: [
-      'Tu nombre y modelo serán publicados en nuestra página en la categoría en que participaste.',
-      'Podrás convertir tu modelo en un nuevo curso de la plataforma.',
-      'Un set de piezas para incluir a tu kit y construir nuevos modelos (1 motor, 1 batería + 4 ruedas grandes).',
-      'Y muchas sorpresas más.',
-    ],
-  },
-]
-
-function Club() {
+/* Sección "Club Ingenio Blocks". Si se muestra y todos sus textos se manejan
+   desde el panel (Portada → Club Ingenio Blocks) y llegan por
+   /catalog/club/. Mientras esté oculta, la portada no la dibuja. Los textos
+   por defecto son los del diseño de la clienta (ver catalog.SeccionClub). */
+function Club({ datos }) {
+  if (!datos || !datos.visible) return null
+  const { etiqueta, titulo, intro, bloques = [], boton_texto, boton_enlace, imagen_url } = datos
   return (
     <section className="lp-club-band" id="club">
       <div className="lp-club">
         <div className="lp-club-visual">
-          <img src={club3d} alt="Logo de Ingenio Blocks construido con bloques" />
-          <a className="lp-btn-yellow lp-btn-cta lp-club-cta" href="#kits">comprar ingenio plus</a>
+          <img src={imagen_url || club3d} alt="Club Ingenio Blocks" />
+          {boton_texto && boton_enlace && (
+            <a className="lp-btn-yellow lp-btn-cta lp-club-cta" href={boton_enlace}>{boton_texto}</a>
+          )}
         </div>
         <div className="lp-club-texto">
-          <span className="lp-chip lp-chip-club">espacio virtual</span>
-          <h2 className="lp-h2">club ingenio blocks</h2>
+          {etiqueta && <span className="lp-chip lp-chip-club">{etiqueta}</span>}
+          <h2 className="lp-h2">{titulo}</h2>
           <span className="lp-underline" />
-          <p className="lp-club-intro">
-            Queremos que Ingenio Blocks no sea sólo un set de bloques, sino que un espacio
-            virtual donde los niños construyen, creen, se sientan siempre desafiados y
-            desarrollen habilidades para la vida.
-          </p>
-          {CLUB_BLOQUES.map(bloque => (
+          {intro && <p className="lp-club-intro">{intro}</p>}
+          {bloques.map(bloque => (
             <div className="lp-club-bloque" key={bloque.titulo}>
-              <h3>{bloque.titulo}</h3>
+              {bloque.titulo && <h3>{bloque.titulo}</h3>}
               <ul>
                 {bloque.puntos.map(punto => <li key={punto}>{punto}</li>)}
               </ul>
@@ -1283,11 +1256,12 @@ export default function Landing() {
   const [activeSection, setActiveSection] = useState('')
   const [products, setProducts] = useState([])
   const [concurso, setConcurso] = useState(null)
+  const [club, setClub] = useState(null)
   const rootRef = useRef(null)
   const location = useLocation()
   // re-escanea el reveal cuando llegan los productos o el concurso (las dos
   // secciones aparecen después del primer render)
-  useScrollReveal(rootRef, [products.length, concurso?.estado])
+  useScrollReveal(rootRef, [products.length, concurso?.estado, club?.visible])
 
   useEffect(() => {
     const productos = api.get('/catalog/products/')
@@ -1296,6 +1270,9 @@ export default function Landing() {
     const concursoReq = api.get('/catalog/concurso/')
       .then(res => setConcurso(res.data))
       .catch(() => {}) // sin respuesta, la franja del concurso no se muestra
+    const clubReq = api.get('/catalog/club/')
+      .then(res => setClub(res.data))
+      .catch(() => {}) // sin respuesta, la sección del club no se muestra
 
     // La foto del hero es lo más pesado de la página y es lo primero que se ve:
     // si el overlay se destapa antes de que termine de bajar, queda un hueco en
@@ -1316,7 +1293,7 @@ export default function Landing() {
     const tope = new Promise(resolve => setTimeout(resolve, 6000))
 
     let cancelado = false
-    Promise.race([Promise.all([productos, concursoReq, foto, fuentes]), tope])
+    Promise.race([Promise.all([productos, concursoReq, clubReq, foto, fuentes]), tope])
       .then(() => { if (!cancelado) ocultarPreloader() })
     return () => { cancelado = true }
   }, [])
@@ -1397,7 +1374,7 @@ export default function Landing() {
       <Kits products={products} />
       <QuienesSomos />
       <Testimonios />
-      <Club />
+      <Club datos={club} />
       <Concurso datos={concurso} />
       <Faq />
       <Contacto />

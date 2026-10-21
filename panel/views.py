@@ -23,7 +23,7 @@ from django.views.decorators.http import require_POST
 
 from catalog.models import (
     Product, FAQ, Testimonial, LandingVideo, LandingStep,
-    SeccionConcurso, GanadorConcurso,
+    SeccionClub, SeccionConcurso, GanadorConcurso,
 )
 from invoicing.models import Invoice
 from invoicing.services import get_organization, issue_invoice_for_order
@@ -42,7 +42,7 @@ from shipments.services import send_dispatch_email, send_pickup_ready_email
 from .forms import (
     LoginForm, ProductForm, CourseForm, CourseCategoryForm, LessonForm, MembershipForm,
     DiplomaForm, FAQForm, TestimonialForm, LandingVideoForm, LandingStepForm,
-    MembershipExpiryForm, StaffUserForm, AjustesAulaForm, SeccionConcursoForm, GanadorConcursoForm,
+    MembershipExpiryForm, StaffUserForm, AjustesAulaForm, SeccionClubForm, SeccionConcursoForm, GanadorConcursoForm,
     CouponForm, PuntoRetiroForm,
     MiCuentaForm, EnvioMasivoForm,
 )
@@ -1354,6 +1354,7 @@ SECCIONES_CONTENIDO = {
     # Estas dos no son listas: son un formulario de ajustes, no tienen "nuevo"
     # ni valores por defecto que restaurar.
     'concurso': ('Concurso', 'Portada', None, None, None, None),
+    'club': ('Club Ingenio Blocks', 'Portada', None, None, None, None),
     'aula': ('Ritmo de entrega', 'Academia', None, None, None, None),
 }
 
@@ -1411,6 +1412,18 @@ def configuracion(request, tab='faqs'):
 
     # La franja del concurso también es fila única. request.FILES: sin esto la
     # imagen se descartaría en silencio.
+    club = SeccionClub.obtener()
+    if request.method == 'POST' and request.POST.get('form') == 'club':
+        club_form = SeccionClubForm(request.POST, request.FILES, instance=club)
+        if club_form.is_valid():
+            club_form.save()
+            messages.success(request, 'Sección del club guardada.'
+                             + ('' if club_form.instance.visible else ' Está oculta: no aparece en la portada.'))
+            return redirect('panel:cfg_club')
+        tab = 'club'
+    else:
+        club_form = SeccionClubForm(instance=club)
+
     concurso = SeccionConcurso.obtener()
     if request.method == 'POST' and request.POST.get('form') == 'concurso':
         concurso_form = SeccionConcursoForm(request.POST, request.FILES, instance=concurso)
@@ -1432,6 +1445,8 @@ def configuracion(request, tab='faqs'):
         'steps': LandingStep.objects.all(),
         'ajustes_form': ajustes_form,
         'concurso_form': concurso_form,
+        'club_form': club_form,
+        'club_bloques': [(club_form[f'bloque{n}_titulo'], club_form[f'bloque{n}_puntos']) for n in (1, 2, 3)],
         'ganadores': GanadorConcurso.objects.all(),
         'total_cursos': Course.objects.filter(is_active=True).count(),
         'tab': tab if tab in SECCIONES_CONTENIDO else 'faqs',

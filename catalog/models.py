@@ -604,6 +604,89 @@ class SeccionConcurso(models.Model):
         return [linea.strip() for linea in self.bases.splitlines() if linea.strip()]
 
 
+class SeccionClub(models.Model):
+    """La sección "Club Ingenio Blocks" de la portada: si se muestra y sus
+    textos. Fila única, como SeccionConcurso.
+
+    Los valores por defecto son el texto del diseño de la clienta, el mismo
+    que estaba escrito en el código, para que al prenderla salga igual que
+    antes sin tener que volver a escribirlo.
+    """
+    visible = models.BooleanField(
+        default=False, verbose_name='Mostrar en la portada',
+        help_text='Apagado, la sección no aparece. Los textos se guardan igual.',
+    )
+    etiqueta = models.CharField(max_length=60, default='espacio virtual', verbose_name='Etiqueta',
+                                help_text='El rótulo chico que va sobre el título.')
+    titulo = models.CharField(max_length=120, default='club ingenio blocks', verbose_name='Título')
+    intro = models.TextField(
+        verbose_name='Introducción',
+        default=('Queremos que Ingenio Blocks no sea sólo un set de bloques, sino que un espacio '
+                 'virtual donde los niños construyen, creen, se sientan siempre desafiados y '
+                 'desarrollen habilidades para la vida.'),
+    )
+    bloque1_titulo = models.CharField(max_length=160, blank=True, verbose_name='Pregunta 1',
+                                      default='¿Quiénes pueden pertenecer al Club Ingenio Blocks?')
+    bloque1_puntos = models.TextField(blank=True, verbose_name='Respuestas a la pregunta 1', default=(
+        'Todos aquellos que ya tengan nuestro Kit y una suscripción vigente.\n'
+        'Si ya venció tu suscripción y quieres ser parte del club, sólo tienes que suscribirte a '
+        'Ingenio Plus o comprar un pack de 8 modelos (2 meses – 1 modelo cada semana).'))
+    bloque2_titulo = models.CharField(max_length=160, blank=True, verbose_name='Pregunta 2',
+                                      default='¿Qué haremos en el Club?')
+    bloque2_puntos = models.TextField(blank=True, verbose_name='Respuestas a la pregunta 2', default=(
+        'Tendremos concursos periódicos en 2 categorías: de 6 a 8 años y de 9 a 12 años.\n'
+        'Podrás hacer volar tu imaginación para crear modelos originales utilizando sólo las '
+        'piezas del kit más motor y batería.\n'
+        'Los ganadores se darán a conocer a través de nuestra página web además de premios personales.'))
+    bloque3_titulo = models.CharField(max_length=160, blank=True, verbose_name='Pregunta 3',
+                                      default='¿Qué premios tendremos?')
+    bloque3_puntos = models.TextField(blank=True, verbose_name='Respuestas a la pregunta 3', default=(
+        'Tu nombre y modelo serán publicados en nuestra página en la categoría en que participaste.\n'
+        'Podrás convertir tu modelo en un nuevo curso de la plataforma.\n'
+        'Un set de piezas para incluir a tu kit y construir nuevos modelos (1 motor, 1 batería + 4 ruedas grandes).\n'
+        'Y muchas sorpresas más.'))
+    boton_texto = models.CharField(max_length=60, blank=True, default='comprar ingenio plus',
+                                   verbose_name='Texto del botón')
+    boton_enlace = models.CharField(
+        max_length=300, blank=True, default='#kits', verbose_name='Enlace del botón',
+        help_text='#kits lleva a los productos de la portada. También sirve una dirección web. '
+                  'Vacío = sin botón.')
+    imagen = models.FileField(
+        upload_to='club/', blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        verbose_name='Imagen',
+        help_text='Opcional. Si no subes una, se usa el logo 3D de bloques.')
+
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Sección del club'
+        verbose_name_plural = 'Sección del club'
+
+    def __str__(self):
+        return 'Club: ' + ('visible' if self.visible else 'oculta')
+
+    def save(self, *args, **kwargs):
+        self.pk = 1   # fila única
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @property
+    def bloques(self):
+        """Las preguntas con sus respuestas; las que quedaron vacías no salen."""
+        salida = []
+        for n in (1, 2, 3):
+            titulo = getattr(self, f'bloque{n}_titulo').strip()
+            puntos = [p.strip() for p in getattr(self, f'bloque{n}_puntos').splitlines() if p.strip()]
+            if titulo or puntos:
+                salida.append({'titulo': titulo, 'puntos': puntos})
+        return salida
+
+
 class GanadorConcurso(models.Model):
     """Ganador de una categoría del concurso. Se muestran cuando la sección
     está en estado "ganadores"."""

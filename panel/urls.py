@@ -105,6 +105,7 @@ urlpatterns = [
     path('portada/videos/', views.cfg_videos_legacy, name='cfg_videos'),
     path('portada/testimonios/', views.configuracion, {'tab': 'testimonios'}, name='cfg_testimonios'),
     path('portada/preguntas-frecuentes/', views.configuracion, {'tab': 'faqs'}, name='cfg_faqs'),
+    path('portada/club/', views.configuracion, {'tab': 'club'}, name='cfg_club'),
     path('portada/concurso/', views.configuracion, {'tab': 'concurso'}, name='cfg_concurso'),
 
     # El ritmo de entrega es del Aula, no de la portada: vive bajo Academia.

@@ -7,12 +7,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from .models import (
     Category, Product, FAQ, Testimonial, LandingVideo, LandingStep,
-    SeccionConcurso, GanadorConcurso, youtube_thumbnail,
+    SeccionClub, SeccionConcurso, GanadorConcurso, youtube_thumbnail,
 )
 from .serializers import (
     CategorySerializer, ProductSerializer, FAQSerializer, TestimonialSerializer,
     ContactSerializer, LandingVideoSerializer, LandingStepSerializer,
-    SeccionConcursoSerializer, GanadorConcursoSerializer,
+    SeccionClubSerializer, SeccionConcursoSerializer, GanadorConcursoSerializer,
 )
 
 log = logging.getLogger(__name__)
@@ -89,6 +89,18 @@ class ConcursoView(APIView):
         else:
             datos['ganadores'] = []
         return Response(datos)
+
+
+class ClubView(APIView):
+    """La sección "Club Ingenio Blocks". Oculta, solo dice eso: la portada no
+    la dibuja y no hace falta mandar los textos."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        club = SeccionClub.obtener()
+        if not club.visible:
+            return Response({'visible': False})
+        return Response(SeccionClubSerializer(club, context={'request': request}).data)
 
 
 class ContactView(APIView):

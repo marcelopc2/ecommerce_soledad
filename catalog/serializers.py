@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Category, Product, ProductImage, FAQ, Testimonial, LandingVideo, LandingStep,
-    SeccionConcurso, GanadorConcurso,
+    SeccionClub, SeccionConcurso, GanadorConcurso,
 )
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -107,6 +107,21 @@ class SeccionConcursoSerializer(serializers.ModelSerializer):
         model = SeccionConcurso
         fields = ['estado', 'etiqueta', 'titulo', 'intro', 'bases',
                   'boton_texto', 'boton_enlace', 'sello', 'imagen_url']
+
+    def get_imagen_url(self, obj):
+        if not obj.imagen:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.imagen.url) if request else obj.imagen.url
+
+
+class SeccionClubSerializer(serializers.ModelSerializer):
+    bloques = serializers.ListField(read_only=True)
+    imagen_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SeccionClub
+        fields = ['visible', 'etiqueta', 'titulo', 'intro', 'bloques', 'boton_texto', 'boton_enlace', 'imagen_url']
 
     def get_imagen_url(self, obj):
         if not obj.imagen:
