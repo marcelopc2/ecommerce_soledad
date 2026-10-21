@@ -1170,3 +1170,42 @@ class NuevoAlumnoForm(BootstrapFormMixin, forms.Form):
         if datos.get('inicio') and datos.get('hasta') and datos['hasta'] < datos['inicio']:
             self.add_error('hasta', 'El acceso no puede terminar antes de empezar.')
         return datos
+
+
+class TextosPortadaForm(forms.Form):
+    """Un campo por cada texto de catalog.textos_portada.SECCIONES.
+
+    Vacío = vuelve al texto original: es la forma de deshacer un cambio sin
+    tener que acordarse de cómo decía.
+    """
+
+    def __init__(self, *args, actuales=None, **kwargs):
+        from catalog.textos_portada import CAMPOS, EMAIL, LINEA, ORIGINALES, URL
+        super().__init__(*args, **kwargs)
+        actuales = actuales or {}
+        for clave, (etiqueta, tipo) in CAMPOS.items():
+            if tipo == EMAIL:
+                campo = forms.EmailField(required=False, max_length=254)
+            elif tipo == URL:
+                campo = forms.URLField(required=False, max_length=300, assume_scheme='https')
+            elif tipo == LINEA:
+                campo = forms.CharField(required=False, max_length=200)
+            else:
+                campo = forms.CharField(required=False, max_length=3000,
+                                        widget=forms.Textarea(attrs={'rows': 4}))
+            campo.label = etiqueta
+            campo.initial = actuales.get(clave, ORIGINALES[clave])
+            campo.widget.attrs.setdefault('class', 'form-control')
+            campo.widget.attrs['placeholder'] = ORIGINALES[clave][:120]
+            campo.tipo = tipo
+            self.fields[clave] = campo
+
+    def cambiados(self):
+        """Solo lo distinto del original; lo vacío o igual no se guarda."""
+        from catalog.textos_portada import ORIGINALES
+        salida = {}
+        for clave, valor in self.cleaned_data.items():
+            valor = (valor or '').replace('\r\n', '\n').strip()
+            if valor and valor != ORIGINALES[clave]:
+                salida[clave] = valor
+        return salida

@@ -1,0 +1,55 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Textos de la portada{% endblock %}
+{% block crumb %}Panel · Portada{% endblock %}
+{% block heading %}Textos de la portada{% endblock %}
+
+{% block actions %}
+<a href="{{ frontend_url }}" target="_blank" rel="noopener" hx-boost="false" class="btn btn-ghost">
+  <i class="bi bi-box-arrow-up-right me-1"></i> Ver la portada
+</a>
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  Un campo por cada texto de catalog/textos_portada.py. Los pasos, testimonios,
+  preguntas, club y concurso tienen su propia página: acá va lo demás.
+{% endcomment %}
+<div class="pnl-card mb-4"><div class="card-pad">
+  <div class="d-flex gap-3 flex-wrap align-items-start">
+    <i class="bi bi-lightbulb text-warning fs-4"></i>
+    <div class="pnl-campo-ayuda mt-0">
+      Para <b>resaltar</b> palabras, enciérralas entre dos asteriscos: <code>**así**</code>
+      (en el título grande sale en amarillo; en los textos, en morado y negrita).
+      Para separar párrafos, deja una línea en blanco.
+      <b>Si dejas un campo vacío, vuelve al texto original.</b>
+      {% if cambiados %}<br>Hay {{ cambiados }} texto{{ cambiados|pluralize }} cambiado{{ cambiados|pluralize }}{% if fila.actualizado_por %} · último cambio de {{ fila.actualizado_por }} el {{ fila.actualizado|date:'d-m-Y H:i' }}{% endif %}.{% endif %}
+    </div>
+  </div>
+</div></div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="row g-4">
+    {% for titulo, icono, campos in secciones %}
+      <div class="col-xl-6">
+        <div class="pnl-card h-100"><div class="card-pad">
+          <div class="form-section-title"><i class="bi {{ icono }}"></i> {{ titulo }}</div>
+          <div class="row g-3">
+            {% for campo in campos %}
+              <div class="{% if campo.field.tipo == 'texto' %}col-12{% else %}col-md-6{% endif %}">
+                <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                {{ campo }}
+                {% for e in campo.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+        </div></div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="pnl-sticky-guardar">
+    <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar textos</button>
+  </div>
+</form>
+{% endblock %}

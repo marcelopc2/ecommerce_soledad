@@ -1437,6 +1437,31 @@ def cfg_videos_legacy(request):
     return redirect('panel:courses')
 
 
+@staff_required
+def textos_portada(request):
+    """Los textos fijos de la portada (títulos, párrafos, contacto, redes)."""
+    from catalog.models import TextosPortada
+    from catalog.textos_portada import SECCIONES, textos_actuales
+    from .forms import TextosPortadaForm
+
+    fila = TextosPortada.obtener()
+    form = TextosPortadaForm(request.POST or None, actuales=textos_actuales())
+    if request.method == 'POST' and form.is_valid():
+        fila.textos = form.cambiados()
+        fila.actualizado_por = request.user.email or request.user.get_username()
+        fila.save()
+        messages.success(request, 'Textos guardados. Ya se ven en la portada.')
+        return redirect('panel:textos_portada')
+
+    secciones = [(titulo, icono, [form[clave] for clave, _, _ in campos])
+                 for titulo, icono, campos in SECCIONES]
+    return render(request, 'panel/textos_portada.html', {
+        'form': form, 'secciones': secciones, 'fila': fila,
+        'cambiados': len(fila.textos or {}),
+        'section': 'cfg-textos',
+    })
+
+
 def configuracion_legacy(request):
     """La vieja pantalla única de Configuración, ahora repartida en el menú.
 

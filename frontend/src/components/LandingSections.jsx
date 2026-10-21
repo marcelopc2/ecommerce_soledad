@@ -10,6 +10,7 @@ import { useState, useEffect, useLayoutEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { api } from '../api'
+import { useTextos } from '../textos'
 // Variante oficial en blanco (entregada aparte del SVG reconstruido de Figma),
 // pensada para fondos oscuros. Solo el footer, que fue el pedido explícito: el
 // header (en Landing.jsx) sigue con el SVG de siempre y no hay razón para tocarlo.
@@ -53,6 +54,7 @@ export const IconYoutube = () => (
 )
 
 export function Contacto() {
+  const t = useTextos()
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', telefono: '', comentarios: '' })
   const [estado, setEstado] = useState('idle') // idle | enviando | ok | error
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
@@ -75,20 +77,17 @@ export function Contacto() {
           {/* lila (relleno) y no outline: en el Figma esta etiqueta es una
               pastilla clara con texto morado, igual que las del resto de la
               landing. Estaba como contorno transparente con texto blanco. */}
-          <span className="lp-chip lp-chip-lila">estamos para ti</span>
-          <h2 className="lp-h2 lp-h2-white">contacto</h2>
+          <span className="lp-chip lp-chip-lila">{t.contacto_etiqueta}</span>
+          <h2 className="lp-h2 lp-h2-white">{t.contacto_titulo}</h2>
           <span className="lp-underline" style={{ margin: '0 0 36px' }} />
           <ul>
-            <li><IconMail /> E-mail: contacto@ingenioblocks.com</li>
-            <li><IconPhone /> Teléfono: +56 9 8502 6926</li>
-            <li><IconPin /> Ubicación: Las Condes, Santiago-Chile</li>
+            {t.contacto_email && <li><IconMail /> E-mail: {t.contacto_email}</li>}
+            {t.contacto_telefono && <li><IconPhone /> Teléfono: {t.contacto_telefono}</li>}
+            {t.contacto_ubicacion && <li><IconPin /> Ubicación: {t.contacto_ubicacion}</li>}
           </ul>
         </div>
         <form className="lp-contacto-form" onSubmit={enviar}>
-          <p>
-            Rellena el siguiente formulario y nuestros profesionales se contactarán
-            directamente contigo.
-          </p>
+          <p>{t.contacto_texto}</p>
           <div className="lp-form-row">
             <input placeholder="Nombre" value={form.nombre} onChange={set('nombre')} required />
             <input placeholder="Apellido" value={form.apellido} onChange={set('apellido')} />
@@ -114,7 +113,7 @@ export function Contacto() {
           )}
           {estado === 'error' && (
             <p className="lp-contacto-msg lp-contacto-msg-error">
-              No pudimos enviar tu mensaje. Intenta nuevamente o escríbenos a contacto@ingenioblocks.com.
+              No pudimos enviar tu mensaje. Intenta nuevamente o escríbenos a {t.contacto_email}.
             </p>
           )}
         </form>
@@ -134,6 +133,7 @@ const NAV = [
 export function LandingFooter() {
   // Fuera de la portada esas secciones no existen en el DOM, así que el ancla
   // suelto no llevaría a ninguna parte: hay que volver a "/" primero.
+  const t = useTextos()
   const enPortada = useLocation().pathname === '/'
   const href = (id) => (enPortada ? `#${id}` : `/#${id}`)
 
@@ -149,12 +149,12 @@ export function LandingFooter() {
           <Link to="/legal/privacidad">Privacidad</Link>
           <Link to="/legal/retracto">Retracto y devoluciones</Link>
         </nav>
-        <p>Todos los derechos reservados para Ingenio Blocks</p>
+        <p>{t.pie_texto}</p>
       </div>
       <div className="lp-social">
-        <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram"><IconInstagram /></a>
-        <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook"><IconFacebook /></a>
-        <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube"><IconYoutube /></a>
+        {t.instagram_url && <a href={t.instagram_url} target="_blank" rel="noreferrer" aria-label="Instagram"><IconInstagram /></a>}
+        {t.facebook_url && <a href={t.facebook_url} target="_blank" rel="noreferrer" aria-label="Facebook"><IconFacebook /></a>}
+        {t.youtube_url && <a href={t.youtube_url} target="_blank" rel="noreferrer" aria-label="YouTube"><IconYoutube /></a>}
       </div>
     </footer>
   )

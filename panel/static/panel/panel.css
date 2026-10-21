@@ -1354,3 +1354,7 @@ body.login-body {
 .hwp-detalle > summary:hover { background: #faf8fc; }
 .hwp-detalle > summary .bi { transition: transform .15s ease; }
 .hwp-detalle[open] > summary .bi { transform: rotate(90deg); }
+
+/* Botón de guardar que acompaña al bajar en formularios largos (Textos de la portada). */
+.pnl-sticky-guardar { position: sticky; bottom: 0; z-index: 5; display: flex; justify-content: flex-end;
+  margin-top: 20px; padding: 14px 0; background: linear-gradient(to top, var(--bg, #f6f3ef) 70%, transparent); }

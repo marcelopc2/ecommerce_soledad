@@ -504,6 +504,33 @@ DEFAULT_LANDING_VIDEOS = [
 ]
 
 
+class TextosPortada(models.Model):
+    """Los textos fijos de la portada que la clienta cambió desde el panel.
+
+    Solo guarda los cambiados (clave -> texto); lo que no está acá sale con el
+    texto original. Ver catalog/textos_portada.py. Fila única.
+    """
+    textos = models.JSONField(default=dict, blank=True)
+    actualizado = models.DateTimeField(auto_now=True)
+    actualizado_por = models.CharField(max_length=254, blank=True)
+
+    class Meta:
+        verbose_name = 'Textos de la portada'
+        verbose_name_plural = 'Textos de la portada'
+
+    def __str__(self):
+        return f'Textos de la portada ({len(self.textos or {})} cambiados)'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class SeccionConcurso(models.Model):
     """Ajustes de la franja del concurso, la que va debajo del Club Ingenio
     Blocks. Es una fila única (como AjustesAula) porque la sección solo puede

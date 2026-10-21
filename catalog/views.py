@@ -91,6 +91,15 @@ class ConcursoView(APIView):
         return Response(datos)
 
 
+class TextosPortadaView(APIView):
+    """Los textos fijos de la portada, con lo que se cambió en el panel."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from .textos_portada import textos_actuales
+        return Response(textos_actuales())
+
+
 class ClubView(APIView):
     """La sección "Club Ingenio Blocks". Oculta, solo dice eso: la portada no
     la dibuja y no hace falta mandar los textos."""

@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { ocultarPreloader } from '../preloader'
+import { cargarTextos, Parrafos, Resaltado, useTextos } from '../textos'
 import {
   Contacto, LandingFooter, LandingHeader, PlusDeco, Sparkle, useScrollReveal,
   IconInstagram, IconFacebook, IconYoutube,
@@ -184,23 +185,17 @@ const KIT_DESC = 'Kit de bloques Ingenio Blocks con más de 400 piezas + motor y
 /* ---------- Secciones ---------- */
 
 function Hero({ activeSection }) {
+  const t = useTextos()
   return (
     <section className="lp-hero">
       <div className="lp-hero-grid" aria-hidden="true" />
       <LandingHeader active={activeSection} />
       <div className="lp-hero-inner">
         <div className="lp-hero-copy">
-          <span className="lp-chip lp-chip-hero">⚡ despierta su ingenio</span>
-          <h1>
-            la <span className="lp-yellow">experiencia</span> de construcción diseñada
-            para explorar, crear, aprender y avanzar.
-          </h1>
-          <p>
-            Con nuestro kit de bloques de más de 400 piezas, los niños pueden acceder
-            a más de 100 modelos motorizados con instrucciones paso a paso a través
-            de nuestra Aula Virtual.
-          </p>
-          <a href="#kits" className="lp-btn-yellow lp-btn-cta">comprar ahora</a>
+          <span className="lp-chip lp-chip-hero">{t.hero_etiqueta}</span>
+          <h1><Resaltado texto={t.hero_titulo} clase="lp-yellow" como="span" /></h1>
+          <p>{t.hero_texto}</p>
+          <a href="#kits" className="lp-btn-yellow lp-btn-cta">{t.hero_boton}</a>
         </div>
         <div className="lp-hero-photo">
           <img src={heroNino} alt="Niño construyendo con bloques Ingenio Blocks" />
@@ -230,6 +225,7 @@ function Hero({ activeSection }) {
 }
 
 function ComoFunciona() {
+  const t = useTextos()
   const [pasos, setPasos] = useState([])
 
   useEffect(() => {
@@ -240,8 +236,8 @@ function ComoFunciona() {
 
   return (
     <section className="lp-como" id="como-funciona">
-      <span className="lp-chip lp-chip-lila">la experiencia</span>
-      <h2 className="lp-h2">cómo funciona</h2>
+      <span className="lp-chip lp-chip-lila">{t.como_etiqueta}</span>
+      <h2 className="lp-h2">{t.como_titulo}</h2>
       <span className="lp-underline" />
       <div className="lp-pasos">
         {pasos.map((paso, i) => (
@@ -264,7 +260,7 @@ function ComoFunciona() {
         ))}
       </div>
       <a href="#beneficios" className="lp-btn-yellow lp-btn-cta lp-btn-play">
-        ¿cómo empezar a construir? <IconPlayCircle />
+        {t.como_boton} <IconPlayCircle />
       </a>
     </section>
   )
@@ -364,6 +360,7 @@ function GaleriaModelos({ modelos, inicial = null, onCerrar }) {
 }
 
 function Beneficios() {
+  const t = useTextos()
   const [modelos, setModelos] = useState([])
   const [galeria, setGaleria] = useState(false)
 
@@ -397,48 +394,20 @@ function Beneficios() {
   return (
     <section className="lp-beneficios" id="beneficios">
       <div className="lp-beneficios-col">
-        <span className="lp-chip lp-chip-lila">descubre el contenido</span>
-        <h2 className="lp-h2">beneficios</h2>
+        <span className="lp-chip lp-chip-lila">{t.beneficios_etiqueta}</span>
+        <h2 className="lp-h2">{t.beneficios_titulo}</h2>
         <span className="lp-underline" style={{ margin: '0 0 28px' }} />
         <div className="lp-beneficios-texto">
-          <p>
-            En un mundo en constante evolución, la educación tradicional enfrenta un
-            gran desafío: adaptarse. Porque los niños ya no aprenden solo escuchando,
-            sino haciendo, creando y resolviendo.
-          </p>
-          <p>
-            <strong className="lp-purple-text">Ingenio Blocks</strong> es una Plataforma
-            educativa que combina el juego con el aprendizaje práctico. Con nuestro kit
-            de bloques de más de 400 piezas, los niños pueden acceder a más de 100
-            modelos motorizados —uno nuevo cada semana— con instrucciones paso a paso
-            a través de nuestra Aula Virtual.
-          </p>
-          {/* Entre "propio" y "ritmo" hay un ESPACIO DURO (U+00A0, invisible en el editor): amarra
-                las dos palabras para que el navegador nunca las separe y "ritmo."
-                no quede sola en la ultima linea. Se probo antes apretando el
-                interletrado (-5%), pero eso corre TODOS los cortes de linea a la vez:
-                dejaba de quedar sola a 1536px y pasaba a quedar sola a 1600px. El
-                ancho de pantalla es variable, asi que unir las palabras es lo estable. */}
-          <p>
-            Nuestra Plataforma está diseñada en un formato amigable que permite a{' '}
-            <strong>niños y niñas desde los 6 años</strong>, sumergirse fácilmente en
-            emocionantes talleres desarrollados con metodologías de aprendizaje en
-            espiral. Esto significa que podrán avanzar a su propio{' '}ritmo.
-          </p>
+          <Parrafos texto={t.beneficios_texto} />
         </div>
       </div>
       <div className="lp-beneficios-box">
         <div className="lp-studs" aria-hidden="true">
           {Array.from({ length: 10 }).map((_, i) => <span key={i} />)}
         </div>
-        <h3>Sobre el Mundo Ingenio Blocks</h3>
+        <h3>{t.beneficios_recuadro_titulo}</h3>
         <p className="lp-beneficios-box-intro">
-          Como parte de nuestra metodología, cada modelo plantea un nuevo desafío,
-          aumentando gradualmente en dificultad para fortalecer habilidades cognitivas,
-          motoras y sociales. Cada Proyecto está diseñado para explorar, crear, aprender
-          y avanzar en temas que abarcan desde los ecosistemas hasta las fuerzas que
-          dirigen y hacen funcionar vehículos y artefactos motorizados.{' '}
-          <strong>Algunos de nuestros modelos:</strong>
+          <Resaltado texto={t.beneficios_recuadro_texto} clase="" />
         </p>
         {/* Tres de muestra -sorteados en cada recarga- y el botón para verlos
             todos. Solo el botón dejaba el recuadro vacío: la sección promete
@@ -647,6 +616,7 @@ function PagosSeguros() {
 }
 
 function Kits({ products }) {
+  const t = useTextos()
   const navigate = useNavigate()
   const { user } = useAuth()
 
@@ -671,13 +641,9 @@ function Kits({ products }) {
 
   return (
     <section className="lp-kits" id="kits">
-      <h2 className="lp-h2 lp-h2-white">nuestros productos</h2>
+      <h2 className="lp-h2 lp-h2-white">{t.productos_titulo}</h2>
       <span className="lp-underline" />
-      <p className="lp-kits-intro">
-        Te invitamos a hacerte parte del Mundo Ingenio Blocks y comenzar a disfrutar de
-        esta divertida forma de aprender a través de nuestros talleres virtuales, con más
-        de 100 modelos motorizados. ¡Explora y crea un modelo diferente cada semana!
-      </p>
+      <p className="lp-kits-intro"><Resaltado texto={t.productos_texto} /></p>
       <PagosSeguros />
 
       {grid.length > 0 && (
@@ -693,10 +659,11 @@ function Kits({ products }) {
 }
 
 function QuienesSomos() {
+  const t = useTextos()
   return (
     <section className="lp-quienes" id="quienes-somos">
-      <span className="lp-chip lp-chip-lila">sobre el equipo</span>
-      <h2 className="lp-h2">quiénes somos</h2>
+      <span className="lp-chip lp-chip-lila">{t.quienes_etiqueta}</span>
+      <h2 className="lp-h2">{t.quienes_titulo}</h2>
       <span className="lp-underline" />
       <div className="lp-quienes-inner">
         <div className="lp-quienes-foto">
@@ -707,27 +674,7 @@ function QuienesSomos() {
           <img src={quienesSomosNino} alt="Niño construyendo un modelo motorizado" />
         </div>
         <div className="lp-quienes-texto">
-          <p>
-            En Ingenio Blocks somos un equipo que cree en el poder transformador del
-            aprendizaje práctico y entretenido. Con más de una década de experiencia en
-            el mundo de la formación corporativa, hoy también ofrecemos a{' '}
-            <strong className="lp-purple-text">niños y jóvenes desde los 6 años</strong>{' '}
-            una experiencia educativa única a través de la construcción con bloques.
-          </p>
-          <p>
-            Nuestro enfoque innovador se basa en la idea de que las habilidades
-            fundamentales para los futuros profesionales pueden y deben desarrollarse
-            desde temprana edad. A través de actividades lúdicas y proyectos prácticos,
-            nuestros estudiantes no solo aprenden principios esenciales de matemáticas,
-            física y mecánica, sino que también cultivan su creatividad, pensamiento
-            crítico y capacidad para resolver problemas.
-          </p>
-          <p>
-            Creemos que el aprendizaje debe ser una aventura emocionante. Es por eso que
-            cada una de nuestras sesiones está diseñada para inspirar y desafiar a
-            nuestros jóvenes alumnos, fomentando la libertad de explorar, experimentar y
-            descubrir el mundo que les rodea.
-          </p>
+          <Parrafos texto={t.quienes_texto} />
         </div>
       </div>
     </section>
@@ -755,6 +702,7 @@ function CostadoTestimonios({ dir, etiqueta, onEntrar, onSalir, onClic }) {
 }
 
 function Testimonios() {
+  const textos = useTextos()
   const [testimonials, setTestimonials] = useState([])
   const [desborda, setDesborda] = useState(false)
   const [abierto, setAbierto] = useState(null)   // testimonio mostrado en el modal, o null
@@ -826,8 +774,8 @@ function Testimonios() {
 
   return (
     <section className="lp-testimonios">
-      <span className="lp-chip lp-chip-lila">comunidad feliz</span>
-      <h2 className="lp-h2">testimonios</h2>
+      <span className="lp-chip lp-chip-lila">{textos.testimonios_etiqueta}</span>
+      <h2 className="lp-h2">{textos.testimonios_titulo}</h2>
       <span className="lp-underline" />
 
       <div className={'lp-testi-carrusel' + (desborda ? ' con-costados' : '')}>
@@ -1202,6 +1150,7 @@ function RespuestaFaq({ texto }) {
 }
 
 function Faq() {
+  const textos = useTextos()
   const [faqs, setFaqs] = useState([])
   const [open, setOpen] = useState(-1)
   const [verMas, setVerMas] = useState(false)
@@ -1228,8 +1177,8 @@ function Faq() {
 
   return (
     <section className="lp-faq">
-      <span className="lp-chip lp-chip-lila">resuelve tus dudas</span>
-      <h2 className="lp-h2">Preguntas Frecuentes</h2>
+      <span className="lp-chip lp-chip-lila">{textos.faq_etiqueta}</span>
+      <h2 className="lp-h2">{textos.faq_titulo}</h2>
       <span className="lp-underline" />
       <div className="lp-faq-list">
         {visibles.map((f, i) => (
@@ -1293,7 +1242,9 @@ export default function Landing() {
     const tope = new Promise(resolve => setTimeout(resolve, 6000))
 
     let cancelado = false
-    Promise.race([Promise.all([productos, concursoReq, clubReq, foto, fuentes]), tope])
+    // Los textos también: si no, se verían los originales un instante y
+    // después saltarían a los editados en el panel.
+    Promise.race([Promise.all([productos, concursoReq, clubReq, cargarTextos(), foto, fuentes]), tope])
       .then(() => { if (!cancelado) ocultarPreloader() })
     return () => { cancelado = true }
   }, [])

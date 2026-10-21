@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     CategoryViewSet, ProductViewSet, FAQViewSet, TestimonialViewSet,
-    LandingVideoViewSet, LandingStepViewSet, ContactView, ClubView, ConcursoView,
+    LandingVideoViewSet, LandingStepViewSet, ContactView, ClubView, TextosPortadaView, ConcursoView,
     VitrinaModelosView,
 )
 
@@ -18,6 +18,7 @@ urlpatterns = [
     path('contacto/', ContactView.as_view(), name='contact'),
     path('concurso/', ConcursoView.as_view(), name='concurso'),
     path('club/', ClubView.as_view(), name='club'),
+    path('textos/', TextosPortadaView.as_view(), name='textos-portada'),
     path('vitrina/', VitrinaModelosView.as_view(), name='vitrina-modelos'),
     path('', include(router.urls)),
 ]
