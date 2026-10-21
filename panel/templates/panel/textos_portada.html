@@ -6,50 +6,268 @@
 
 {% block actions %}
 <a href="{{ frontend_url }}" target="_blank" rel="noopener" hx-boost="false" class="btn btn-ghost">
-  <i class="bi bi-box-arrow-up-right me-1"></i> Ver la portada
+  <i class="bi bi-box-arrow-up-right me-1"></i> Abrir la portada
 </a>
 {% endblock %}
 
 {% block content %}
 {% comment %}
-  Un campo por cada texto de catalog/textos_portada.py. Los pasos, testimonios,
-  preguntas, club y concurso tienen su propia página: acá va lo demás.
-{% endcomment %}
-<div class="pnl-card mb-4"><div class="card-pad">
-  <div class="d-flex gap-3 flex-wrap align-items-start">
-    <i class="bi bi-lightbulb text-warning fs-4"></i>
-    <div class="pnl-campo-ayuda mt-0">
-      Para <b>resaltar</b> palabras, enciérralas entre dos asteriscos: <code>**así**</code>
-      (en el título grande sale en amarillo; en los textos, en morado y negrita).
-      Para separar párrafos, deja una línea en blanco.
-      <b>Si dejas un campo vacío, vuelve al texto original.</b>
-      {% if cambiados %}<br>Hay {{ cambiados }} texto{{ cambiados|pluralize }} cambiado{{ cambiados|pluralize }}{% if fila.actualizado_por %} · último cambio de {{ fila.actualizado_por }} el {{ fila.actualizado|date:'d-m-Y H:i' }}{% endif %}.{% endif %}
-    </div>
-  </div>
-</div></div>
+  Editor a la izquierda y la portada DE VERDAD a la derecha, en un iframe en
+  modo vista previa: lo que se escribe se le manda por postMessage y se ve al
+  instante, sin guardar (ver frontend/src/textos.jsx). Nada llega a la portada
+  pública hasta apretar "Guardar".
 
-<form method="post" novalidate>
+  Por dentro los textos siguen guardándose con **asteriscos** para lo resaltado
+  y una línea en blanco entre párrafos (es lo que entiende la portada y no deja
+  meter HTML). El editor solo traduce: la negrita del editor <-> **…**.
+{% endcomment %}
+<form method="post" id="textos-form" novalidate>
   {% csrf_token %}
-  <div class="row g-4">
-    {% for titulo, icono, campos in secciones %}
-      <div class="col-xl-6">
-        <div class="pnl-card h-100"><div class="card-pad">
-          <div class="form-section-title"><i class="bi {{ icono }}"></i> {{ titulo }}</div>
-          <div class="row g-3">
-            {% for campo in campos %}
-              <div class="{% if campo.field.tipo == 'texto' %}col-12{% else %}col-md-6{% endif %}">
-                <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
-                {{ campo }}
-                {% for e in campo.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
-              </div>
-            {% endfor %}
-          </div>
-        </div></div>
-      </div>
+
+  <div class="tp-secciones mb-3" role="tablist">
+    {% for titulo, icono, slug, campos in secciones %}
+      <button type="button" class="tp-seccion{% if forloop.first %} active{% endif %}" data-seccion="{{ slug }}">
+        <i class="bi {{ icono }}"></i> {{ titulo }}
+      </button>
     {% endfor %}
   </div>
-  <div class="pnl-sticky-guardar">
-    <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar textos</button>
+
+  <div class="row g-4">
+    <div class="col-xl-5">
+      {% for titulo, icono, slug, campos in secciones %}
+        <div class="pnl-card tp-panel{% if not forloop.first %} d-none{% endif %}" data-panel="{{ slug }}"><div class="card-pad">
+          <div class="form-section-title"><i class="bi {{ icono }}"></i> {{ titulo }}</div>
+          {% for campo in campos %}
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-baseline">
+                <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                <button type="button" class="tp-original" data-original="{{ campo.name }}">Volver al original</button>
+              </div>
+              {% if campo.field.tipo == 'texto' %}
+                <div class="tp-editor" data-campo="{{ campo.name }}" data-una-linea="{% if campo.name == 'hero_titulo' %}1{% endif %}"></div>
+                <input type="hidden" name="{{ campo.name }}" id="{{ campo.id_for_label }}" value="{{ campo.value|default:'' }}">
+              {% else %}
+                {{ campo }}
+              {% endif %}
+              {% for e in campo.errors %}<div class="pnl-field-error">{{ e }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          <p class="pnl-campo-ayuda mb-0">
+            <i class="bi bi-type-bold"></i> Selecciona palabras y aprieta <b>B</b> para resaltarlas
+            {% if slug == 'hero' %}(en el título grande salen en amarillo){% else %}(salen en morado){% endif %}.
+            Enter separa párrafos.
+          </p>
+        </div></div>
+      {% endfor %}
+
+      <div class="pnl-card mt-3"><div class="card-pad py-3 d-flex align-items-center gap-3 flex-wrap">
+        <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar y publicar</button>
+        <span class="cell-sub">
+          La vista previa es solo para ti: nadie ve los cambios hasta que guardes.
+          {% if fila.actualizado_por %}<br>Último cambio: {{ fila.actualizado_por }}, {{ fila.actualizado|date:'d-m-Y H:i' }}.{% endif %}
+        </span>
+      </div></div>
+    </div>
+
+    <div class="col-xl-7">
+      <div class="tp-vista">
+        <div class="tp-vista-barra">
+          <span><i class="bi bi-eye"></i> Vista previa en vivo</span>
+          <div class="btn-group btn-group-sm" role="group" aria-label="Tamaño">
+            <button type="button" class="btn btn-ghost active" data-tamano="pc"><i class="bi bi-display"></i> Computador</button>
+            <button type="button" class="btn btn-ghost" data-tamano="cel"><i class="bi bi-phone"></i> Celular</button>
+          </div>
+        </div>
+        <div class="tp-vista-marco">
+          <iframe id="tp-iframe" src="{{ frontend_url }}/?vista_previa=1" title="Vista previa de la portada"></iframe>
+        </div>
+      </div>
+    </div>
   </div>
 </form>
+{{ originales|json_script:"tp-originales" }}
+{% endblock %}
+
+{% block scripts %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+<style>
+  .tp-secciones { display:flex; gap:8px; flex-wrap:wrap; }
+  .tp-seccion { border:1.5px solid #e2d9ef; background:#fff; color:#6b6178; border-radius:999px;
+    padding:7px 14px; font-size:13px; font-weight:600; display:inline-flex; gap:6px; align-items:center; }
+  .tp-seccion:hover { border-color:#8200db; color:#590599; }
+  .tp-seccion.active { background:#590599; border-color:#590599; color:#fff; }
+  .tp-original { border:0; background:none; padding:0; font-size:12px; color:#a39bb0; text-decoration:underline; }
+  .tp-original:hover { color:#590599; }
+  .tp-editor { background:#fff; }
+  .tp-editor + input + .pnl-field-error { margin-top:4px; }
+  .tp-panel .ql-toolbar { border-radius:12px 12px 0 0; border-color:#e2d9ef; padding:4px 8px; }
+  .tp-panel .ql-container { border-radius:0 0 12px 12px; border-color:#e2d9ef; font-family:'Outfit',sans-serif; font-size:14.5px; }
+  .tp-panel .ql-editor { min-height:90px; line-height:1.6; color:#314158; }
+  .tp-panel .ql-editor p + p { margin-top:10px; }
+  .tp-panel .ql-editor strong { color:#8200db; }
+  /* Sin font-weight acá: con el editor entero en negrita por estilo, Quill
+     perdía el cursor al apretar B y el texto salía desordenado. */
+  .tp-panel [data-una-linea="1"] .ql-editor { min-height:0; font-size:17px; color:#2f0053; }
+  .tp-panel [data-una-linea="1"] .ql-editor strong { color:#d49a00; }
+  .tp-vista { position:sticky; top:16px; background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+  .tp-vista-barra { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:10px 14px; border-bottom:1px solid var(--line); font-weight:600; font-size:13.5px; color:#590599; }
+  .tp-vista-barra .btn.active { background:#f1e8fc; border-color:#8200db; color:#590599; }
+  /* La portada se dibuja a su ancho real (computador o celular) y se achica
+     para caber: si no, en este recuadro angosto saldría con el diseño de
+     tablet y no se vería como la ve la gente. Ver ajustarVista(). */
+  .tp-vista-marco { background:#f0edf3; height:calc(100vh - 150px); min-height:560px; overflow:hidden; position:relative; }
+  #tp-iframe { position:absolute; top:0; left:0; border:0; background:#fff; transform-origin:top left; }
+</style>
+<script>
+  (function () {
+    var form = document.getElementById('textos-form')
+    if (!form || form.dataset.listo) return
+    form.dataset.listo = '1'
+
+    var ORIGINALES = JSON.parse(document.getElementById('tp-originales').textContent)
+    var iframe = document.getElementById('tp-iframe')
+    var ORIGEN_SITIO = new URL(iframe.src, location.href).origin
+    var seccion = 'hero'
+    var editores = {}   // campo -> {quill, oculto, unaLinea}
+
+    // ---- **texto** <-> contenido del editor --------------------------------
+    function aContenido(texto, unaLinea) {
+      var parrafos = unaLinea ? [texto] : (texto || '').split(/\n\s*\n/)
+      var ops = []
+      parrafos.forEach(function (p) {
+        p.replace(/\s*\n\s*/g, ' ').split('**').forEach(function (trozo, i) {
+          if (trozo) ops.push(i % 2 ? { insert: trozo, attributes: { bold: true } } : { insert: trozo })
+        })
+        ops.push({ insert: '\n' })
+      })
+      return ops
+    }
+
+    function desdeEditor(quill, unaLinea) {
+      var lineas = ['']
+      quill.getContents().ops.forEach(function (op) {
+        if (typeof op.insert !== 'string') return
+        var negrita = !!(op.attributes && op.attributes.bold)
+        op.insert.split('\n').forEach(function (trozo, i) {
+          if (i > 0) { lineas.push('') }
+          if (!trozo) return
+          var n = lineas.length - 1
+          lineas[n] += negrita ? '**' + trozo + '**' : trozo
+        })
+      })
+      lineas = lineas.map(function (l) { return l.replace(/\*\*\*\*/g, '').trim() }).filter(Boolean)
+      return lineas.join(unaLinea ? ' ' : '\n\n')
+    }
+
+    // ---- vista previa ------------------------------------------------------
+    function valores() {
+      var datos = {}
+      Object.keys(ORIGINALES).forEach(function (k) {
+        var el = form.elements[k]
+        datos[k] = (el && el.value.trim()) || ORIGINALES[k]
+      })
+      return datos
+    }
+    var pendiente = null
+    function avisar() {
+      clearTimeout(pendiente)
+      pendiente = setTimeout(function () {
+        if (!iframe.contentWindow) return
+        iframe.contentWindow.postMessage({ tipo: 'ib-textos', textos: valores(), seccion: seccion }, ORIGEN_SITIO)
+      }, 120)
+    }
+    window.addEventListener('message', function (e) {
+      // La portada avisa cuando terminó de cargar: recién ahí escucha.
+      if (e.origin === ORIGEN_SITIO && e.data && e.data.tipo === 'ib-vista-lista') avisar()
+    })
+
+    // ---- secciones ---------------------------------------------------------
+    form.querySelectorAll('[data-seccion]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        seccion = b.dataset.seccion
+        form.querySelectorAll('[data-seccion]').forEach(function (x) { x.classList.toggle('active', x === b) })
+        form.querySelectorAll('[data-panel]').forEach(function (p) {
+          p.classList.toggle('d-none', p.dataset.panel !== seccion)
+        })
+        avisar()
+      })
+    })
+
+    var marco = document.querySelector('.tp-vista-marco')
+    var anchoBase = 1366
+    function ajustarVista() {
+      var escala = Math.min(1, marco.clientWidth / anchoBase)
+      iframe.style.width = anchoBase + 'px'
+      iframe.style.height = (marco.clientHeight / escala) + 'px'
+      iframe.style.transform = 'scale(' + escala + ')'
+      iframe.style.left = Math.max(0, (marco.clientWidth - anchoBase * escala) / 2) + 'px'
+    }
+    ajustarVista()
+    window.addEventListener('resize', ajustarVista)
+
+    document.querySelectorAll('[data-tamano]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        anchoBase = b.dataset.tamano === 'cel' ? 390 : 1366
+        ajustarVista()
+        document.querySelectorAll('[data-tamano]').forEach(function (x) { x.classList.toggle('active', x === b) })
+      })
+    })
+
+    // ---- campos ------------------------------------------------------------
+    form.querySelectorAll('input:not([type=hidden])').forEach(function (el) {
+      el.addEventListener('input', avisar)
+    })
+
+    form.querySelectorAll('[data-original]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k = b.dataset.original
+        if (editores[k]) {
+          editores[k].quill.setContents(aContenido(ORIGINALES[k], editores[k].unaLinea))
+        } else {
+          form.elements[k].value = ORIGINALES[k]
+          avisar()
+        }
+      })
+    })
+
+    function cargarQuill(listo) {
+      if (window.Quill) return listo()
+      var s = document.createElement('script')
+      s.src = 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js'
+      s.onload = listo
+      document.head.appendChild(s)
+    }
+
+    cargarQuill(function () {
+      form.querySelectorAll('.tp-editor').forEach(function (caja) {
+        var campo = caja.dataset.campo
+        var unaLinea = caja.dataset.unaLinea === '1'
+        var oculto = form.elements[campo]
+        var quill = new Quill(caja, {
+          theme: 'snow',
+          // En el título grande un Enter no hace párrafos: al guardar se junta
+          // todo en una línea (ver desdeEditor). Se probó bloquear la tecla con
+          // un atajo propio del teclado, pero Quill dejaba de poner bien el
+          // cursor al escribir en negrita.
+          modules: { toolbar: [['bold']] },
+          // Solo negrita: lo que se pegue desde Word o una web llega sin
+          // tamaños, colores ni enlaces, que la portada no sabría mostrar.
+          formats: ['bold'],
+        })
+        quill.setContents(aContenido(oculto.value || ORIGINALES[campo], unaLinea))
+        var negrita = caja.previousElementSibling && caja.previousElementSibling.querySelector('.ql-bold')
+        if (negrita) negrita.title = 'Resaltar'
+        // Se sincroniza en cada cambio y no al enviar: hx-boost arma el envío
+        // antes de que corra un submit propio (ver correos masivos).
+        quill.on('text-change', function () {
+          oculto.value = desdeEditor(quill, unaLinea)
+          avisar()
+        })
+        editores[campo] = { quill: quill, oculto: oculto, unaLinea: unaLinea }
+      })
+      avisar()
+    })
+  })()
+</script>
 {% endblock %}

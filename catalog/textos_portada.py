@@ -15,42 +15,44 @@ ORIGINALES = json.loads((Path(__file__).with_name('textos_portada.json')).read_t
 
 LINEA, TEXTO, EMAIL, URL = 'linea', 'texto', 'email', 'url'
 
-#: Cómo se muestran en el panel: (sección, ícono, [(clave, etiqueta, tipo)]).
+#: Cómo se muestran en el panel: (sección, ícono, id, [(clave, etiqueta, tipo)]).
+#: El id es el que usa la vista previa para saltar a esa parte de la portada
+#: (ver SECCIONES_VISTA_PREVIA en frontend/src/textos.jsx).
 SECCIONES = [
-    ('Portada principal', 'bi-house-door', [
+    ('Portada principal', 'bi-house-door', 'hero', [
         ('hero_etiqueta', 'Etiqueta', LINEA),
         ('hero_titulo', 'Título grande', TEXTO),
         ('hero_texto', 'Texto', TEXTO),
         ('hero_boton', 'Botón', LINEA),
     ]),
-    ('Cómo funciona', 'bi-signpost-2', [
+    ('Cómo funciona', 'bi-signpost-2', 'como', [
         ('como_etiqueta', 'Etiqueta', LINEA),
         ('como_titulo', 'Título', LINEA),
         ('como_boton', 'Botón', LINEA),
     ]),
-    ('Beneficios', 'bi-stars', [
+    ('Beneficios', 'bi-stars', 'beneficios', [
         ('beneficios_etiqueta', 'Etiqueta', LINEA),
         ('beneficios_titulo', 'Título', LINEA),
         ('beneficios_texto', 'Texto', TEXTO),
         ('beneficios_recuadro_titulo', 'Título del recuadro de modelos', LINEA),
         ('beneficios_recuadro_texto', 'Texto del recuadro de modelos', TEXTO),
     ]),
-    ('Productos', 'bi-box-seam', [
+    ('Productos', 'bi-box-seam', 'productos', [
         ('productos_titulo', 'Título', LINEA),
         ('productos_texto', 'Texto', TEXTO),
     ]),
-    ('Quiénes somos', 'bi-people', [
+    ('Quiénes somos', 'bi-people', 'quienes', [
         ('quienes_etiqueta', 'Etiqueta', LINEA),
         ('quienes_titulo', 'Título', LINEA),
         ('quienes_texto', 'Texto', TEXTO),
     ]),
-    ('Testimonios y preguntas frecuentes', 'bi-chat-quote', [
+    ('Testimonios y preguntas', 'bi-chat-quote', 'testimonios', [
         ('testimonios_etiqueta', 'Etiqueta de testimonios', LINEA),
         ('testimonios_titulo', 'Título de testimonios', LINEA),
         ('faq_etiqueta', 'Etiqueta de preguntas', LINEA),
         ('faq_titulo', 'Título de preguntas', LINEA),
     ]),
-    ('Contacto', 'bi-envelope', [
+    ('Contacto', 'bi-envelope', 'contacto', [
         ('contacto_etiqueta', 'Etiqueta', LINEA),
         ('contacto_titulo', 'Título', LINEA),
         ('contacto_email', 'Correo', EMAIL),
@@ -58,7 +60,7 @@ SECCIONES = [
         ('contacto_ubicacion', 'Ubicación', LINEA),
         ('contacto_texto', 'Texto sobre el formulario', TEXTO),
     ]),
-    ('Pie de página', 'bi-layout-text-window-reverse', [
+    ('Pie de página', 'bi-layout-text-window-reverse', 'pie', [
         ('pie_texto', 'Texto', LINEA),
         ('instagram_url', 'Instagram', URL),
         ('facebook_url', 'Facebook', URL),
@@ -66,7 +68,7 @@ SECCIONES = [
     ]),
 ]
 
-CAMPOS = {clave: (etiqueta, tipo) for _, _, campos in SECCIONES for clave, etiqueta, tipo in campos}
+CAMPOS = {clave: (etiqueta, tipo) for _, _, _, campos in SECCIONES for clave, etiqueta, tipo in campos}
 assert set(CAMPOS) == set(ORIGINALES), 'SECCIONES y textos_portada.json no tienen las mismas claves'
 
 

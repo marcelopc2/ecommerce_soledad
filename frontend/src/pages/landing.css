@@ -2410,3 +2410,7 @@ figure.lp-gmodal-card { cursor: default; }
   .lp-contacto-form textarea,
   .lp-contacto-form select { font-size: 16px; }
 }
+
+/* Vista previa del panel (Textos de la portada): marca la sección que se está
+   editando, para que se vea de inmediato dónde cae cada texto. */
+.lp-editando { outline: 3px dashed #ffcb00; outline-offset: -3px; }

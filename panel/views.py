@@ -1453,10 +1453,11 @@ def textos_portada(request):
         messages.success(request, 'Textos guardados. Ya se ven en la portada.')
         return redirect('panel:textos_portada')
 
-    secciones = [(titulo, icono, [form[clave] for clave, _, _ in campos])
-                 for titulo, icono, campos in SECCIONES]
+    from catalog.textos_portada import ORIGINALES
+    secciones = [(titulo, icono, slug, [form[clave] for clave, _, _ in campos])
+                 for titulo, icono, slug, campos in SECCIONES]
     return render(request, 'panel/textos_portada.html', {
-        'form': form, 'secciones': secciones, 'fila': fila,
+        'form': form, 'secciones': secciones, 'fila': fila, 'originales': ORIGINALES,
         'cambiados': len(fila.textos or {}),
         'section': 'cfg-textos',
     })

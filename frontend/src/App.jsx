@@ -19,6 +19,7 @@ import ScrollTopButton from './components/ScrollTopButton'
 import WhatsAppButton from './components/WhatsAppButton'
 import AvisoPreview from './components/AvisoPreview'
 import BandaSoporte from './components/BandaSoporte'
+import { enVistaPrevia } from './textos'
 import Soporte from './pages/Soporte'
 
 // Al cambiar de ruta la página nueva parte arriba (sin animar el salto,
@@ -75,6 +76,7 @@ function OcultarPreloaderSiNoEsLanding() {
 function ContarVisita() {
   const { pathname } = useLocation()
   useEffect(() => {
+    if (enVistaPrevia) return   // la vista previa del panel no es una visita
     // Silencioso a propósito: si el contador falla, el visitante no tiene por
     // qué enterarse ni ver un error en la consola.
     api.post('/metricas/visita/', {

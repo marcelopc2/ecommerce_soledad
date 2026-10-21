@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import logo from '../assets/brand/logo-ingenioblocks-color.png'
 import './aviso-preview.css'
 import { enModoSoporte } from '../auth'
+import { enVistaPrevia } from '../textos'
 
 /* Aviso de "sitio en construcción" para las direcciones de prueba.
  *
@@ -41,7 +42,7 @@ export default function AvisoPreview() {
 
   useEffect(() => {
     // En modo soporte quien mira es del equipo: ya sabe que es la versión de prueba.
-    if (!esSitioDePrueba() || enModoSoporte()) return
+    if (!esSitioDePrueba() || enModoSoporte() || enVistaPrevia) return
     let visto = false
     try {
       visto = sessionStorage.getItem(CLAVE) === '1'
