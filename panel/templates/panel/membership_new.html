@@ -38,12 +38,14 @@
         <div class="form-section-title"><i class="bi bi-calendar-check"></i> Acceso al Aula</div>
 
         <label class="form-label">{{ form.categorias.label }}</label>
-        {% for opcion in form.categorias %}
-          <div class="form-check mb-1">{{ opcion.tag }}<label class="form-check-label" for="{{ opcion.id_for_label }}">{{ opcion.choice_label }}</label></div>
-        {% endfor %}
-        {% for e in form.categorias.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        <div class="d-flex flex-wrap gap-3 mb-3">
+          {% for opcion in form.categorias %}
+            <div class="form-check mb-0">{{ opcion.tag }}<label class="form-check-label" for="{{ opcion.id_for_label }}">{{ opcion.choice_label }}</label></div>
+          {% endfor %}
+        </div>
+        {% for e in form.categorias.errors %}<div class="text-danger small mb-2">{{ e }}</div>{% endfor %}
 
-        <div class="row g-3 mt-1">
+        <div class="row g-3">
           <div class="col-sm-6">
             <label class="form-label" for="{{ form.inicio.id_for_label }}">{{ form.inicio.label }}</label>
             {{ form.inicio }}
@@ -53,23 +55,28 @@
             <label class="form-label" for="{{ form.hasta.id_for_label }}">{{ form.hasta.label }}</label>
             {{ form.hasta }}
             {% for e in form.hasta.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
-            <div class="d-flex gap-1 flex-wrap mt-2" id="atajos-hasta">
-              <button type="button" class="btn btn-ghost btn-sm" data-meses="1">1 mes</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-meses="3">3 meses</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-meses="6">6 meses</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-meses="12">1 año</button>
-            </div>
           </div>
         </div>
-        <div class="form-text mb-3">{{ form.inicio.help_text }}</div>
+        <div class="d-flex align-items-center gap-2 flex-wrap mt-2" id="atajos-hasta">
+          <span class="small text-muted me-1">Duración:</span>
+          <button type="button" class="mfilter-pill purple border-0" data-meses="1">1 mes</button>
+          <button type="button" class="mfilter-pill purple border-0" data-meses="3">3 meses</button>
+          <button type="button" class="mfilter-pill purple border-0" data-meses="6">6 meses</button>
+          <button type="button" class="mfilter-pill purple border-0" data-meses="12">1 año</button>
+        </div>
+        <div class="form-text mt-2">{{ form.inicio.help_text }}</div>
+
+        <hr class="my-4">
 
         <div class="form-check">
           {{ form.enviar_bienvenida }}
-          <label class="form-check-label ms-1" for="{{ form.enviar_bienvenida.id_for_label }}">{{ form.enviar_bienvenida.label }}</label>
-          <div class="form-text">Si no lo marcas, puedes ponerle tú una clave desde su ficha.</div>
+          <label class="form-check-label" for="{{ form.enviar_bienvenida.id_for_label }}">{{ form.enviar_bienvenida.label }}</label>
+          <div class="form-text mt-0">Si no lo marcas, puedes ponerle tú una clave desde su ficha.</div>
         </div>
 
-        <button type="submit" class="btn btn-brand mt-4"><i class="bi bi-person-plus me-1"></i> Crear alumno</button>
+        <div class="d-flex justify-content-end mt-4">
+          <button type="submit" class="btn btn-brand"><i class="bi bi-person-plus me-1"></i> Crear alumno</button>
+        </div>
       </div></div>
     </div>
   </div>
