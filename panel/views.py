@@ -2891,6 +2891,7 @@ def membership_aula(request, pk):
         'proximo': proximo,
         'ocultos': len(acceso) - sum(1 for t in tarjetas if t['type'] == 'course'),
         'cursos': [a['course'] for a in acceso],
+        'a_mano': set(m.desbloqueados_a_mano.values_list('id', flat=True)),
         'hoy': timezone.localdate(),
         'section': 'memberships',
     })
@@ -2901,18 +2902,34 @@ def membership_aula(request, pk):
 def membership_avance(request, pk):
     """Corrige a mano el avance de un alumno (p. ej. lo que se perdió al traspasar
     su cuenta desde WordPress). No le llega ningún correo: ver dar_por_avisado."""
-    from lms.services import get_course_access, marcar_terminados_a_mano, quitar_avance
+    from lms.services import (
+        desbloquear_a_mano, get_course_access, marcar_terminados_a_mano, quitar_avance, volver_a_bloquear,
+    )
     m = get_object_or_404(Membership.objects.select_related('user'), pk=pk)
-    cursos = [a['course'] for a in get_course_access(m)]
+    acceso = get_course_access(m)
+    cursos = [a['course'] for a in acceso]
     curso = next((c for c in cursos if str(c.pk) == request.POST.get('curso')), None)
     accion = request.POST.get('accion')
-    if curso is None or accion not in ('terminar', 'hasta', 'quitar'):
+    if curso is None or accion not in ('terminar', 'hasta', 'quitar', 'desbloquear', 'desbloquear_hasta', 'bloquear'):
         messages.error(request, 'Ese modelo no está en el Aula de este alumno.')
         return redirect('panel:membership_aula', pk=m.pk)
 
     if accion == 'quitar':
         quitar_avance(m, curso)
         messages.success(request, f'Se quitó el avance de «{curso.title}».')
+    elif accion == 'bloquear':
+        volver_a_bloquear(m, curso)
+        messages.success(request, f'«{curso.title}» vuelve a abrirse según su calendario.')
+    elif accion in ('desbloquear', 'desbloquear_hasta'):
+        hasta = cursos.index(curso) + 1
+        abrir = ([a['course'] for a in acceso[:hasta] if not a['unlocked']]
+                 if accion == 'desbloquear_hasta' else [curso])
+        desbloquear_a_mano(m, abrir)
+        if accion == 'desbloquear':
+            messages.success(request, f'«{curso.title}» quedó desbloqueado. No se le avisó al alumno.')
+        else:
+            messages.success(request, f'{len(abrir)} modelo{"s" if len(abrir) != 1 else ""} desbloqueado'
+                                      f'{"s" if len(abrir) != 1 else ""}. No se le avisó al alumno.')
     else:
         marcar = cursos[:cursos.index(curso) + 1] if accion == 'hasta' else [curso]
         marcar_terminados_a_mano(m, marcar)

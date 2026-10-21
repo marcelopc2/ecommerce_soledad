@@ -99,5 +99,42 @@ class AvanceManualTests(VistaAulaTests):
         r = self.client.get(reverse('panel:membership_aula', args=[self.m.pk]))
         self.assertContains(r, 'Quitar avance')
         self.assertContains(r, 'Hasta aquí')
-        self.assertContains(r, 'Terminados hasta:')
+        self.assertContains(r, 'value="desbloquear_hasta"')
         self.assertContains(r, '4. 004 - Modelo 4')
+
+    def _abiertos(self):
+        from lms.services import get_course_access
+        return [a['unlocked'] for a in get_course_access(self.m)]
+
+    def test_desbloquear_uno_sin_esperar_al_anterior(self):
+        self.assertEqual(self._abiertos(), [True, True, False, False])
+        self._post(self.cursos[3], 'desbloquear')
+        self.assertEqual(self._abiertos(), [True, True, False, True])
+        r = self.client.get(reverse('panel:membership_aula', args=[self.m.pk]))
+        self.assertContains(r, 'Desbloqueado a mano')
+        self.assertContains(r, 'Volver a bloquear')
+        self._post(self.cursos[3], 'bloquear')
+        self.assertEqual(self._abiertos(), [True, True, False, False])
+
+    def test_desbloquear_hasta(self):
+        self._post(self.cursos[3], 'desbloquear_hasta')
+        self.assertEqual(self._abiertos(), [True, True, True, True])
+        self.assertEqual(self.m.desbloqueados_a_mano.count(), 2)   # solo los que estaban cerrados
+
+    def test_el_listado_precargado_ve_lo_mismo(self):
+        from lms.services import get_course_access, precargar_listado
+        self._post(self.cursos[3], 'desbloquear')
+        precarga = precargar_listado([self.m])
+        self.assertEqual([a['unlocked'] for a in get_course_access(self.m, precarga)], self._abiertos())
+
+    def test_si_vence_se_cierra_igual(self):
+        self._post(self.cursos[3], 'desbloquear')
+        self.m.expires_at = timezone.now() - timedelta(days=1)
+        self.m.save()
+        self.assertFalse(self._abiertos()[3])
+
+    def test_alumno_puede_avanzar_en_lo_desbloqueado(self):
+        from lms.services import mark_lesson_completed
+        self.assertFalse(mark_lesson_completed(self.m, self.cursos[3].lessons.first()))
+        self._post(self.cursos[3], 'desbloquear')
+        self.assertTrue(mark_lesson_completed(self.m, self.cursos[3].lessons.first()))

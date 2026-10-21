@@ -71,21 +71,25 @@
 <p class="pnl-campo-ayuda mb-3">
   <i class="bi bi-info-circle"></i>
   ¿Se perdió avance al traspasar la cuenta? Usa los botones de cada modelo. «Hasta aquí» marca como
-  terminado ese modelo y todos los anteriores. Al alumno no le llega ningún correo. El siguiente modelo
-  se abre según su calendario semanal, como siempre.
+  terminado ese modelo y todos los anteriores; «Desbloquear» lo abre ya, sin esperar su fecha ni que
+  termine el anterior. Al alumno no le llega ningún correo. Si su acceso vence, lo desbloqueado se
+  cierra igual que el resto.
 </p>
 
 {# Incluye los modelos que el alumno todavía no ve: si venía en el 20, no hay tarjeta del 20. #}
 <form method="post" action="{% url 'panel:membership_avance' m.pk %}" class="d-flex gap-2 align-items-center flex-wrap mb-4"
-      hx-confirm="¿Marcar como terminados el modelo elegido y todos los anteriores?">
+      hx-confirm="¿Aplicarlo al modelo elegido y a todos los anteriores?">
   {% csrf_token %}
-  <input type="hidden" name="accion" value="hasta">
-  <label class="form-label mb-0 fw-semibold" for="avance-hasta">Terminados hasta:</label>
+  <select name="accion" class="form-select form-select-sm" style="max-width:220px" aria-label="Qué hacer">
+    <option value="hasta">Marcar terminados</option>
+    <option value="desbloquear_hasta">Desbloquear</option>
+  </select>
+  <label class="form-label mb-0 fw-semibold" for="avance-hasta">hasta</label>
   <select name="curso" id="avance-hasta" class="form-select form-select-sm" style="max-width:340px" required>
     <option value="">Elige un modelo…</option>
     {% for c in cursos %}<option value="{{ c.pk }}">{{ forloop.counter }}. {{ c.title }}</option>{% endfor %}
   </select>
-  <button type="submit" class="btn btn-brand btn-sm"><i class="bi bi-check2-all me-1"></i> Marcar</button>
+  <button type="submit" class="btn btn-brand btn-sm"><i class="bi bi-check2-all me-1"></i> Aplicar</button>
 </form>
 
 <div class="aula-grid">
@@ -97,6 +101,9 @@
         {% if not t.unlocked %}<div class="candado"><i class="bi bi-lock-fill"></i></div>{% endif %}
         <div class="cuerpo">
           <div class="titulo">{{ c.title }}</div>
+          {% if c.pk in a_mano and not t.completed %}
+            <span class="badge-soft blue mt-2">Desbloqueado a mano</span>
+          {% endif %}
           {% if t.completed %}
             <span class="badge-soft green mt-2">Terminado</span>
           {% elif t.unlocked %}
@@ -118,6 +125,11 @@
               {% include 'panel/partials/avance_boton.html' with accion='terminar' texto='Terminado' estilo='btn-ghost' aviso='¿Marcar este modelo como terminado?' %}
               {% if not forloop.first %}
                 {% include 'panel/partials/avance_boton.html' with accion='hasta' texto='Hasta aquí' estilo='btn-ghost' aviso='¿Marcar como terminados este modelo y todos los anteriores?' %}
+              {% endif %}
+              {% if not t.unlocked %}
+                {% include 'panel/partials/avance_boton.html' with accion='desbloquear' texto='Desbloquear' estilo='btn-brand' aviso='¿Desbloquear este modelo ya, sin esperar su fecha?' %}
+              {% elif c.pk in a_mano %}
+                {% include 'panel/partials/avance_boton.html' with accion='bloquear' texto='Volver a bloquear' estilo='btn-danger-soft' aviso='¿Volver a bloquear este modelo? Se abrirá cuando le toque según su calendario.' %}
               {% endif %}
             {% endif %}
           </div>

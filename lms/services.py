@@ -127,8 +127,14 @@ def precargar_listado(memberships):
                      .values_list('membership_id', 'course_id')):
         terminados.setdefault(mid, set()).add(cid)
 
+    a_mano = {}
+    for mid, cid in (_M_a_mano().objects.filter(membership_id__in=ids)
+                     .values_list('membership_id', 'course_id')):
+        a_mano.setdefault(mid, set()).add(cid)
+
     return {
         'categorias': categorias,
+        'a_mano': a_mano,
         'totales': totales,
         'vistos': vistos,
         'terminados': terminados,
@@ -137,6 +143,17 @@ def precargar_listado(memberships):
             mid: list(cursos) for mid, cursos in _cursos_sueltos_por_alumno(ids).items()
         },
     }
+
+
+def _M_a_mano():
+    from .models import Membership as _M
+    return _M.desbloqueados_a_mano.through
+
+
+def _desbloqueados_a_mano(membership, precarga=None):
+    if precarga is not None:
+        return precarga.get('a_mano', {}).get(membership.pk, set())
+    return set(membership.desbloqueados_a_mano.values_list('id', flat=True))
 
 
 def _cursos_sueltos_por_alumno(ids):
@@ -393,6 +410,13 @@ def get_course_access(membership, precarga=None):
             'required_course': requerido,        # el curso que falta completar
         })
 
+    # Lo abierto a mano desde el panel se abre sin importar fecha ni anterior.
+    # Va antes del cierre: si la membresía venció, se cierra igual que el resto.
+    a_mano = _desbloqueados_a_mano(membership, precarga)
+    for r in result:
+        if r['course'].id in a_mano and not r['unlocked']:
+            r.update(unlocked=True, lock_reason=None, required_course=None)
+
     return _aplicar_cierre(result, politica_de_cierre(membership, precarga))
 
 
@@ -646,6 +670,18 @@ def marcar_terminados_a_mano(membership, cursos):
             )
             CourseProgress.objects.get_or_create(membership=membership, course=curso)
     dar_por_avisado(membership)
+
+
+def desbloquear_a_mano(membership, cursos):
+    """Abre estos cursos ya, sin esperar su fecha ni que termine el anterior.
+    Sin correo: queda como avisado (ver dar_por_avisado)."""
+    membership.desbloqueados_a_mano.add(*cursos)
+    dar_por_avisado(membership)
+
+
+def volver_a_bloquear(membership, curso):
+    """Deshace un desbloqueo a mano: el curso vuelve a seguir el calendario."""
+    membership.desbloqueados_a_mano.remove(curso)
 
 
 def quitar_avance(membership, curso):

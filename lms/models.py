@@ -236,6 +236,13 @@ class Membership(models.Model):
     # lms.services.cursos_de). Se conserva para no perder el registro de qué se
     # otorgó antes de que existieran las categorías.
     courses = models.ManyToManyField(Course, related_name='memberships', blank=True)
+    # Abiertos desde el panel aunque no les toque por fecha ni por terminar el
+    # anterior (p. ej. para arreglar un traspaso de cuenta). Solo abren: si la
+    # membresía vence, se cierran igual que el resto (ver _aplicar_cierre).
+    desbloqueados_a_mano = models.ManyToManyField(
+        Course, related_name='+', blank=True,
+        help_text='Modelos abiertos a mano desde el panel, sin esperar su fecha.',
+    )
     categorias = models.ManyToManyField(
         CourseCategory, through='MembershipCategory',
         related_name='membresias', blank=True,
