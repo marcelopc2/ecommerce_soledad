@@ -675,3 +675,48 @@ class PerfilUsuario(models.Model):
 
     def __str__(self):
         return f'Perfil de {self.user.email or self.user.username}'
+
+
+class HistorialWordPress(models.Model):
+    """Lo que pasó con una familia en la página anterior (WooCommerce + PMPro).
+
+    Es solo para consultar: no da ni quita acceso, no se cobra ni se factura
+    nada a partir de esto. Existe porque la migración trajo el estado de HOY
+    (quién tiene acceso, hasta cuándo) pero no la historia, y sin ella no hay
+    cómo contestar "¿cuántas veces compró?" o "¿por qué está vencido si pagó?".
+
+    Va ligado por CORREO y no por usuario: la reimportación borra y vuelve a
+    crear las cuentas de alumnos, y el historial tiene que sobrevivir a eso.
+    """
+    COMPRA = 'COMPRA'
+    RENOVACION = 'RENOVACION'
+    RESUSCRIPCION = 'RESUSCRIPCION'
+    SUSCRIPCION = 'SUSCRIPCION'
+    PERIODO = 'PERIODO'
+    TIPO_CHOICES = [
+        (COMPRA, 'Compra'),
+        (RENOVACION, 'Renovación automática'),
+        (RESUSCRIPCION, 'Volvió a suscribirse'),
+        (SUSCRIPCION, 'Suscripción'),
+        (PERIODO, 'Periodo de acceso'),
+    ]
+
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
+    wp_id = models.PositiveBigIntegerField(help_text='Id en WordPress (pedido, suscripción o fila de PMPro)')
+    email = models.EmailField(db_index=True)
+    fecha = models.DateTimeField()
+    fecha_fin = models.DateTimeField(null=True, blank=True)
+    estado = models.CharField(max_length=40, blank=True)
+    pagado = models.BooleanField(default=False, help_text='Si fue una compra que se pagó de verdad')
+    monto = models.PositiveIntegerField(default=0)
+    detalle = models.CharField(max_length=300, blank=True)
+    medio_pago = models.CharField(max_length=60, blank=True)
+
+    class Meta:
+        ordering = ['-fecha']
+        unique_together = ('tipo', 'wp_id')
+        verbose_name = 'historial de WordPress'
+        verbose_name_plural = 'historial de WordPress'
+
+    def __str__(self):
+        return f'{self.email} · {self.get_tipo_display()} {self.fecha:%d-%m-%Y}'

@@ -718,6 +718,41 @@ def _correo_de(m):
     return (m.user.email or m.user.username or '').strip().lower()
 
 
+def _historial_wp(m):
+    """La historia de esta familia en la página anterior, con un resumen.
+
+    "Reactivaciones" cuenta las veces que tuvo un periodo de acceso que empezó
+    DESPUÉS de que se le terminara el anterior (más de un día de corte). Un
+    cambio de plan sin corte no cuenta: no se fue, solo se cambió.
+    """
+    from datetime import timedelta as _td
+    from lms.models import HistorialWordPress as H
+
+    registros = list(H.objects.filter(email__iexact=_correo_de(m)))
+    if not registros:
+        return None
+    compras = [r for r in registros if r.tipo in (H.COMPRA, H.RENOVACION, H.RESUSCRIPCION)]
+    pagadas = [r for r in compras if r.pagado]
+    periodos = sorted((r for r in registros if r.tipo == H.PERIODO), key=lambda r: r.fecha)
+    reactivaciones = sum(
+        1 for antes, despues in zip(periodos, periodos[1:])
+        if antes.fecha_fin and despues.fecha - antes.fecha_fin > _td(days=1)
+    )
+    return {
+        'registros': registros,
+        'compras': len(pagadas),
+        'total': sum(r.monto for r in pagadas),
+        'renovaciones': sum(1 for r in pagadas if r.tipo == H.RENOVACION),
+        'fallidas': sum(1 for r in compras if r.estado == 'Falló el pago'),
+        'periodos': len(periodos),
+        'vencimientos': sum(1 for r in periodos if r.estado in ('Venció', 'Terminó', 'Cancelado',
+                                                               'Cancelado por la tienda')),
+        'reactivaciones': reactivaciones,
+        'desde': min(r.fecha for r in registros),
+        'ultima_compra': max((r.fecha for r in pagadas), default=None),
+    }
+
+
 def _suscripciones_por_correo(correos):
     """{correo: suscripción a mostrar} — la vigente si hay, si no la más nueva."""
     prioridad = {Suscripcion.ACTIVA: 0, Suscripcion.PAUSADA: 1, Suscripcion.SUSPENDIDA: 2,
@@ -961,6 +996,7 @@ def _membership_detail_response(request, m, form=None, expiry_form=None):
     ctx.update(_membership_context(m))
     ctx['suscripciones'] = list(Suscripcion.objects.filter(email__iexact=_correo_de(m))
                                 .select_related('producto', 'tarjeta'))
+    ctx['historial_wp'] = _historial_wp(m)
     template = (
         'panel/partials/membership_detail_body.html'
         if is_htmx_partial_request(request)

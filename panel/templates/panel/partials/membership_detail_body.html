@@ -199,6 +199,8 @@
   </div>
   {% endif %}
 
+  {% if historial_wp %}{% include 'panel/partials/historial_wp.html' with h=historial_wp %}{% endif %}
+
   {# ---------- Facturas ---------- #}
   <div class="col-12">
     <div class="pnl-card"><div class="card-pad pb-2">

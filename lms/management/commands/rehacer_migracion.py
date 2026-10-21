@@ -109,7 +109,7 @@ class Command(BaseCommand):
         # Los pasos cambian segun si se rehace el contenido o no: sin cursos
         # sobran bajar fotos, cruzar trailers y proteger videos.
         bajar = con_cursos and not op['sin_fotos']
-        total = (1 if bajar else 0) + 1 + (2 if con_cursos else 0) + 2
+        total = (1 if bajar else 0) + 1 + (2 if con_cursos else 0) + 3
         self._n = 0
 
         if bajar:
@@ -147,6 +147,9 @@ class Command(BaseCommand):
         # en un solo lugar y con sus propias pruebas.
         self._paso(total, 'Poniendo las fechas de vencimiento reales')
         call_command('vencimientos_desde_wordpress', dump=ruta, aplicar=True, ver=0)
+
+        self._paso(total, 'Trayendo el historial de compras y accesos')
+        call_command('historial_desde_wordpress', dump=ruta, aplicar=True)
 
         self._marcar_avisos_como_ya_enviados()
         self._restaurar_cuentas_de_gestion(staff)
