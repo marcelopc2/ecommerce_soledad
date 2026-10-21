@@ -1,0 +1,7 @@
+{# Un botón de "Avance de…": corrige el avance de un modelo (ver membership_avance). #}
+<form method="post" action="{% url 'panel:membership_avance' m.pk %}" hx-confirm="{{ aviso }} ({{ c.title }})">
+  {% csrf_token %}
+  <input type="hidden" name="curso" value="{{ c.pk }}">
+  <input type="hidden" name="accion" value="{{ accion }}">
+  <button type="submit" class="btn {{ estilo }} btn-sm">{{ texto }}</button>
+</form>

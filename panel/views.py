@@ -2890,9 +2890,38 @@ def membership_aula(request, pk):
         'en_curso': en_curso,
         'proximo': proximo,
         'ocultos': len(acceso) - sum(1 for t in tarjetas if t['type'] == 'course'),
+        'cursos': [a['course'] for a in acceso],
         'hoy': timezone.localdate(),
         'section': 'memberships',
     })
+
+
+@staff_required
+@require_POST
+def membership_avance(request, pk):
+    """Corrige a mano el avance de un alumno (p. ej. lo que se perdió al traspasar
+    su cuenta desde WordPress). No le llega ningún correo: ver dar_por_avisado."""
+    from lms.services import get_course_access, marcar_terminados_a_mano, quitar_avance
+    m = get_object_or_404(Membership.objects.select_related('user'), pk=pk)
+    cursos = [a['course'] for a in get_course_access(m)]
+    curso = next((c for c in cursos if str(c.pk) == request.POST.get('curso')), None)
+    accion = request.POST.get('accion')
+    if curso is None or accion not in ('terminar', 'hasta', 'quitar'):
+        messages.error(request, 'Ese modelo no está en el Aula de este alumno.')
+        return redirect('panel:membership_aula', pk=m.pk)
+
+    if accion == 'quitar':
+        quitar_avance(m, curso)
+        messages.success(request, f'Se quitó el avance de «{curso.title}».')
+    else:
+        marcar = cursos[:cursos.index(curso) + 1] if accion == 'hasta' else [curso]
+        marcar_terminados_a_mano(m, marcar)
+        if len(marcar) == 1:
+            messages.success(request, f'«{curso.title}» quedó como terminado. No se le avisó al alumno.')
+        else:
+            messages.success(request, f'{len(marcar)} modelos quedaron como terminados. No se le avisó al alumno.')
+    log.info('Avance a mano: %s %s «%s» de %s', request.user.email, accion, curso.title, m.user.email)
+    return redirect('panel:membership_aula', pk=m.pk)
 
 
 @staff_required

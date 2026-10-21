@@ -633,6 +633,44 @@ def mark_lesson_completed(membership, lesson):
     return True
 
 
+def marcar_terminados_a_mano(membership, cursos):
+    """Da por terminados estos cursos (todos sus recursos vistos), aunque estén
+    bloqueados. Es para el panel: arreglar avance que se perdió en un traspaso
+    de cuenta. No pasa por `mark_lesson_completed` a propósito: esa exige que el
+    curso esté abierto, y lo que se está corrigiendo es justamente eso."""
+    with transaction.atomic():
+        for curso in cursos:
+            LessonProgress.objects.bulk_create(
+                [LessonProgress(membership=membership, lesson=l) for l in curso.lessons.all()],
+                ignore_conflicts=True,
+            )
+            CourseProgress.objects.get_or_create(membership=membership, course=curso)
+    dar_por_avisado(membership)
+
+
+def quitar_avance(membership, curso):
+    """Borra lo visto de un curso: queda como si nunca lo hubiera empezado."""
+    LessonProgress.objects.filter(membership=membership, lesson__course=curso).delete()
+    CourseProgress.objects.filter(membership=membership, course=curso).delete()
+
+
+def dar_por_avisado(membership):
+    """Lo que hoy tiene abierto y los diplomas que ya ganó quedan como avisados.
+
+    Después de corregir avance a mano no es novedad para el alumno: sin esto, el
+    aviso diario le mandaría "se desbloqueó tu modelo" o "ganaste un diploma"
+    por cosas que ya tenía antes del traspaso."""
+    from .models import UnlockNotice
+    UnlockNotice.objects.bulk_create(
+        [UnlockNotice(membership=membership, course=a['course'])
+         for a in get_course_access(membership) if a['unlocked']],
+        ignore_conflicts=True,
+    )
+    get_sequence_access(membership)   # abrir la secuencia es lo que otorga los diplomas
+    DiplomaAward.objects.filter(membership=membership, email_sent_at__isnull=True).update(
+        email_sent_at=timezone.now())
+
+
 def grant_access_for_order(order):
     """
     Crea/extiende la membresía del comprador según los productos de la orden.

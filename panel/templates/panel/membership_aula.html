@@ -1,8 +1,8 @@
 {% extends 'panel/base.html' %}
 
-{% block title %}Aula de {{ m.student_name|default:m.user.email }}{% endblock %}
+{% block title %}Avance de {{ m.student_name|default:m.user.email }}{% endblock %}
 {% block crumb %}Panel · Academia · Alumnos{% endblock %}
-{% block heading %}Así ve el Aula {{ m.student_name|default:m.user.email }}{% endblock %}
+{% block heading %}Avance de {{ m.student_name|default:m.user.email }}{% endblock %}
 
 {% block actions %}
 <a href="{% url 'panel:membership_detail' m.pk %}" class="btn btn-ghost"><i class="bi bi-person me-1"></i> Ver detalle</a>
@@ -13,7 +13,8 @@
 {% comment %}
   Las tarjetas salen de lms.services.get_sequence_access, el mismo cálculo que
   usa el Aula del alumno: goteo semanal, terminar el anterior, vencimiento y
-  cuántos bloqueados se muestran (Ritmo de entrega). Esta página solo mira.
+  cuántos bloqueados se muestran (Ritmo de entrega). Los botones de cada
+  modelo corrigen el avance a mano (ver panel.views.membership_avance).
 {% endcomment %}
 <style>
   .aula-resumen { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; }
@@ -31,6 +32,8 @@
   .aula-card .barra { height:7px; background:#f0eaf8; border-radius:9px; margin-top:10px; overflow:hidden; }
   .aula-card .barra i { display:block; height:100%; background:#8200db; }
   .aula-card .nota { font-size:12.5px; color:#6b6178; margin-top:8px; }
+  .aula-card .acciones { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .aula-card .acciones .btn { font-size:12px; padding:3px 9px; }
   .aula-card.diploma .portada { background:linear-gradient(135deg,#ffcb00,#f0b100); font-size:46px; color:#fff; }
   .aula-card.diploma.bloqueado .portada { background:#e9e4ef; color:#b9b0c4; filter:none; }
 </style>
@@ -65,6 +68,26 @@
   {% endif %}
 </div>
 
+<p class="pnl-campo-ayuda mb-3">
+  <i class="bi bi-info-circle"></i>
+  ¿Se perdió avance al traspasar la cuenta? Usa los botones de cada modelo. «Hasta aquí» marca como
+  terminado ese modelo y todos los anteriores. Al alumno no le llega ningún correo. El siguiente modelo
+  se abre según su calendario semanal, como siempre.
+</p>
+
+{# Incluye los modelos que el alumno todavía no ve: si venía en el 20, no hay tarjeta del 20. #}
+<form method="post" action="{% url 'panel:membership_avance' m.pk %}" class="d-flex gap-2 align-items-center flex-wrap mb-4"
+      hx-confirm="¿Marcar como terminados el modelo elegido y todos los anteriores?">
+  {% csrf_token %}
+  <input type="hidden" name="accion" value="hasta">
+  <label class="form-label mb-0 fw-semibold" for="avance-hasta">Terminados hasta:</label>
+  <select name="curso" id="avance-hasta" class="form-select form-select-sm" style="max-width:340px" required>
+    <option value="">Elige un modelo…</option>
+    {% for c in cursos %}<option value="{{ c.pk }}">{{ forloop.counter }}. {{ c.title }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn btn-brand btn-sm"><i class="bi bi-check2-all me-1"></i> Marcar</button>
+</form>
+
 <div class="aula-grid">
   {% for t in tarjetas %}
     {% if t.type == 'course' %}
@@ -88,6 +111,16 @@
           {% else %}
             <div class="nota">Bloqueado</div>
           {% endif %}
+          <div class="acciones">
+            {% if t.completed %}
+              {% include 'panel/partials/avance_boton.html' with accion='quitar' texto='Quitar avance' estilo='btn-danger-soft' aviso='¿Quitar el avance de este modelo? Queda como si nunca lo hubiera empezado.' %}
+            {% else %}
+              {% include 'panel/partials/avance_boton.html' with accion='terminar' texto='Terminado' estilo='btn-ghost' aviso='¿Marcar este modelo como terminado?' %}
+              {% if not forloop.first %}
+                {% include 'panel/partials/avance_boton.html' with accion='hasta' texto='Hasta aquí' estilo='btn-ghost' aviso='¿Marcar como terminados este modelo y todos los anteriores?' %}
+              {% endif %}
+            {% endif %}
+          </div>
         </div>
       </div>
       {% endwith %}

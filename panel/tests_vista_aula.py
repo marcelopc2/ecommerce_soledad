@@ -32,7 +32,7 @@ class VistaAulaTests(TestCase):
     def test_la_vista_muestra_lo_mismo_que_el_aula(self):
         r = self.client.get(reverse('panel:membership_aula', args=[self.m.pk]))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Así ve el Aula Isidora')
+        self.assertContains(r, 'Avance de Isidora')
         self.assertContains(r, 'modelos desbloqueados')
         self.assertContains(r, 'Terminado')
         self.assertContains(r, 'Modelo 2')
@@ -51,3 +51,53 @@ class VistaAulaTests(TestCase):
         self.client.force_login(self.m.user)
         r = self.client.get(reverse('panel:membership_aula', args=[self.m.pk]))
         self.assertNotEqual(r.status_code, 200)
+
+
+class AvanceManualTests(VistaAulaTests):
+    """Corregir a mano el avance (lo que se perdió al traspasar la cuenta)."""
+
+    def _post(self, curso, accion):
+        return self.client.post(reverse('panel:membership_avance', args=[self.m.pk]),
+                                {'curso': curso.pk, 'accion': accion})
+
+    def test_hasta_aqui_marca_ese_y_los_anteriores_aunque_esten_cerrados(self):
+        from django.core import mail
+        from django.core.management import call_command
+        from lms.models import UnlockNotice
+        r = self._post(self.cursos[2], 'hasta')
+        self.assertRedirects(r, reverse('panel:membership_aula', args=[self.m.pk]))
+        terminados = set(CourseProgress.objects.filter(membership=self.m).values_list('course_id', flat=True))
+        self.assertEqual(terminados, {c.pk for c in self.cursos[:3]})
+        self.assertEqual(LessonProgress.objects.filter(membership=self.m).count(), 3)
+        # Lo que quedó abierto se da por avisado: el aviso diario no le escribe.
+        self.assertTrue(UnlockNotice.objects.filter(membership=self.m).exists())
+        with self.settings(ENVIAR_CORREOS=True):
+            call_command('enviar_avisos_desbloqueo', stdout=open(__import__('os').devnull, 'w'))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_terminar_solo_uno(self):
+        self._post(self.cursos[1], 'terminar')
+        self.assertTrue(CourseProgress.objects.filter(membership=self.m, course=self.cursos[1]).exists())
+        self.assertFalse(CourseProgress.objects.filter(membership=self.m, course=self.cursos[2]).exists())
+
+    def test_quitar_avance(self):
+        self._post(self.cursos[0], 'quitar')
+        self.assertFalse(CourseProgress.objects.filter(membership=self.m).exists())
+        self.assertFalse(LessonProgress.objects.filter(membership=self.m).exists())
+
+    def test_curso_ajeno_no(self):
+        otro = Course.objects.create(title='Fuera', slug='fuera', order=99, is_active=True)
+        self._post(otro, 'terminar')
+        self.assertFalse(CourseProgress.objects.filter(membership=self.m, course=otro).exists())
+
+    def test_alumno_no_puede(self):
+        self.client.force_login(self.m.user)
+        self._post(self.cursos[3], 'hasta')
+        self.assertEqual(CourseProgress.objects.filter(membership=self.m).count(), 1)
+
+    def test_botones_en_la_pagina(self):
+        r = self.client.get(reverse('panel:membership_aula', args=[self.m.pk]))
+        self.assertContains(r, 'Quitar avance')
+        self.assertContains(r, 'Hasta aquí')
+        self.assertContains(r, 'Terminados hasta:')
+        self.assertContains(r, '4. 004 - Modelo 4')

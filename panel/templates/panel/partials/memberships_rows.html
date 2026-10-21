@@ -61,8 +61,8 @@
     <td>{% include 'panel/partials/membership_status_badge.html' with m=m %}</td>
     <td class="text-end">
       <div class="d-inline-flex gap-1">
-        <a href="{% url 'panel:membership_aula' m.pk %}" class="btn-icon" title="Ver su Aula (como la ve el alumno)">
-          <i class="bi bi-display"></i>
+        <a href="{% url 'panel:membership_aula' m.pk %}" class="btn-icon" title="Ver su avance">
+          <i class="bi bi-bar-chart-steps"></i>
         </a>
         <a href="{% url 'panel:membership_detail' m.pk %}" class="btn-icon" title="Ver detalle">
           <i class="bi bi-eye"></i>
