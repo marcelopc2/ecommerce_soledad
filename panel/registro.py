@@ -158,7 +158,7 @@ def _zona(request):
     return RegistroAcceso.PANEL if ruta.startswith('/gestion') else RegistroAcceso.SITIO
 
 
-def anotar_acceso(request, tipo, usuario=None, email=''):
+def anotar_acceso(request, tipo, usuario=None, email='', soporte_por=''):
     """Escribe una línea del registro. Nunca lanza: si falla el registro, el
     login tiene que seguir funcionando igual."""
     try:
@@ -166,7 +166,9 @@ def anotar_acceso(request, tipo, usuario=None, email=''):
             usuario=usuario if (usuario and usuario.is_authenticated) else None,
             email=(email or (getattr(usuario, 'email', '') or ''))[:254],
             tipo=tipo,
-            zona=_zona(request),
+            soporte_por=soporte_por[:254],
+            # El modo soporte se pide desde el panel, pero a donde se entra es al Aula.
+            zona=RegistroAcceso.SITIO if tipo == RegistroAcceso.SOPORTE else _zona(request),
             ip=ip_del_request(request),
             dispositivo=describir_dispositivo(
                 request.META.get('HTTP_USER_AGENT', '') if request else ''

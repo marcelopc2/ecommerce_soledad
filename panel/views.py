@@ -2048,7 +2048,7 @@ def accesos(request):
     items = RegistroAcceso.objects.select_related('usuario')
     if zona in (RegistroAcceso.PANEL, RegistroAcceso.SITIO):
         items = items.filter(zona=zona)
-    if tipo in (RegistroAcceso.ENTRADA, RegistroAcceso.FALLIDO, RegistroAcceso.SALIDA):
+    if tipo in (RegistroAcceso.ENTRADA, RegistroAcceso.FALLIDO, RegistroAcceso.SALIDA, RegistroAcceso.SOPORTE):
         items = items.filter(tipo=tipo)
     if q:
         items = items.filter(Q(email__icontains=q) | Q(ip__icontains=q))
@@ -2893,6 +2893,38 @@ def membership_aula(request, pk):
         'hoy': timezone.localdate(),
         'section': 'memberships',
     })
+
+
+@staff_required
+@require_POST
+def membership_soporte(request, pk):
+    """Abre el Aula como este alumno, sin su clave, para soporte técnico.
+
+    Solo mirar y por 30 minutos (ver lms/soporte.py). Queda en el registro de
+    accesos quién entró a qué cuenta y cuándo.
+
+    El token va después del # y no como ?t=: lo que va tras el # nunca sale
+    del navegador, así que no queda en los registros del servidor ni se le
+    pasa a otro sitio en el Referer.
+    """
+    from lms.soporte import token_de_soporte
+    from .models import RegistroAcceso
+    from .registro import anotar_acceso
+
+    m = get_object_or_404(Membership.objects.select_related('user'), pk=pk)
+    alumno = m.user
+    if alumno.is_staff or alumno.is_superuser:
+        messages.error(request, 'Las cuentas de gestión no se abren en modo soporte.')
+        return redirect('panel:membership_detail', pk=m.pk)
+    if not alumno.is_active:
+        messages.error(request, 'La cuenta de este alumno está desactivada: no puede entrar al Aula.')
+        return redirect('panel:membership_detail', pk=m.pk)
+
+    token = token_de_soporte(alumno, request.user)
+    anotar_acceso(request, RegistroAcceso.SOPORTE, usuario=alumno,
+                  soporte_por=request.user.email or request.user.get_username())
+    log.info('Soporte: %s entró como %s', request.user.email, alumno.email)
+    return redirect(f"{settings.FRONTEND_URL.rstrip('/')}/soporte#t={token}")
 
 
 @staff_required

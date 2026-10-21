@@ -17,6 +17,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import AvatarForm, ProfileSerializer
 from .services import membresia_del_aula, send_reset_email
+from .soporte import datos_de_soporte
 
 User = get_user_model()
 
@@ -158,6 +159,9 @@ class MeView(APIView):
                 'active': membership.is_active,
                 'expires_at': membership.expires_at,
             } if membership else None,
+            # Solo cuando alguien del equipo entró como este alumno: el Aula
+            # muestra la franja de "modo soporte" (ver lms/soporte.py).
+            'soporte': datos_de_soporte(request),
         })
 
 

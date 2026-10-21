@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 // desaparecia, dejando solo el bloquecito suelto.
 import logo from '../assets/brand/logo-ingenioblocks-color.png'
 import './aviso-preview.css'
+import { enModoSoporte } from '../auth'
 
 /* Aviso de "sitio en construcción" para las direcciones de prueba.
  *
@@ -39,7 +40,8 @@ export default function AvisoPreview() {
   const [abierto, setAbierto] = useState(false)
 
   useEffect(() => {
-    if (!esSitioDePrueba()) return
+    // En modo soporte quien mira es del equipo: ya sabe que es la versión de prueba.
+    if (!esSitioDePrueba() || enModoSoporte()) return
     let visto = false
     try {
       visto = sessionStorage.getItem(CLAVE) === '1'

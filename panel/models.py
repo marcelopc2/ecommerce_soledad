@@ -85,10 +85,12 @@ class RegistroAcceso(models.Model):
     ENTRADA = 'ENTRADA'
     FALLIDO = 'FALLIDO'
     SALIDA = 'SALIDA'
+    SOPORTE = 'SOPORTE'
     TIPO_CHOICES = [
         (ENTRADA, 'Entró'),
         (FALLIDO, 'Intento fallido'),
         (SALIDA, 'Cerró sesión'),
+        (SOPORTE, 'Entraron como soporte'),
     ]
 
     PANEL = 'PANEL'
@@ -106,6 +108,10 @@ class RegistroAcceso(models.Model):
         blank=True, help_text='Copia del correo usado, sobrevive al borrado de la cuenta',
     )
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, db_index=True)
+    soporte_por = models.CharField(
+        max_length=254, blank=True,
+        help_text='En los SOPORTE: la cuenta de gestión que entró como este alumno',
+    )
     zona = models.CharField(max_length=10, choices=ZONA_CHOICES, db_index=True)
     ip = models.GenericIPAddressField(null=True, blank=True)
     dispositivo = models.CharField(

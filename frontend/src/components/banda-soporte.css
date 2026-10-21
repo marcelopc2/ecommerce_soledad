@@ -1,0 +1,38 @@
+/* Ver BandaSoporte.jsx. Abajo y no arriba: arriba tapaba el menú del Aula. */
+.banda-soporte {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9000;              /* sobre los botones flotantes (z 900) */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  background: #ffcb00;
+  color: #0f172b;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 -4px 16px rgba(15, 0, 30, 0.18);
+}
+
+.banda-soporte button {
+  padding: 6px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #0f172b;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Para que la franja no tape lo último de la página. */
+body:has(.banda-soporte) { padding-bottom: 64px; }
+
+/* Los botones flotantes (WhatsApp, volver arriba) suben por encima de la franja. */
+body:has(.banda-soporte) .whatsapp-btn,
+body:has(.banda-soporte) .scroll-top { translate: 0 -60px; }

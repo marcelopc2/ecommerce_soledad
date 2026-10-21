@@ -304,7 +304,8 @@ MEDIA_ROOT.mkdir(exist_ok=True)
 # --- Autenticación (JWT para el frontend React) + Rate limiting ---
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # El JWT de siempre, más el modo soporte de solo lectura (lms/soporte.py).
+        'lms.soporte.JWTConModoSoporte',
     ),
     # Rate limiting: protege contra fuerza bruta y abuso de la API (por IP para anónimos).
     'DEFAULT_THROTTLE_CLASSES': (

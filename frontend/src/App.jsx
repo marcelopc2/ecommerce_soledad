@@ -18,6 +18,8 @@ import RequireAuth from './components/RequireAuth'
 import ScrollTopButton from './components/ScrollTopButton'
 import WhatsAppButton from './components/WhatsAppButton'
 import AvisoPreview from './components/AvisoPreview'
+import BandaSoporte from './components/BandaSoporte'
+import Soporte from './pages/Soporte'
 
 // Al cambiar de ruta la página nueva parte arriba (sin animar el salto,
 // para no interferir con el scroll suave de las anclas de la landing).
@@ -92,6 +94,7 @@ function App() {
       {/* Solo se ve en las direcciones de prueba; se apaga solo el día que el
           dominio definitivo apunte acá. Ver AvisoPreview.jsx. */}
       <AvisoPreview />
+      <BandaSoporte />
       <Routes>
       <Route path="/" element={<Landing />} />
       {/* /tienda era el catálogo del prototipo anterior: gris, sin el sistema
@@ -106,6 +109,7 @@ function App() {
       {/* Auth */}
       <Route path="/legal/:doc" element={<Legal />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/soporte" element={<Soporte />} />
       <Route path="/definir-clave/:uid/:token" element={<SetPassword />} />
 
       {/* LMS alumno */}

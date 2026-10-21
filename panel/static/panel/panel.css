@@ -729,6 +729,7 @@ tr.pnl-drag-row:hover { background: var(--purple-50); }
 .badge-soft.yellow { background: #fff4c2; color: #8a6d00; }
 .badge-soft.red { background: #fdecea; color: #c03434; }
 .badge-soft.teal { background: #dcf5f2; color: #067c71; }
+.badge-soft.blue { background: #e6f1ff; color: #1d5fb8; }
 /* Junto al nombre del alumno en la tabla: más chico que el badge normal para
    no competir con el dato principal de la fila. */
 .mleg-badge { font-size: 10px; padding: 2px 8px; margin-left: 6px; vertical-align: 1px; }
