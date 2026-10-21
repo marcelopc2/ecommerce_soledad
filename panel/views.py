@@ -8,7 +8,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.db.models import Q, Sum, Max, Count
 from django.db.models.functions import Lower
-from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth import authenticate, get_user_model, login, logout, update_session_auth_hash
+from django.db import transaction
 from django.http import HttpResponse, FileResponse, Http404
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied, ValidationError as DjangoValidationError
@@ -26,7 +27,7 @@ from catalog.models import (
 )
 from invoicing.models import Invoice
 from invoicing.services import get_organization, issue_invoice_for_order
-from lms.models import AjustesAula, Course, Lesson, Membership, Diploma
+from lms.models import AjustesAula, Course, CourseCategory, Lesson, Membership, Diploma
 from lms.services import (
     get_course_access, precargar_listado, reanudar_goteo, send_reset_email,
 )
@@ -2876,4 +2877,55 @@ def membership_aula(request, pk):
         'ocultos': len(acceso) - sum(1 for t in tarjetas if t['type'] == 'course'),
         'hoy': timezone.localdate(),
         'section': 'memberships',
+    })
+
+
+@staff_required
+def membership_new(request):
+    """Alta manual de un alumno, con su membresía (ver NuevoAlumnoForm)."""
+    from dateutil.relativedelta import relativedelta
+    from lms.models import MembershipCategory, UnlockNotice
+    from lms.services import _send_welcome_email, get_course_access
+    from .forms import NuevoAlumnoForm
+
+    hoy = timezone.localdate()
+    form = NuevoAlumnoForm(request.POST or None, initial={
+        'inicio': hoy, 'hasta': hoy + relativedelta(months=6),
+        'categorias': list(CourseCategory.objects.filter(is_active=True).values_list('pk', flat=True))[:1],
+    })
+    if request.method == 'POST' and form.is_valid():
+        d = form.cleaned_data
+        User = get_user_model()
+        with transaction.atomic():
+            user = form.usuario_existente
+            if user is None:
+                user = User.objects.create_user(username=d['email'], email=d['email'])
+                user.set_unusable_password()   # la crea con el enlace del correo
+                user.save()
+            inicio = timezone.make_aware(datetime.combine(d['inicio'], time(9, 0)))
+            m = Membership.objects.create(
+                user=user, parent_name=d['parent_name'], student_name=d['student_name'], phone=d['phone'],
+                expires_at=timezone.make_aware(datetime.combine(d['hasta'], time(23, 59, 59))),
+            )
+            Membership.objects.filter(pk=m.pk).update(created_at=inicio)
+            for categoria in d['categorias']:
+                MembershipCategory.objects.create(membership=m, categoria=categoria, obtenida_en=inicio)
+            m.refresh_from_db()
+            # Lo que ya le queda abierto (si empezó antes) no se le avisa como
+            # "modelo nuevo": el correo de bienvenida ya lo invita a entrar.
+            UnlockNotice.objects.bulk_create(
+                [UnlockNotice(membership=m, course=a['course']) for a in get_course_access(m) if a['unlocked']],
+                ignore_conflicts=True)
+        log.info('Alumno %s creado a mano por %s (hasta %s)', d['email'], request.user.username, d['hasta'])
+        if d['enviar_bienvenida']:
+            try:
+                _send_welcome_email(user, m)
+            except Exception:
+                log.exception('No se pudo enviar la bienvenida a %s', d['email'])
+        messages.success(request, f'Alumno {d["email"]} creado con acceso hasta el {d["hasta"]:%d-%m-%Y}.'
+                         + (' Se le envió el correo para crear su clave.' if d['enviar_bienvenida'] else ''))
+        return redirect('panel:membership_detail', pk=m.pk)
+    return render(request, 'panel/membership_new.html', {
+        'form': form, 'section': 'memberships', 'hoy': hoy,
+        'existente': getattr(form, 'alumno_existente', None),
     })

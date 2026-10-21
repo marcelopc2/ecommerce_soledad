@@ -5,6 +5,7 @@
 {% block heading %}Alumnos{% endblock %}
 
 {% block actions %}
+<a href="{% url 'panel:membership_new' %}" class="btn btn-brand me-2"><i class="bi bi-person-plus me-1"></i> Nuevo alumno</a>
 <div class="d-flex gap-2 mfilter-group">
   <a class="mfilter-pill{% if not estado %} active{% endif %}"
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">Todas ({{ total_count }})</a>

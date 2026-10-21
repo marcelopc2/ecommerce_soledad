@@ -1089,3 +1089,58 @@ class EnvioMasivoForm(BootstrapFormMixin, forms.ModelForm):
                 'Para poner un botón necesitas las dos cosas: el texto y la dirección. '
                 'Si no quieres botón, deja las dos en blanco.')
         return datos
+
+
+class NuevoAlumnoForm(BootstrapFormMixin, forms.Form):
+    """Dar de alta a mano a un alumno: pagó por fuera del sitio (transferencia,
+    efectivo en un taller), es un regalo o una beca.
+
+    Crea la cuenta y la membresía igual que una compra: el correo es el
+    usuario, y la persona define su clave con el enlace del correo de
+    bienvenida.
+    """
+    email = forms.EmailField(label='Correo', widget=forms.EmailInput(attrs={'placeholder': 'nombre@correo.cl'}),
+                             help_text='Con este correo inicia sesión.')
+    parent_name = forms.CharField(label='Nombre del apoderado', max_length=200, required=False,
+                                  widget=forms.TextInput(attrs={'placeholder': 'Nombre y apellido'}))
+    student_name = forms.CharField(label='Nombre del alumno', max_length=200, required=False,
+                                   widget=forms.TextInput(attrs={'placeholder': 'Nombre del niño o niña'}),
+                                   help_text='Es el que sale en los diplomas.')
+    phone = forms.CharField(label='Teléfono', max_length=30, required=False,
+                            widget=forms.TextInput(attrs={'placeholder': '+56 9 1234 5678'}))
+    categorias = forms.ModelMultipleChoiceField(
+        label='Qué cursos recibe', queryset=CourseCategory.objects.none(),
+        widget=forms.CheckboxSelectMultiple)
+    inicio = forms.DateField(
+        label='Empieza el', widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+        help_text='Desde ese día corre la entrega semanal. Si empezó antes (por ejemplo, '
+                  'pagó hace un mes), pon esa fecha y ya tendrá abiertos los modelos de esas semanas.')
+    hasta = forms.DateField(
+        label='Tiene acceso hasta el', widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+        help_text='Ese día incluido.')
+    enviar_bienvenida = forms.BooleanField(
+        label='Enviarle el correo de bienvenida para que cree su clave', required=False, initial=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['categorias'].queryset = CourseCategory.objects.filter(is_active=True).order_by('nombre')
+        self.fields['enviar_bienvenida'].widget.attrs['class'] = 'form-check-input'
+        self.fields['categorias'].widget.attrs['class'] = 'form-check-input'
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        existente = (get_user_model().objects.filter(username__iexact=email).first()
+                     or get_user_model().objects.filter(email__iexact=email).first())
+        if existente is not None and existente.is_staff:
+            raise forms.ValidationError('Ese correo es de una cuenta de gestión.')
+        if existente is not None and hasattr(existente, 'membership'):
+            self.alumno_existente = existente.membership
+            raise forms.ValidationError('Ese correo ya es alumno. Búscalo en la lista para extenderle el acceso.')
+        self.usuario_existente = existente
+        return email
+
+    def clean(self):
+        datos = super().clean()
+        if datos.get('inicio') and datos.get('hasta') and datos['hasta'] < datos['inicio']:
+            self.add_error('hasta', 'El acceso no puede terminar antes de empezar.')
+        return datos

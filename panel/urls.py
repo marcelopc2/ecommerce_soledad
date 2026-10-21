@@ -75,6 +75,7 @@ urlpatterns = [
     path('diplomas/<int:pk>/mostrar/', views.diploma_toggle_active, name='diploma_toggle_active'),
 
     path('membresias/', views.memberships, name='memberships'),
+    path('membresias/nuevo/', views.membership_new, name='membership_new'),
     path('membresias/<int:pk>/detalle/', views.membership_detail, name='membership_detail'),
     path('membresias/<int:pk>/aula/', views.membership_aula, name='membership_aula'),
     path('membresias/<int:pk>/nombres/', views.membership_names_update, name='membership_names_update'),
