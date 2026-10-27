@@ -7,6 +7,33 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# --- Modo local: NADA de lo que pase en este computador toca algo real -------
+#
+# El .env de desarrollo arrastra claves de verdad (Mercado Pago de producción,
+# Shipit, Openfactura, el Gmail de la clienta) y a veces se trabaja con una
+# copia de la base real, con correos y tarjetas de clientes de verdad. Ya pasó
+# una vez que salieron correos a clientes desde un entorno de prueba. Por eso,
+# corriendo en localhost, las claves de servicios externos se descartan antes
+# de que nadie las lea (cada servicio cae en su modo de prueba o falla sin
+# efecto) y los correos se guardan como archivos (ver EMAIL_BACKEND).
+# Para probar a propósito un servicio real desde acá:
+# PERMITIR_SERVICIOS_REALES_EN_LOCAL=1.
+def _es_local():
+    from urllib.parse import urlparse
+    host = (urlparse(os.environ.get('FRONTEND_URL', 'http://localhost:5173')).hostname or '').lower()
+    return host in ('localhost', '127.0.0.1')
+
+MODO_LOCAL = _es_local()
+CLAVES_DE_SERVICIOS_REALES = (
+    'TBK_API_KEY_ID', 'TBK_API_KEY_SECRET', 'TBK_ENVIRONMENT', 'TBK_ONECLICK_TIENDA',
+    'TBK_WEBPAY_CODIGO', 'TBK_WEBPAY_LLAVE', 'TBK_WEBPAY_AMBIENTE',
+    'MP_ACCESS_TOKEN', 'SHIPIT_EMAIL', 'SHIPIT_TOKEN', 'OPENFACTURA_API_KEY',
+    'EMAIL_HOST_PASSWORD',
+)
+if MODO_LOCAL and os.environ.get('PERMITIR_SERVICIOS_REALES_EN_LOCAL') != '1':
+    for _clave in CLAVES_DE_SERVICIOS_REALES:
+        os.environ.pop(_clave, None)
+
 # El default es False a propósito: si el .env no se carga en el servidor (ruta
 # equivocada, permisos, contenedor sin el archivo), el sitio debe arrancar
 # SEGURO, no en modo depuración exponiendo la SECRET_KEY y los tokens de pago
@@ -356,6 +383,11 @@ SIMPLE_JWT = {
 # Producción: definir EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend y las
 # credenciales SMTP de la clienta en el .env.
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+# En local, aunque el .env diga SMTP, los correos van a archivos .log en
+# correos_locales/ (se pueden abrir para ver cómo quedaron) y nunca a la red.
+if MODO_LOCAL and os.environ.get('FORZAR_ENVIO_DE_CORREOS') != '1':
+    EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+    EMAIL_FILE_PATH = BASE_DIR / 'correos_locales'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
@@ -403,7 +435,9 @@ ENVIAR_CORREOS = _correos_habilitados()
 def _sitio_real():
     from urllib.parse import urlparse
     host = (urlparse(FRONTEND_URL).hostname or '').lower()
-    return host in DOMINIOS_DE_PRODUCCION or host in ('localhost', '127.0.0.1')
+    # localhost NO: en local puede haber una copia de la base real con las
+    # tarjetas inscritas de los clientes.
+    return host in DOMINIOS_DE_PRODUCCION
 
 COBROS_AUTOMATICOS = _sitio_real()
 # Lo demás (prender los cobros, incluir las de WordPress, pausar una) se

@@ -61,3 +61,18 @@ dist-ssr
 # personales de todos los clientes: no van al repositorio ni por accidente.
 *.sql
 *.sql.gz
+
+# Correos generados en local (ver MODO_LOCAL en core/settings.py) y respaldos de la base local
+correos_locales/
+*.sqlite3
+
+# Archivos subidos por usuarias/os (copiados del servidor para probar en local)
+media/cursos/
+media/avatares/
+media/correos/
+media/concurso/
+media/ganadores/
+media/modelos/
+media/lesson_videos/
+media/portada/
+media/club/

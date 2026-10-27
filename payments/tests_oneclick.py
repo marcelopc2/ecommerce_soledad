@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -170,6 +170,9 @@ class SuscripcionTests(Base):
         self.assertEqual(Suscripcion.objects.count(), 1)
 
 
+# El sitio de pruebas corre en localhost, donde los cobros están apagados a
+# propósito (core/settings.py): acá se prenden para probar el cobro.
+@override_settings(COBROS_AUTOMATICOS=True)
 class CobroMensualTests(Base):
     def setUp(self):
         super().setUp()
