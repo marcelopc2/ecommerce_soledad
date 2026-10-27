@@ -1,7 +1,7 @@
 {% extends 'panel/base.html' %}
 
 {% block title %}{% if product %}Editar producto{% else %}Nuevo producto{% endif %}{% endblock %}
-{% block crumb %}Panel · Tienda · Productos{% endblock %}
+{% block crumb %}Productos{% endblock %}
 {% block heading %}{% if product %}Editar «{{ product.name }}»{% else %}Nuevo producto{% endif %}{% endblock %}
 
 {% block actions %}
@@ -101,8 +101,11 @@
           </div>
         {% endif %}
 
-        <label class="form-label">
-          {{ form.courses.label }}
+        {# Plegado: lo normal es dejarlo vacío (ver la ayuda). Se abre solo si ya tiene alguno marcado. #}
+        <details class="pnl-plegable mt-2"{% if form.courses.value %} open{% endif %}>
+          <summary>{{ form.courses.label }} <span>(opcional)</span></summary>
+        <label class="form-label mt-2">
+          ¿Para qué sirve?
           <span class="pnl-ayuda" tabindex="0">
             <i class="bi bi-info-circle"></i>
             <span class="pnl-ayuda-globo">
@@ -134,6 +137,7 @@
         {% else %}
           <div class="cell-sub">Aún no hay modelos creados. <a href="{% url 'panel:course_new' %}">Crear uno</a></div>
         {% endif %}
+        </details>
       </div></div>
 
       <div class="pnl-card"><div class="card-pad">
@@ -208,50 +212,8 @@
             </label>
           </div>
 
-          <div class="form-check form-switch">
-            {{ form.requires_login }}
-            <label class="form-check-label" for="{{ form.requires_login.id_for_label }}">
-              {{ form.requires_login.label }}
-              <span class="pnl-ayuda der" tabindex="0">
-                <i class="bi bi-info-circle"></i>
-                <span class="pnl-ayuda-globo">
-                  Hay que tener sesión iniciada para comprarlo, o sea haber
-                  comprado un kit antes. Úsalo en packs de modelos y planes.
-                </span>
-              </span>
-            </label>
-          </div>
 
-          <div class="form-check form-switch">
-            {{ form.es_suscripcion }}
-            <label class="form-check-label" for="{{ form.es_suscripcion.id_for_label }}">
-              {{ form.es_suscripcion.label }}
-              <span class="pnl-ayuda der" tabindex="0">
-                <i class="bi bi-info-circle"></i>
-                <span class="pnl-ayuda-globo">
-                  El cliente registra su tarjeta en Transbank al comprar y se le
-                  vuelve a cobrar solo cada «Meses de acceso» meses (pon 1 para
-                  mensual). Cada cobro le suma esos meses. Lo puede cancelar
-                  desde su perfil. Solo para productos digitales.
-                </span>
-              </span>
-            </label>
-            {% for e in form.es_suscripcion.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-          </div>
 
-          <div class="form-check form-switch">
-            {{ form.acepta_cupones }}
-            <label class="form-check-label" for="{{ form.acepta_cupones.id_for_label }}">
-              {{ form.acepta_cupones.label }}
-              <span class="pnl-ayuda der" tabindex="0">
-                <i class="bi bi-info-circle"></i>
-                <span class="pnl-ayuda-globo">
-                  Apagado, este producto se cobra siempre a precio completo. Si
-                  en el carrito hay otros, el cupón les descuenta solo a ellos.
-                </span>
-              </span>
-            </label>
-          </div>
 
           <div class="form-check form-switch">
             {{ form.is_on_sale }}
@@ -290,7 +252,62 @@
         </div>
       </div></div>
 
-      <div class="pnl-card mb-4"><div class="card-pad">
+      {% comment %}
+        Lo que se toca poco va plegado: para crear un producto común basta con
+        nombre, precio, qué incluye y las opciones de arriba. Se abre solo si
+        hay un error adentro, para que nunca quede un problema escondido.
+      {% endcomment %}
+      <details class="pnl-avanzadas"{% if form.errors %} open{% endif %}>
+        <summary><i class="bi bi-gear"></i> Opciones avanzadas <span>cupones, suscripción, boleta y envío</span></summary>
+        <div class="d-flex flex-column gap-4 mt-3">
+          <div class="pnl-card"><div class="card-pad">
+            <div class="form-section-title"><i class="bi bi-sliders2"></i> Venta</div>
+            <div class="pnl-opciones">
+          <div class="form-check form-switch">
+            {{ form.requires_login }}
+            <label class="form-check-label" for="{{ form.requires_login.id_for_label }}">
+              {{ form.requires_login.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Hay que tener sesión iniciada para comprarlo, o sea haber
+                  comprado un kit antes. Úsalo en packs de modelos y planes.
+                </span>
+              </span>
+            </label>
+          </div>
+          <div class="form-check form-switch">
+            {{ form.es_suscripcion }}
+            <label class="form-check-label" for="{{ form.es_suscripcion.id_for_label }}">
+              {{ form.es_suscripcion.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  El cliente registra su tarjeta en Transbank al comprar y se le
+                  vuelve a cobrar solo cada «Meses de acceso» meses (pon 1 para
+                  mensual). Cada cobro le suma esos meses. Lo puede cancelar
+                  desde su perfil. Solo para productos digitales.
+                </span>
+              </span>
+            </label>
+            {% for e in form.es_suscripcion.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="form-check form-switch">
+            {{ form.acepta_cupones }}
+            <label class="form-check-label" for="{{ form.acepta_cupones.id_for_label }}">
+              {{ form.acepta_cupones.label }}
+              <span class="pnl-ayuda der" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Apagado, este producto se cobra siempre a precio completo. Si
+                  en el carrito hay otros, el cupón les descuenta solo a ellos.
+                </span>
+              </span>
+            </label>
+          </div>
+            </div>
+          </div></div>
+      <div class="pnl-card"><div class="card-pad">
         <div class="form-section-title"><i class="bi bi-receipt"></i> Boleta</div>
         <div class="form-check form-switch">
           {{ form.exento_iva }}
@@ -353,6 +370,9 @@
           </div>
         </div>
       </div></div>
+
+        </div>
+      </details>
 
       <div class="d-grid gap-2">
         <button type="submit" class="btn btn-brand btn-lg"><i class="bi bi-check-lg me-1"></i> Guardar producto</button>

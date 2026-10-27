@@ -1,7 +1,7 @@
 {% extends 'panel/base.html' %}
 
 {% block title %}Avance de {{ m.student_name|default:m.user.email }}{% endblock %}
-{% block crumb %}Panel · Academia · Alumnos{% endblock %}
+{% block crumb %}Alumnos{% endblock %}
 {% block heading %}Avance de {{ m.student_name|default:m.user.email }}{% endblock %}
 
 {% block actions %}
@@ -64,7 +64,7 @@
     {% if not m.sin_vencimiento %} · vence el {{ m.expires_at|date:'d-m-Y' }}{% endif %}
   </div>
   {% if ocultos %}
-    <div class="cell-sub"><i class="bi bi-eye-slash"></i> Hay {{ ocultos }} modelo{{ ocultos|pluralize }} más que el alumno todavía no ve (según «Ritmo de entrega»).</div>
+    <div class="cell-sub"><i class="bi bi-eye-slash"></i> Hay {{ ocultos }} modelo{{ ocultos|pluralize }} más que el alumno todavía no ve (según Ajustes → Entrega semanal).</div>
   {% endif %}
 </div>
 

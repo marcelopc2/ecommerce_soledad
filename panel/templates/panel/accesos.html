@@ -1,20 +1,21 @@
 {% extends 'panel/base.html' %}
 
 {% block title %}Accesos{% endblock %}
-{% block crumb %}Panel · Cuenta{% endblock %}
+{% block crumb %}Ajustes{% endblock %}
 {% block heading %}Registro de accesos{% endblock %}
 
 {% block actions %}
-<div class="d-flex gap-2 mfilter-group">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex gap-2 mfilter-group pnl-filtros">
   <a class="mfilter-pill{% if not zona and not tipo %} active{% endif %}" href="?">Todos</a>
   <a class="mfilter-pill purple{% if zona == 'PANEL' %} active{% endif %}" href="?zona=PANEL">Panel de gestión</a>
   <a class="mfilter-pill{% if zona == 'SITIO' %} active{% endif %}" href="?zona=SITIO">Aula Virtual</a>
   <a class="mfilter-pill red{% if tipo == 'FALLIDO' %} active{% endif %}" href="?tipo=FALLIDO">Solo intentos fallidos</a>
   <a class="mfilter-pill blue{% if tipo == 'SOPORTE' %} active{% endif %}" href="?tipo=SOPORTE">Modo soporte</a>
 </div>
-{% endblock %}
 
-{% block content %}
 <div class="pnl-card">
   <div class="pnl-toolbar">
     <div class="pnl-search">

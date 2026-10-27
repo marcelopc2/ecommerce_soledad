@@ -2,10 +2,33 @@
 {% load humanize %}
 
 {% block title %}Resumen{% endblock %}
-{% block crumb %}Panel{% endblock %}
-{% block heading %}Resumen{% endblock %}
+{% block crumb %}Inicio{% endblock %}
+{% block heading %}Hola{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}{% endblock %}
 
 {% block content %}
+{% comment %}
+  Primero lo que hay que hacer (ver panel.views.dashboard); los números van abajo.
+{% endcomment %}
+<div class="pnl-card mb-4"><div class="card-pad">
+  <div class="form-section-title"><i class="bi bi-check2-square"></i> Pendientes</div>
+  {% if pendientes %}
+    <div class="pend-grid">
+      {% for n, icono, titulo, texto, url, color in pendientes %}
+        <a href="{{ url }}" class="pend {{ color }}">
+          <span class="pend-icono"><i class="bi {{ icono }}"></i></span>
+          <span class="pend-cuerpo">
+            <span class="pend-titulo"><b>{{ n }}</b> {{ titulo }}</span>
+            <span class="pend-texto">{{ texto }}</span>
+          </span>
+          <i class="bi bi-chevron-right pend-ir"></i>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="pend-vacio"><i class="bi bi-emoji-smile"></i> Todo al día: no hay nada pendiente.</div>
+  {% endif %}
+</div></div>
+
 <div class="stat-grid">
   <div class="stat-card">
     <div class="stat-tile"><i class="bi bi-box-seam"></i></div>

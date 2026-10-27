@@ -178,7 +178,23 @@ def dashboard(request):
     }
     recent_orders = paid_orders.order_by('-created_at')[:6]
     recent_memberships = Membership.objects.select_related('user').order_by('-updated_at')[:6]
+
+    # Lo que hay que HACER hoy, con el botón que lleva directo a resolverlo.
+    # Solo se muestran los que tienen algo: una bandeja con ceros es ruido.
+    pendientes = [p for p in [
+        (Order.objects.filter(ORDERS_POR_DESPACHAR).count(), 'bi-truck', 'Pedidos por despachar',
+         'Pagados con envío que todavía no salen.', reverse('panel:orders') + '?estado=por_despachar', 'yellow'),
+        (Order.objects.filter(ORDERS_SIN_BOLETA).count(), 'bi-receipt', 'Boletas sin emitir',
+         'Pedidos cobrados cuya boleta falló o no se creó.', reverse('panel:orders') + '?estado=sin_boleta', 'red'),
+        (Suscripcion.objects.filter(estado=Suscripcion.SUSPENDIDA).count(), 'bi-credit-card-2-back',
+         'Suscripciones suspendidas', 'El cobro mensual falló y ya no se reintenta solo.',
+         reverse('panel:suscripciones') + '?estado=' + Suscripcion.SUSPENDIDA, 'red'),
+        (Membership.objects.filter(_por_vencer(now)).count(), 'bi-hourglass-bottom', 'Alumnos que vencen esta semana',
+         'Sin cobro automático: un buen momento para escribirles.', reverse('panel:memberships') + '?estado=por_vencer', 'purple'),
+    ] if p[0]]
+
     return render(request, 'panel/dashboard.html', {
+        'pendientes': pendientes,
         'stats': stats,
         'recent_orders': recent_orders,
         'recent_memberships': recent_memberships,
@@ -792,6 +808,15 @@ def _correos_con_suscripcion_vigente():
                .values_list('email', flat=True))
 
 
+def _por_vencer(ahora, dias=7):
+    """Vigentes que vencen en los próximos días (y no tienen cobro automático
+    que las renueve sola: esas no hay que perseguirlas)."""
+    correos = _correos_con_suscripcion_vigente()
+    return (Q(paused_at__isnull=True, sin_vencimiento=False,
+              expires_at__gte=ahora, expires_at__lte=ahora + timedelta(days=dias))
+            & ~Q(user__email__in=correos))
+
+
 @staff_required
 def memberships(request):
     q = request.GET.get('q', '').strip()
@@ -828,6 +853,7 @@ def memberships(request):
     expired_count = base.filter(paused_at__isnull=True).exclude(Membership.VIGENTE).count()
     legado_count = base.filter(es_legado=True).count()
     sin_venc_count = base.filter(sin_vencimiento=True).count()
+    por_vencer_count = base.filter(_por_vencer(now)).count()
     correos_sub = _correos_con_suscripcion_vigente()
     con_sub_ids = list(base.annotate(_correo=Lower('user__email')).filter(_correo__in=correos_sub)
                        .values_list('pk', flat=True))
@@ -840,6 +866,8 @@ def memberships(request):
         items = items.filter(paused_at__isnull=False)
     elif estado == 'vencida':
         items = items.filter(paused_at__isnull=True).exclude(Membership.VIGENTE)
+    elif estado == 'por_vencer':
+        items = items.filter(_por_vencer(now))
     if legado:
         items = items.filter(es_legado=True)
     if sin_venc:
@@ -935,6 +963,7 @@ def memberships(request):
         'paused_count': paused_count,
         'expired_count': expired_count,
         'legado_count': legado_count,
+        'por_vencer_count': por_vencer_count,
         'sin_venc_count': sin_venc_count,
         'con_sub_count': con_sub_count,
         'section': 'memberships',
@@ -1170,6 +1199,10 @@ ORDERS_SIN_BOLETA = Q(status='PAID') & (
     Q(invoice__isnull=True) | Q(invoice__status__in=['PENDING', 'ERROR'])
 )
 
+# Pagados con despacho que todavía no salieron: ni mandados a Shipit ni
+# entregados (o Shipit los rechazó). Es la primera tarea del día.
+ORDERS_POR_DESPACHAR = Q(status='PAID') & Q(shipment__status__in=['PENDING_DISPATCH', 'ERROR'])
+
 
 @staff_required
 def orders(request):
@@ -1192,12 +1225,15 @@ def orders(request):
         'pendientes': base.filter(status='PENDING').count(),
         'fallidos': base.filter(status='FAILED').count(),
         'sin_boleta': base.filter(ORDERS_SIN_BOLETA).count(),
+        'por_despachar': base.filter(ORDERS_POR_DESPACHAR).count(),
     }
     revenue = base.filter(status='PAID').aggregate(t=Sum('total_amount'))['t'] or 0
 
     items = base
     if estado == 'sin_boleta':
         items = items.filter(ORDERS_SIN_BOLETA)
+    elif estado == 'por_despachar':
+        items = items.filter(ORDERS_POR_DESPACHAR)
     elif estado in ORDER_STATUS_FILTERS:
         items = items.filter(status=ORDER_STATUS_FILTERS[estado])
 
@@ -1411,7 +1447,7 @@ SECCIONES_CONTENIDO = {
     # ni valores por defecto que restaurar.
     'concurso': ('Concurso', 'Portada', None, None, None, None),
     'club': ('Club Ingenio Blocks', 'Portada', None, None, None, None),
-    'aula': ('Ritmo de entrega', 'Academia', None, None, None, None),
+    'aula': ('Entrega semanal', 'Ajustes', None, None, None, None),
 }
 
 
@@ -1501,7 +1537,7 @@ def configuracion(request, tab='faqs'):
         ajustes_form = AjustesAulaForm(request.POST, instance=ajustes)
         if ajustes_form.is_valid():
             ajustes_form.save()
-            messages.success(request, 'Ritmo de entrega guardado.')
+            messages.success(request, 'Entrega semanal guardada.')
             return redirect('panel:cfg_aula')
     else:
         ajustes_form = AjustesAulaForm(instance=ajustes)
@@ -2832,7 +2868,7 @@ def cobros_ajustes(request):
     nombres = {'cobros_automaticos': 'Los cobros automáticos',
                'cobrar_wordpress': 'El cobro de las suscripciones de WordPress'}
     messages.success(request, f'{nombres[campo]} quedaron {"PRENDIDOS" if valor else "apagados"}.')
-    return redirect('panel:suscripciones')
+    return _volver(request, 'panel:suscripciones')
 
 
 @staff_required
@@ -2962,7 +2998,56 @@ def envios_ajustes(request):
     log.warning('ENVIOS: %s puso enviar_a_shipit_al_pagar = %s', a.cambiado_por, a.enviar_a_shipit_al_pagar)
     messages.success(request, 'Los pedidos pagados %s a Ventas de Shipit solos.' % (
         'se mandan' if a.enviar_a_shipit_al_pagar else 'ya NO se mandan'))
-    return redirect('panel:orders')
+    return _volver(request, 'panel:orders')
+
+
+def _volver(request, por_defecto):
+    """Redirige a `volver` si es una dirección de este mismo sitio; si no, a la de siempre."""
+    destino = request.POST.get('volver', '')
+    if destino and url_has_allowed_host_and_scheme(destino, allowed_hosts={request.get_host()}):
+        return redirect(destino)
+    return redirect(por_defecto)
+
+
+@staff_required
+def interruptores(request):
+    """Todos los interruptores del sitio en una sola página, con su estado a la vista.
+
+    Antes cada uno vivía en su pantalla (los cobros en Suscripciones, Shipit en
+    Pedidos, el club en Portada) y para saber "¿está cobrando o no?" había que
+    ir a buscarlo. Cambiar uno sigue pasando por la misma vista de siempre
+    (queda en el log quién y cuándo); esto solo los junta.
+    """
+    from catalog.models import SeccionClub, SeccionConcurso
+    from shipments.models import AjustesEnvios
+    cobros = AjustesCobros.obtener()
+    return render(request, 'panel/interruptores.html', {
+        'cobros': cobros,
+        'bloqueo_cobros': '' if settings.COBROS_AUTOMATICOS else (
+            'En este computador no se cobra nunca, aunque esté prendido.' if getattr(settings, 'MODO_LOCAL', False)
+            else 'En este sitio de pruebas no se cobra nunca, aunque esté prendido.'),
+        'detalle_cobros': (f'Último cambio: {cobros.cambiado_por}, '
+                           f'{timezone.localtime(cobros.cambiado_en):%d-%m-%Y %H:%M}') if cobros.cambiado_en else '',
+        'envios': AjustesEnvios.obtener(),
+        'club': SeccionClub.obtener(),
+        'concurso': SeccionConcurso.obtener(),
+        'concurso_estado': SeccionConcurso.obtener().get_estado_display().split(' — ')[0],
+        'correos_permitidos': settings.ENVIAR_CORREOS,
+        'modo_local': getattr(settings, 'MODO_LOCAL', False),
+        'section': 'interruptores',
+    })
+
+
+@staff_required
+@require_POST
+def club_interruptor(request):
+    """Muestra u oculta la sección "Club Ingenio Blocks" de la portada."""
+    from catalog.models import SeccionClub
+    club = SeccionClub.obtener()
+    club.visible = request.POST.get('valor') == '1'
+    club.save(update_fields=['visible'])
+    messages.success(request, 'La sección del club %s en la portada.' % ('se muestra' if club.visible else 'quedó oculta'))
+    return _volver(request, 'panel:cfg_club')
 
 
 @staff_required
@@ -3118,3 +3203,39 @@ def membership_new(request):
         'form': form, 'section': 'memberships', 'hoy': hoy,
         'existente': getattr(form, 'alumno_existente', None),
     })
+
+
+@staff_required
+def buscar(request):
+    """Buscador general (Ctrl+K): alumnos, pedidos, productos, cursos y cupones
+    desde cualquier pantalla. Devuelve solo la lista de resultados (htmx)."""
+    from payments.models import Coupon
+    q = request.GET.get('q', '').strip()
+    grupos = []
+    if len(q) >= 2:
+        alumnos = busqueda.filtrar(
+            Membership.objects.select_related('user'), q,
+            campos=('user__email', 'user__first_name', 'user__last_name', 'student_name', 'parent_name'),
+            telefonos=('phone',),
+        )[:6]
+        grupos.append(('Alumnos', 'bi-people', [
+            (m.student_name or m.parent_name or m.user.email, m.user.email,
+             reverse('panel:membership_detail', args=[m.pk])) for m in alumnos]))
+        pedidos = Order.objects.filter(
+            Q(customer_email__icontains=q) | Q(order_id__icontains=q.lstrip('#'))
+        ).order_by('-created_at')[:5]
+        grupos.append(('Pedidos', 'bi-bag-check', [
+            (f'#{str(o.order_id)[:8]} · ${o.total_amount:,.0f}'.replace(',', '.'),
+             f'{o.customer_email} · {timezone.localtime(o.created_at):%d-%m-%Y}',
+             reverse('panel:order_detail', args=[o.pk])) for o in pedidos]))
+        grupos.append(('Productos', 'bi-box-seam', [
+            (p.name, f'${p.price:,.0f}'.replace(',', '.'), reverse('panel:product_edit', args=[p.pk]))
+            for p in Product.objects.filter(name__icontains=q)[:4]]))
+        grupos.append(('Cursos', 'bi-mortarboard', [
+            (c.title, f'{c.lessons.count()} pasos', reverse('panel:course_edit', args=[c.pk]))
+            for c in Course.objects.filter(title__icontains=q)[:4]]))
+        grupos.append(('Cupones', 'bi-ticket-perforated', [
+            (c.code, '', reverse('panel:coupon_edit', args=[c.pk]))
+            for c in Coupon.objects.filter(code__icontains=q)[:3]]))
+        grupos = [g for g in grupos if g[2]]
+    return render(request, 'panel/partials/buscar_resultados.html', {'q': q, 'grupos': grupos})

@@ -2,11 +2,14 @@
 {% load humanize %}
 
 {% block title %}Pedidos{% endblock %}
-{% block crumb %}Panel · Tienda{% endblock %}
+{% block crumb %}Pedidos{% endblock %}
 {% block heading %}Pedidos{% endblock %}
 
 {% block actions %}
-<div class="d-flex gap-2 mfilter-group">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex gap-2 mfilter-group pnl-filtros">
   <a class="mfilter-pill{% if not estado %} active{% endif %}"
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=">Todos ({{ counts.total }})</a>
   <a class="mfilter-pill green{% if estado == 'pagados' %} active{% endif %}"
@@ -15,6 +18,13 @@
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pendientes">{{ counts.pendientes }} pendientes</a>
   <a class="mfilter-pill red{% if estado == 'fallidos' %} active{% endif %}"
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=fallidos">{{ counts.fallidos }} fallidos</a>
+  {% if counts.por_despachar %}
+    <a class="mfilter-pill yellow{% if estado == 'por_despachar' %} active{% endif %}"
+       href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=por_despachar"
+       title="Pagados con despacho que todavía no salen">
+      <i class="bi bi-truck me-1"></i> {{ counts.por_despachar }} por despachar
+    </a>
+  {% endif %}
   {% if counts.sin_boleta %}
     <a class="mfilter-pill red{% if estado == 'sin_boleta' %} active{% endif %}"
        href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=sin_boleta"
@@ -23,9 +33,7 @@
     </a>
   {% endif %}
 </div>
-{% endblock %}
 
-{% block content %}
 {% comment %}
   El envío automático a Shipit. Prendido, un pedido pagado con despacho llega
   solo a Shipit (como en el WordPress); apagado, se manda desde su detalle.

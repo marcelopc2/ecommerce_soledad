@@ -1,0 +1,14 @@
+{% if q|length < 2 %}
+  <div class="bx-vacio">Escribe un nombre, correo, teléfono, número de pedido, producto o curso.</div>
+{% elif not grupos %}
+  <div class="bx-vacio">No encontré nada con «{{ q }}».</div>
+{% else %}
+  {% for titulo, icono, items in grupos %}
+    <div class="bx-grupo">{{ titulo }}</div>
+    {% for nombre, detalle, url in items %}
+      <a href="{{ url }}" class="bx-item"><i class="bi {{ icono }}"></i>
+        <span><b>{{ nombre }}</b>{% if detalle %}<small>{{ detalle }}</small>{% endif %}</span>
+      </a>
+    {% endfor %}
+  {% endfor %}
+{% endif %}

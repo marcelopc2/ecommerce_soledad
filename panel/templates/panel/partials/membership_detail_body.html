@@ -37,8 +37,20 @@
   </div>
 </div>
 
-<div class="row g-4">
+{% comment %}
+  Pestañas: antes eran 7 bloques apilados y lo peligroso (borrar la cuenta)
+  quedaba al lado de lo cotidiano. La pestaña abierta se recuerda (ver el
+  script de abajo): las acciones htmx vuelven a pintar este bloque entero y,
+  sin eso, cada clic devolvía a "Resumen".
+{% endcomment %}
+<nav class="mdetail-tabs" role="tablist">
+  <button type="button" data-tab="resumen" class="active"><i class="bi bi-person"></i> Resumen</button>
+  <button type="button" data-tab="compras"><i class="bi bi-receipt"></i> Compras e historial</button>
+  {% if suscripciones %}<button type="button" data-tab="cobros"><i class="bi bi-arrow-repeat"></i> Cobro automático <span class="mdetail-tab-n">{{ suscripciones|length }}</span></button>{% endif %}
+  <button type="button" data-tab="ajustes"><i class="bi bi-gear"></i> Clave y cuenta</button>
+</nav>
 
+<div class="row g-4" data-pane="resumen">
   {# ---------- Datos de contacto ---------- #}
   <div class="col-lg-6">
     <div class="pnl-card h-100"><div class="card-pad">
@@ -165,42 +177,9 @@
       </form>
     </div></div>
   </div>
+</div>
 
-  {% comment %}
-    Cobro automático (Tienda → Suscripciones). Va aparte del acceso al Aula:
-    el acceso es hasta cuándo entra; esto es si se le cobra solo. Se muestra
-    solo si tiene alguna, para no llenar de vacío a los que pagaron una vez.
-  {% endcomment %}
-  {% if suscripciones %}
-  <div class="col-12">
-    <div class="pnl-card"><div class="card-pad">
-      <div class="form-section-title"><i class="bi bi-arrow-repeat"></i> Cobro automático</div>
-      {% for s in suscripciones %}
-        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
-          <div>
-            <div class="fw-semibold">
-              {{ s.nombre|default:s.producto.name }}
-              {% if s.estado == 'ACTIVA' %}<span class="badge-soft green ms-1">Activa</span>
-              {% elif s.estado == 'PAUSADA' %}<span class="badge-soft yellow ms-1">Pausada</span>
-              {% elif s.estado == 'CANCELADA' %}<span class="badge-soft gray ms-1">Cancelada</span>
-              {% else %}<span class="badge-soft red ms-1">Suspendida</span>{% endif %}
-              {% if s.origen == 'WORDPRESS' %}<span class="badge-soft yellow ms-1">De WordPress</span>{% endif %}
-            </div>
-            <div class="cell-sub">
-              ${{ s.monto }} {% if s.cada_meses == 1 %}al mes{% else %}cada {{ s.cada_meses }} meses{% endif %}
-              · {{ s.tarjeta.tipo|default:'Tarjeta' }} ****{{ s.tarjeta.ultimos4 }}
-              {% if s.estado == 'ACTIVA' %}· próximo cobro {{ s.proximo_cobro|date:'d-m-Y' }}{% endif %}
-            </div>
-          </div>
-          <a href="{% url 'panel:suscripcion_detalle' s.pk %}" class="btn btn-sm btn-ghost">Ver suscripción <i class="bi bi-arrow-right-short"></i></a>
-        </div>
-      {% endfor %}
-    </div></div>
-  </div>
-  {% endif %}
-
-  {% if historial_wp %}{% include 'panel/partials/historial_wp.html' with h=historial_wp %}{% endif %}
-
+<div class="row g-4 d-none" data-pane="compras">
   {# ---------- Facturas ---------- #}
   <div class="col-12">
     <div class="pnl-card"><div class="card-pad pb-2">
@@ -241,6 +220,45 @@
     </div>
   </div>
 
+  {% if historial_wp %}{% include 'panel/partials/historial_wp.html' with h=historial_wp %}{% endif %}
+</div>
+
+<div class="row g-4 d-none" data-pane="cobros">
+  {% comment %}
+    Cobro automático (Tienda → Suscripciones). Va aparte del acceso al Aula:
+    el acceso es hasta cuándo entra; esto es si se le cobra solo. Se muestra
+    solo si tiene alguna, para no llenar de vacío a los que pagaron una vez.
+  {% endcomment %}
+  {% if suscripciones %}
+  <div class="col-12">
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-arrow-repeat"></i> Cobro automático</div>
+      {% for s in suscripciones %}
+        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+          <div>
+            <div class="fw-semibold">
+              {{ s.nombre|default:s.producto.name }}
+              {% if s.estado == 'ACTIVA' %}<span class="badge-soft green ms-1">Activa</span>
+              {% elif s.estado == 'PAUSADA' %}<span class="badge-soft yellow ms-1">Pausada</span>
+              {% elif s.estado == 'CANCELADA' %}<span class="badge-soft gray ms-1">Cancelada</span>
+              {% else %}<span class="badge-soft red ms-1">Suspendida</span>{% endif %}
+              {% if s.origen == 'WORDPRESS' %}<span class="badge-soft yellow ms-1">De WordPress</span>{% endif %}
+            </div>
+            <div class="cell-sub">
+              ${{ s.monto }} {% if s.cada_meses == 1 %}al mes{% else %}cada {{ s.cada_meses }} meses{% endif %}
+              · {{ s.tarjeta.tipo|default:'Tarjeta' }} ****{{ s.tarjeta.ultimos4 }}
+              {% if s.estado == 'ACTIVA' %}· próximo cobro {{ s.proximo_cobro|date:'d-m-Y' }}{% endif %}
+            </div>
+          </div>
+          <a href="{% url 'panel:suscripcion_detalle' s.pk %}" class="btn btn-sm btn-ghost">Ver suscripción <i class="bi bi-arrow-right-short"></i></a>
+        </div>
+      {% endfor %}
+    </div></div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-4 d-none" data-pane="ajustes">
   {% comment %}
     Contraseña. Dos caminos a propósito:
     - Reenviar el correo: la vía normal. No expone ninguna clave y el link es
@@ -285,8 +303,8 @@
 
   {# ---------- Acciones ---------- #}
   <div class="col-12">
-    <div class="pnl-card"><div class="card-pad">
-      <div class="form-section-title"><i class="bi bi-toggles"></i> Acciones</div>
+    <div class="pnl-card mdetail-cuidado"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-exclamation-octagon"></i> Zona de cuidado</div>
       <div class="mdetail-actions">
         <button type="button" class="btn btn-ghost btn-sm"
                 hx-post="{% url 'panel:membership_toggle_pause' m.pk %}"
@@ -308,8 +326,35 @@
       </div>
     </div></div>
   </div>
-
 </div>
+
+<script>
+  (function () {
+    var CLAVE = 'mdetail-tab'
+    function mostrar(nombre) {
+      var raiz = document.getElementById('mdetail-content')
+      if (!raiz || !raiz.querySelector('[data-pane="' + nombre + '"]')) return
+      raiz.querySelectorAll('[data-tab]').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === nombre) })
+      raiz.querySelectorAll('[data-pane]').forEach(function (p) { p.classList.toggle('d-none', p.dataset.pane !== nombre) })
+    }
+    if (!document.body.dataset.mdetailTabs) {
+      document.body.dataset.mdetailTabs = '1'
+      document.body.addEventListener('click', function (e) {
+        var b = e.target.closest('#mdetail-content [data-tab]')
+        if (!b) return
+        try { sessionStorage.setItem(CLAVE, b.dataset.tab) } catch (_) {}
+        mostrar(b.dataset.tab)
+      })
+    }
+    // Al entrar desde la lista se parte en Resumen; tras una acción en la
+    // misma ficha se vuelve a la pestaña donde se estaba.
+    var guardada = null
+    try { guardada = sessionStorage.getItem(CLAVE) } catch (_) {}
+    var misma = document.body.dataset.mdetailFicha === '{{ m.pk }}'
+    document.body.dataset.mdetailFicha = '{{ m.pk }}'
+    mostrar(misma && guardada ? guardada : 'resumen')
+  })()
+</script>
 
 {% comment %}
   Los atajos "+N meses" solo escriben la fecha en el campo; guardar sigue siendo

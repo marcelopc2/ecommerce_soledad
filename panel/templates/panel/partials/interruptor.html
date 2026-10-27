@@ -1,0 +1,26 @@
+{% comment %}
+  Una fila de Interruptores. Recibe: titulo, texto, prendido, accion (url),
+  campo (opcional), peligro (pinta en rojo al prender), bloqueado (texto si no
+  se puede prender en este sitio), detalle (quién lo cambió).
+{% endcomment %}
+<div class="ix-fila{% if prendido %} on{% endif %}">
+  <div class="ix-texto">
+    <div class="ix-titulo">{{ titulo }}
+      {% if prendido %}<span class="badge-soft {% if peligro %}red{% else %}green{% endif %}">Prendido</span>
+      {% else %}<span class="badge-soft gray">Apagado</span>{% endif %}
+    </div>
+    <div class="ix-desc">{{ texto }}</div>
+    {% if bloqueado %}<div class="ix-aviso"><i class="bi bi-shield-lock"></i> {{ bloqueado }}</div>{% endif %}
+    {% if detalle %}<div class="ix-detalle">{{ detalle }}</div>{% endif %}
+  </div>
+  <form method="post" action="{{ accion }}"
+        hx-confirm="{% if prendido %}¿Apagar «{{ titulo }}»?{% else %}¿Prender «{{ titulo }}»?{% if peligro %} {{ peligro }}{% endif %}{% endif %}">
+    {% csrf_token %}
+    {% if campo %}<input type="hidden" name="campo" value="{{ campo }}">{% endif %}
+    <input type="hidden" name="valor" value="{% if prendido %}0{% else %}1{% endif %}">
+    <input type="hidden" name="volver" value="{{ request.path }}">
+    <button type="submit" class="ix-switch{% if prendido %} on{% endif %}{% if peligro and not prendido %} danger{% endif %}" aria-label="{% if prendido %}Apagar{% else %}Prender{% endif %} {{ titulo }}">
+      <span></span>
+    </button>
+  </form>
+</div>

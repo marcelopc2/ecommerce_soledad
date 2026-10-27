@@ -1,4 +1,4 @@
-{% load static estaticos %}
+{% load static estaticos menu %}
 <!doctype html>
 <html lang="es">
 <head>
@@ -38,92 +38,20 @@
     <span class="pnl-brand-sub">Panel de gestión</span>
   </div>
 
-  <nav class="pnl-nav">
+  {% menu_panel as menu %}
+  <button type="button" class="pnl-buscar-btn" data-bs-toggle="modal" data-bs-target="#bxModal">
+    <i class="bi bi-search"></i> Buscar… <kbd>Ctrl K</kbd>
+  </button>
+  <nav class="pnl-nav" id="pnl-nav">
     {% comment %}
-      Menú agrupado por el TRABAJO que se viene a hacer, no por el modelo de
-      datos. "Configuración" era un cajón que mezclaba el contenido del sitio
-      público con un ajuste del Aula; ahora cada sección de la portada tiene su
-      propia entrada y el ritmo de entrega vive donde corresponde, en Academia.
+      8 entradas, sin grupos: lo que se viene a hacer. Lo relacionado aparece
+      como pestañas arriba de cada pantalla. Ver panel/navegacion.py.
     {% endcomment %}
-    <a href="{% url 'panel:dashboard' %}" class="{% if section == 'dashboard' %}active{% endif %}">
-      <i class="bi bi-grid-1x2-fill"></i> Resumen
-    </a>
-
-    <a href="{% url 'panel:visitas' %}" class="{% if section == 'visitas' %}active{% endif %}">
-      <i class="bi bi-graph-up-arrow"></i> Visitas
-    </a>
-
-    <div class="pnl-nav-label">Clientes</div>
-    <a href="{% url 'panel:correos' %}" class="{% if section == 'correos' %}active{% endif %}">
-      <i class="bi bi-envelope-paper-fill"></i> Correos masivos
-    </a>
-
-    <div class="pnl-nav-label">Tienda</div>
-    <a href="{% url 'panel:products' %}" class="{% if section == 'products' %}active{% endif %}">
-      <i class="bi bi-box-seam-fill"></i> Productos
-    </a>
-    <a href="{% url 'panel:orders' %}" class="{% if section == 'orders' %}active{% endif %}">
-      <i class="bi bi-bag-check-fill"></i> Pedidos
-    </a>
-    <a href="{% url 'panel:suscripciones' %}" class="{% if section == 'suscripciones' %}active{% endif %}">
-      <i class="bi bi-arrow-repeat"></i> Suscripciones
-    </a>
-    <a href="{% url 'panel:coupons' %}" class="{% if section == 'coupons' %}active{% endif %}">
-      <i class="bi bi-ticket-perforated-fill"></i> Cupones
-    </a>
-    <a href="{% url 'panel:punto_retiro' %}" class="{% if section == 'punto-retiro' %}active{% endif %}">
-      <i class="bi bi-shop"></i> Retiro en tienda
-    </a>
-
-    <div class="pnl-nav-label">Academia</div>
-    <a href="{% url 'panel:courses' %}" class="{% if section == 'courses' %}active{% endif %}">
-      <i class="bi bi-mortarboard-fill"></i> Cursos y diplomas
-    </a>
-    <a href="{% url 'panel:memberships' %}" class="{% if section == 'memberships' %}active{% endif %}">
-      <i class="bi bi-people-fill"></i> Alumnos
-    </a>
-    <a href="{% url 'panel:cfg_aula' %}" class="{% if section == 'cfg-aula' %}active{% endif %}">
-      <i class="bi bi-hourglass-split"></i> Ritmo de entrega
-    </a>
-
-    <div class="pnl-nav-label">Portada</div>
-    <a href="{% url 'panel:textos_portada' %}" class="{% if section == 'cfg-textos' %}active{% endif %}">
-      <i class="bi bi-fonts"></i> Textos de la portada
-    </a>
-    <a href="{% url 'panel:cfg_pasos' %}" class="{% if section == 'cfg-pasos' %}active{% endif %}">
-      <i class="bi bi-signpost-2-fill"></i> Cómo funciona
-    </a>
-    <a href="{% url 'panel:cfg_testimonios' %}" class="{% if section == 'cfg-testimonios' %}active{% endif %}">
-      <i class="bi bi-chat-quote-fill"></i> Testimonios
-    </a>
-    <a href="{% url 'panel:cfg_faqs' %}" class="{% if section == 'cfg-faqs' %}active{% endif %}">
-      <i class="bi bi-question-circle-fill"></i> Preguntas frecuentes
-    </a>
-    <a href="{% url 'panel:cfg_club' %}" class="{% if section == 'cfg-club' %}active{% endif %}">
-      <i class="bi bi-stars"></i> Club Ingenio Blocks
-    </a>
-    <a href="{% url 'panel:cfg_concurso' %}" class="{% if section == 'cfg-concurso' %}active{% endif %}">
-      <i class="bi bi-trophy-fill"></i> Concurso
-    </a>
-
-    {% comment %}
-      "Mi cuenta" ya no está acá: los datos propios no son una sección del sitio
-      que se administra, son de quien lo administra. Se llega desde el avatar de
-      abajo, que es donde todo el mundo los busca.
-
-      El registro de accesos sí es una pantalla de administración, y le sirve a
-      cualquier cuenta de gestión; lo que sigue reservado a la cuenta principal
-      es administrar OTRAS cuentas.
-    {% endcomment %}
-    <div class="pnl-nav-label">Cuenta</div>
-    <a href="{% url 'panel:accesos' %}" class="{% if section == 'accesos' %}active{% endif %}">
-      <i class="bi bi-clock-history"></i> Registro de accesos
-    </a>
-    {% if request.user.is_superuser %}
-      <a href="{% url 'panel:staff_users' %}" class="{% if section == 'staff' %}active{% endif %}">
-        <i class="bi bi-person-badge"></i> Cuentas de gestión
+    {% for m in menu %}
+      <a href="{{ m.url }}" class="{% if m.activa %}active{% endif %}">
+        <i class="bi {{ m.icono }}"></i> {{ m.nombre }}
       </a>
-    {% endif %}
+    {% endfor %}
 
     {% comment %}
       Salidas al sitio público. Abren en otra pestaña a propósito: la idea es
@@ -176,6 +104,30 @@
   </div>
 </aside>
 
+<nav class="pnl-barra-movil" aria-label="Menú">
+  {% for m in menu %}{% if m.en_barra %}
+    <a href="{{ m.url }}" class="{% if m.activa %}active{% endif %}"><i class="bi {{ m.icono }}"></i><span>{{ m.nombre }}</span></a>
+  {% endif %}{% endfor %}
+  <button type="button" onclick="document.body.classList.toggle('pnl-menu-abierto')">
+    <i class="bi bi-list"></i><span>Más</span>
+  </button>
+</nav>
+<script>
+  // El menú "Más" del celular: se cierra al elegir algo o al tocar fuera. El
+  // body sobrevive a la navegación (hx-boost), así que sin esto quedaría abierto
+  // encima de la página nueva.
+  if (!document.body.dataset.menuMovil) {
+    document.body.dataset.menuMovil = '1'
+    document.addEventListener('click', function (e) {
+      if (!document.body.classList.contains('pnl-menu-abierto')) return
+      if (e.target.closest('.pnl-barra-movil')) return
+      if (!e.target.closest('.pnl-sidebar') || e.target.closest('.pnl-sidebar a')) {
+        document.body.classList.remove('pnl-menu-abierto')
+      }
+    })
+  }
+</script>
+
 <main class="pnl-main">
   <div class="pnl-topbar">
     <div>
@@ -184,6 +136,14 @@
     </div>
     <div>{% block actions %}{% endblock %}</div>
   </div>
+
+  {% with tabs=menu|pestanas %}{% if tabs %}
+    <nav class="pnl-subnav" aria-label="Secciones">
+      {% for t in tabs %}
+        <a href="{{ t.url }}" class="{% if t.activa %}active{% endif %}">{{ t.nombre }}</a>
+      {% endfor %}
+    </nav>
+  {% endif %}{% endwith %}
 
   {% block content %}{% endblock %}
 </main>
@@ -266,6 +226,51 @@
   línea, Django lo imprime como texto literal en vez de tratarlo como comentario.
   Por eso este bloque usa la etiqueta larga "comment", que sí admite multilínea.
 {% endcomment %}
+{% comment %}
+  Buscador general: Ctrl+K (o Cmd+K) desde cualquier pantalla. Flechas para
+  moverse y Enter para abrir. Ver panel.views.buscar.
+{% endcomment %}
+<div class="modal fade" id="bxModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog bx-dialog">
+    <div class="modal-content bx">
+      <div class="bx-campo">
+        <i class="bi bi-search"></i>
+        <input type="search" name="q" id="bxInput" placeholder="Buscar alumnos, pedidos, productos, cursos…" autocomplete="off"
+               hx-get="{% url 'panel:buscar' %}" hx-trigger="input changed delay:200ms, search" hx-target="#bxResultados" hx-swap="innerHTML">
+        <kbd>Esc</kbd>
+      </div>
+      <div id="bxResultados" class="bx-resultados">
+        <div class="bx-vacio">Escribe un nombre, correo, teléfono, número de pedido, producto o curso.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    if (document.body.dataset.bxListo) return
+    document.body.dataset.bxListo = '1'
+    function modal() { return bootstrap.Modal.getOrCreateInstance(document.getElementById('bxModal')) }
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); modal().show() }
+      var abierto = document.querySelector('#bxModal.show')
+      if (!abierto) return
+      var items = Array.prototype.slice.call(abierto.querySelectorAll('.bx-item'))
+      if (!items.length) return
+      var i = items.indexOf(document.activeElement)
+      if (e.key === 'ArrowDown') { e.preventDefault(); items[Math.min(i + 1, items.length - 1)].focus() }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); (i <= 0 ? document.getElementById('bxInput') : items[i - 1]).focus() }
+      else if (e.key === 'Enter' && document.activeElement.id === 'bxInput') { e.preventDefault(); items[0].click() }
+    })
+    document.body.addEventListener('shown.bs.modal', function (e) {
+      if (e.target.id === 'bxModal') document.getElementById('bxInput').focus()
+    })
+    // Al elegir un resultado, el modal se cierra antes de navegar.
+    document.body.addEventListener('click', function (e) {
+      if (e.target.closest('.bx-item')) modal().hide()
+    })
+  })()
+</script>
+
 <div class="modal fade" id="pnlConfirmModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered pnl-confirm-dialog">
     <div class="modal-content pnl-confirm">

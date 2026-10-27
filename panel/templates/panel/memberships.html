@@ -1,11 +1,15 @@
 {% extends 'panel/base.html' %}
 
 {% block title %}Alumnos{% endblock %}
-{% block crumb %}Panel · Academia{% endblock %}
+{% block crumb %}Alumnos{% endblock %}
 {% block heading %}Alumnos{% endblock %}
 
 {% block actions %}
-<div class="d-flex gap-2 mfilter-group">
+<a href="{% url 'panel:membership_new' %}" class="btn btn-brand"><i class="bi bi-person-plus me-1"></i> Nuevo alumno</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex gap-2 mfilter-group pnl-filtros">
   <a class="mfilter-pill{% if not estado %} active{% endif %}"
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">Todas ({{ total_count }})</a>
   <a class="mfilter-pill green{% if estado == 'activa' %} active{% endif %}"
@@ -14,6 +18,8 @@
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=pausada&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">{{ paused_count }} pausadas</a>
   <a class="mfilter-pill gray{% if estado == 'vencida' %} active{% endif %}"
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=vencida&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">{{ expired_count }} vencidas</a>
+  <a class="mfilter-pill red{% if estado == 'por_vencer' %} active{% endif %}" title="Vigentes sin cobro automático que vencen en los próximos 7 días"
+     href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado=por_vencer&amp;legado={% if legado %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">{{ por_vencer_count }} vencen esta semana</a>
   {% comment %}
     Aparte del grupo de arriba a propósito: "legado" no es un estado, es el
     origen de la cuenta, y puede combinarse con cualquiera de los otros (un
@@ -21,7 +27,7 @@
   {% endcomment %}
   <a class="mfilter-pill purple{% if legado %} active{% endif %}"
      href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;dir={{ dir }}&amp;estado={{ estado }}&amp;legado={% if legado %}{% else %}1{% endif %}&amp;sin_venc={% if sin_venc %}1{% endif %}&amp;con_sub={% if con_sub %}1{% endif %}">
-    <i class="bi bi-archive"></i> {{ legado_count }} legado
+    <i class="bi bi-archive"></i> {{ legado_count }} de la página anterior
   </a>
   {% comment %}
     Son las que el sistema viejo dejaba sin fecha de término. Hoy pueden ser
@@ -42,9 +48,7 @@
     <i class="bi bi-arrow-repeat"></i> {{ con_sub_count }} con suscripción
   </a>
 </div>
-{% endblock %}
 
-{% block content %}
 <div class="pnl-card">
   <div class="pnl-toolbar">
     <div class="pnl-search">
@@ -65,8 +69,6 @@
     <input type="hidden" name="legado" value="{% if legado %}1{% endif %}">
     <input type="hidden" name="sin_venc" value="{% if sin_venc %}1{% endif %}">
     <input type="hidden" name="con_sub" value="{% if con_sub %}1{% endif %}">
-    {# Acá y no arriba con los filtros: allá quedaba montado sobre las pastillas. #}
-    <a href="{% url 'panel:membership_new' %}" class="btn btn-brand btn-sm ms-auto"><i class="bi bi-person-plus me-1"></i> Nuevo alumno</a>
   </div>
   <div class="table-responsive">
     <table class="table pnl-table">

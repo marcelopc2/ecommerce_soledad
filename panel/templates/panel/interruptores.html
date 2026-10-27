@@ -1,0 +1,59 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Interruptores{% endblock %}
+{% block crumb %}Ajustes{% endblock %}
+{% block heading %}Interruptores del sitio{% endblock %}
+
+{% block content %}
+{% comment %}
+  Lo que se prende y se apaga, todo junto y con su estado a la vista. Cada
+  interruptor guarda por la misma vista de siempre (ver panel.views.interruptores).
+{% endcomment %}
+<div class="row g-4">
+  <div class="col-xl-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-credit-card"></i> Plata</div>
+      {% url 'panel:cobros_ajustes' as url_cobros %}
+      {% include 'panel/partials/interruptor.html' with titulo='Cobros automáticos' texto='Cobra cada mes a las suscripciones hechas en el sitio nuevo, con la tarjeta inscrita.' prendido=cobros.cobros_automaticos accion=url_cobros campo='cobros_automaticos' peligro='Desde mañana se le cobra a las tarjetas inscritas.' bloqueado=bloqueo_cobros detalle=detalle_cobros %}
+      {% include 'panel/partials/interruptor.html' with titulo='Cobrar las suscripciones de WordPress' texto='Incluye en los cobros a las familias que se suscribieron en la página anterior. Prender solo después de apagar los cobros en WordPress.' prendido=cobros.cobrar_wordpress accion=url_cobros campo='cobrar_wordpress' peligro='Asegúrate de que WordPress ya no esté cobrando: si no, se cobraría doble.' %}
+    </div></div>
+  </div>
+
+  <div class="col-xl-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-truck"></i> Pedidos y correos</div>
+      {% url 'panel:envios_ajustes' as url_envios %}
+      {% include 'panel/partials/interruptor.html' with titulo='Mandar los pedidos a Shipit al pagar' texto='Cada pedido pagado con despacho aparece solo en «Ventas» de Shipit. Apagado, se manda a mano desde el pedido.' prendido=envios.enviar_a_shipit_al_pagar accion=url_envios %}
+      <div class="ix-fila">
+        <div class="ix-texto">
+          <div class="ix-titulo">Correos a clientes
+            {% if correos_permitidos and not modo_local %}<span class="badge-soft green">Prendido</span>
+            {% else %}<span class="badge-soft gray">Apagado</span>{% endif %}
+          </div>
+          <div class="ix-desc">
+            {% if modo_local %}En este computador los correos se guardan como archivos y no le llegan a nadie.
+            {% elif correos_permitidos %}Salen los correos de compras, avisos y boletas.
+            {% else %}Este es el sitio de pruebas: solo le llegan correos a las cuentas de gestión. Se prenden solos el día que el sitio pase a ingenioblocks.com.{% endif %}
+          </div>
+        </div>
+        <span class="ix-fijo" title="No se cambia desde acá"><i class="bi bi-lock"></i></span>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="col-xl-6">
+    <div class="pnl-card h-100"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-window-desktop"></i> Portada</div>
+      {% url 'panel:club_interruptor' as url_club %}
+      {% include 'panel/partials/interruptor.html' with titulo='Sección Club Ingenio Blocks' texto='Muestra la sección del club en la portada. Sus textos se editan en Portada → Club.' prendido=club.visible accion=url_club %}
+      <div class="ix-fila">
+        <div class="ix-texto">
+          <div class="ix-titulo">Concurso <span class="badge-soft {% if concurso.estado == 'oculta' %}gray{% else %}green{% endif %}">{{ concurso_estado }}</span></div>
+          <div class="ix-desc">Tiene tres estados (oculto, convocatoria y ganadores): se cambia en su página.</div>
+        </div>
+        <a href="{% url 'panel:cfg_concurso' %}" class="btn btn-ghost btn-sm text-nowrap">Ir al concurso</a>
+      </div>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

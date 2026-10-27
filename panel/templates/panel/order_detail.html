@@ -2,7 +2,7 @@
 {% load humanize %}
 
 {% block title %}Pedido #{{ order.order_id|stringformat:'s'|slice:':8' }}{% endblock %}
-{% block crumb %}Panel · Tienda · Pedidos{% endblock %}
+{% block crumb %}Pedidos{% endblock %}
 {% block heading %}Pedido #{{ order.order_id|stringformat:'s'|slice:':8' }}{% endblock %}
 
 {% block actions %}
