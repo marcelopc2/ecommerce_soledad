@@ -15,6 +15,9 @@ export default function CheckoutSuccess() {
   const [params] = useSearchParams()
   const { user } = useAuth()
   const orden = params.get('order')
+  // Suscripción de Mercado Pago autorizada cuyo primer cobro todavía se
+  // está procesando: el acceso y el correo llegan apenas Mercado Pago lo apruebe.
+  const confirmando = params.get('confirmando') === '1'
 
   return (
     <div className="lp">
@@ -30,10 +33,11 @@ export default function CheckoutSuccess() {
         <div className="res-wrap">
           <div className="res-card">
             <div className="res-emblema"><IconCheck /></div>
-            <h1>¡Listo, recibimos tu pago!</h1>
+            <h1>{confirmando ? '¡Listo, quedaste suscrito!' : '¡Listo, recibimos tu pago!'}</h1>
             <p className="res-bajada">
-              Ya está todo confirmado. Te contamos qué sigue para que no te quedes
-              con dudas.
+              {confirmando
+                ? 'Mercado Pago está confirmando tu primer pago. Apenas lo apruebe (suele ser en minutos) te llega el correo con tu acceso.'
+                : 'Ya está todo confirmado. Te contamos qué sigue para que no te quedes con dudas.'}
             </p>
             {orden && (
               <span className="res-orden">

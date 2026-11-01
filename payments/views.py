@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -237,6 +238,15 @@ def _orden_webpay_abandonada(token, orden_tbk, sesion):
     return None
 
 from .services import create_mercadopago_preference, get_mercadopago_payment
+from . import mp_suscripciones
+
+
+def _es_uuid(texto):
+    try:
+        uuid.UUID(str(texto))
+        return True
+    except ValueError:
+        return False
 
 class CreateMercadoPagoTransactionView(APIView):
     throttle_scope = 'payment'
@@ -299,6 +309,23 @@ def _verify_and_update_order(payment_id):
 
     if not external_reference:
         return None, real_status
+
+    # Un cobro de una suscripción de Mercado Pago puede llegar también por el
+    # tópico normal de pagos, con la referencia de la orden con que se
+    # contrató. Ese se registra como cobro de la suscripción (una orden por
+    # cobro), no como el pago de esa orden: si no, el primer cobro se
+    # entregaba dos veces y los siguientes no se registraban.
+    inicial = (Order.objects.filter(order_id=external_reference).exclude(mp_preapproval_id=None).first()
+               if _es_uuid(external_reference) else None)
+    if inicial is not None:
+        try:
+            preapproval = mp_suscripciones.obtener(inicial.mp_preapproval_id)
+            order = mp_suscripciones.registrar_pago(preapproval, payment, _entregar_compra)
+        except Exception:
+            log.exception('No se pudo registrar el pago %s de la suscripción %s',
+                          payment_id, inicial.mp_preapproval_id)
+            return None, None
+        return order or inicial, real_status
 
     # El webhook server-to-server y la vuelta del navegador llegan casi a la vez
     # y los dos entran acá. select_for_update serializa a los dos procesos sobre
@@ -383,16 +410,27 @@ class MercadoPagoWebhookView(APIView):
     def post(self, request):
         topic = request.GET.get('type') or request.GET.get('topic') or (request.data.get('type') if hasattr(request.data, 'get') else None)
 
-        # Solo nos interesan notificaciones de pago.
-        if topic != 'payment':
-            return Response(status=status.HTTP_200_OK)
-
-        # El id del pago puede venir en el body (data.id) o en el query (data.id / id).
+        # El id del recurso puede venir en el body (data.id) o en el query (data.id / id).
         payment_id = None
         data = request.data if hasattr(request.data, 'get') else {}
         if isinstance(data.get('data'), dict):
             payment_id = data['data'].get('id')
         payment_id = payment_id or request.GET.get('data.id') or request.GET.get('id')
+
+        # Las suscripciones avisan por sus propios tópicos (se activan en el
+        # panel de Mercado Pago, en Webhooks → "Planes y suscripciones").
+        if topic in ('subscription_authorized_payment', 'subscription_preapproval') and payment_id:
+            try:
+                mp_suscripciones.procesar_notificacion(topic, payment_id, _entregar_compra)
+            except Exception:
+                # Igual 200: la revisión diaria (sincronizar_suscripciones_mp)
+                # recoge lo que se haya perdido acá.
+                log.exception('Falló el aviso %s %s de Mercado Pago', topic, payment_id)
+            return Response(status=status.HTTP_200_OK)
+
+        # Del resto solo nos interesan notificaciones de pago.
+        if topic != 'payment':
+            return Response(status=status.HTTP_200_OK)
 
         _verify_and_update_order(payment_id)
 
@@ -478,6 +516,14 @@ def _preparar_orden_oneclick(request):
 
     Devuelve (order, None) o (None, Response de error).
     """
+    return _preparar_orden_suscribible(request, Order.ONECLICK)
+
+
+def _preparar_orden_suscribible(request, pasarela):
+    """Arma la orden de algo que puede ser suscripción (Oneclick o Mercado Pago).
+
+    Devuelve (order, None) o (None, Response de error).
+    """
     suscripcion = _trae_suscripcion(request.data)
     # Un cobro que se repite solo necesita un sí explícito: no basta con que el
     # precio diga "mensual" en letra chica.
@@ -501,7 +547,7 @@ def _preparar_orden_oneclick(request):
             {'error': 'Ya tienes esta suscripción activa. La puedes ver en tu perfil.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    order.pasarela = Order.ONECLICK
+    order.pasarela = pasarela
     order.save(update_fields=['pasarela', 'updated_at'])
     return order, None
 
@@ -592,6 +638,89 @@ class FinishOneclickView(APIView):
         return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason={motivo}')
 
 
+class CreateMercadoPagoSuscripcionView(APIView):
+    """Suscripción pagada con Mercado Pago: la cobra Mercado Pago cada N meses.
+
+    Crea la orden y la suscripción pendiente en Mercado Pago, y devuelve la
+    página donde el cliente la autoriza (ahí mismo se hace el primer cobro).
+    """
+    throttle_scope = 'payment'
+
+    def post(self, request):
+        if not _trae_suscripcion(request.data):
+            return Response({'error': 'Este producto no es una suscripción.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # Mercado Pago cobra siempre el mismo monto: no hay cómo hacer que el
+        # descuento del cupón valga solo para el primer pago, como en Oneclick.
+        if (request.data.get('coupon_code') or '').strip():
+            return Response(
+                {'error': 'Los cupones en suscripciones se usan pagando con tarjeta (Transbank).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        order, error = _preparar_orden_suscribible(request, Order.MERCADOPAGO)
+        if error:
+            return error
+        producto = next(p for p in order.products.all() if p.es_suscripcion)
+        if int(order.total_amount) != int(producto.effective_price) or order.products.count() != 1:
+            order.status = 'FAILED'
+            order.save(update_fields=['status', 'updated_at'])
+            return Response({'error': 'La suscripción con Mercado Pago se compra sola, sin otros productos.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # El correo de la cuenta de Mercado Pago puede no ser el de la tienda.
+        correo_mp = (request.data.get('mp_email') or order.customer_email).strip().lower()
+        base_url = settings.BACKEND_PUBLIC_URL or request.build_absolute_uri('/').rstrip('/')
+        vuelta = f"{base_url}{reverse('mp-suscripcion-vuelta')}?orden={order.order_id}"
+        try:
+            preapproval_id, url = mp_suscripciones.crear(order, producto, correo_mp, vuelta)
+        except Exception as e:
+            order.status = 'FAILED'
+            order.save(update_fields=['status', 'updated_at'])
+            if getattr(e, 'sin_cuenta', False):
+                return Response({
+                    'error': f'{correo_mp} no tiene cuenta de Mercado Pago. Escribe el correo con que '
+                             'entras a Mercado Pago, o paga con tarjeta.',
+                    'pedir_correo_mp': True,
+                }, status=status.HTTP_400_BAD_REQUEST)
+            log.exception('No se pudo crear la suscripción de Mercado Pago de la orden %s', order.order_id)
+            return Response({'error': 'No pudimos conectar con Mercado Pago. Intenta nuevamente en unos minutos.'},
+                            status=status.HTTP_502_BAD_GATEWAY)
+
+        order.mp_preapproval_id = preapproval_id
+        order.save(update_fields=['mp_preapproval_id', 'updated_at'])
+        return Response({'url': url})
+
+
+class MercadoPagoSuscripcionVueltaView(APIView):
+    """Adonde vuelve el navegador después de autorizar la suscripción.
+
+    No se cree nada de la URL: se usa nuestra orden para saber qué suscripción
+    es, y se le pregunta a Mercado Pago si está autorizada y si ya cobró.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        orden = request.GET.get('orden')
+        order = Order.objects.filter(order_id=orden).first() if _es_uuid(orden) else None
+        if order is None or not order.mp_preapproval_id:
+            return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=invalid_order')
+        try:
+            preapproval = mp_suscripciones.revisar(order.mp_preapproval_id, _entregar_compra)
+        except Exception:
+            log.exception('No se pudo revisar la suscripción %s al volver de Mercado Pago',
+                          order.mp_preapproval_id)
+            preapproval = {}
+        order.refresh_from_db()
+        if order.status == 'PAID':
+            return redirect(f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}')
+        if preapproval.get('status') == 'authorized':
+            # Autorizada, pero el primer cobro todavía se está procesando: lo
+            # registra el webhook (o la revisión diaria) apenas se apruebe.
+            return redirect(f'{settings.FRONTEND_URL}/checkout/success?order={order.order_id}&confirmando=1')
+        return redirect(f'{settings.FRONTEND_URL}/checkout/failed?reason=not_approved')
+
+
 def _email_de(user):
     return (user.email or user.username or '').strip()
 
@@ -620,12 +749,24 @@ class CancelarSuscripcionView(APIView):
         s = Suscripcion.objects.filter(pk=pk, email__iexact=_email_de(request.user)).first()
         if s is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        cancelar_suscripcion(s, por='el cliente')
+        try:
+            cancelar_suscripcion(s, por='el cliente')
+        except Exception:
+            log.exception('No se pudo cancelar en Mercado Pago la suscripción %s', s.pk)
+            return Response({'error': 'No pudimos cancelarla en Mercado Pago. Intenta en unos minutos.'},
+                            status=status.HTTP_502_BAD_GATEWAY)
         return Response(_suscripcion_json(s))
 
 
 def cancelar_suscripcion(s, por):
-    """Deja de cobrarle. Lo usan el cliente (perfil) y el panel."""
+    """Deja de cobrarle. Lo usan el cliente (perfil) y el panel.
+
+    Con Mercado Pago hay que cancelarla allá, porque el que cobra es Mercado
+    Pago: si eso falla se lanza la excepción y no se marca cancelada acá (sería
+    mostrar cancelada una suscripción que se sigue cobrando).
+    """
+    if s.es_mercadopago and s.mp_preapproval_id and s.estado != Suscripcion.CANCELADA:
+        mp_suscripciones.cambiar_estado(s.mp_preapproval_id, 'cancelled')
     if s.estado != Suscripcion.CANCELADA:
         s.estado = Suscripcion.CANCELADA
         s.cancelada_en = timezone.now()
@@ -642,7 +783,7 @@ def _suscripcion_json(s):
         'estado': s.estado,
         'estado_texto': s.get_estado_display(),
         'proximo_cobro': s.proximo_cobro if s.activa else None,
-        'tarjeta': f'{s.tarjeta.tipo or "Tarjeta"} terminada en {s.tarjeta.ultimos4}',
+        'tarjeta': s.medio_de_pago,
     }
 
 

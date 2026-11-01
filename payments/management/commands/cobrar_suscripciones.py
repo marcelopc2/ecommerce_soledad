@@ -46,8 +46,10 @@ class Command(BaseCommand):
                 return
 
         hoy = timezone.localdate()
+        # Las de Mercado Pago las cobra Mercado Pago solo: acá no se tocan.
         pendientes = (Suscripcion.objects
-                      .filter(estado=Suscripcion.ACTIVA, proximo_cobro__lte=hoy)
+                      .filter(estado=Suscripcion.ACTIVA, proximo_cobro__lte=hoy,
+                              pasarela=Suscripcion.ONECLICK)
                       .select_related('producto', 'tarjeta', 'orden_inicial'))
         if op['solo']:
             pendientes = pendientes.filter(pk=op['solo'])

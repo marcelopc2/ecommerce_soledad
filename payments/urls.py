@@ -3,6 +3,7 @@ from .views import (
     CreateWebpayTransactionView, CommitWebpayTransactionView,
     CreateMercadoPagoTransactionView, CommitMercadoPagoTransactionView,
     MercadoPagoWebhookView, ValidarCuponView,
+    CreateMercadoPagoSuscripcionView, MercadoPagoSuscripcionVueltaView,
     CreateOneclickView, FinishOneclickView, MisSuscripcionesView, CancelarSuscripcionView,
     MisTarjetasView, PagarConTarjetaGuardadaView,
 )
@@ -16,6 +17,9 @@ urlpatterns = [
     path('mp-create/', CreateMercadoPagoTransactionView.as_view(), name='mp-create'),
     path('mp-commit/', CommitMercadoPagoTransactionView.as_view(), name='mp-commit'),
     path('mp-webhook/', MercadoPagoWebhookView.as_view(), name='mp-webhook'),
+    # Suscripción cobrada por Mercado Pago (preapproval)
+    path('mp-suscribir/', CreateMercadoPagoSuscripcionView.as_view(), name='mp-suscribir'),
+    path('mp-suscripcion-vuelta/', MercadoPagoSuscripcionVueltaView.as_view(), name='mp-suscripcion-vuelta'),
 
     # Transbank Oneclick (tarjeta inscrita; también las suscripciones)
     path('oneclick/create/', CreateOneclickView.as_view(), name='oneclick-create'),

@@ -2873,9 +2873,32 @@ def suscripciones(request):
 def suscripcion_cancelar(request, pk):
     from payments.views import cancelar_suscripcion
     s = get_object_or_404(Suscripcion, pk=pk)
-    cancelar_suscripcion(s, por=f'el panel ({request.user.email or request.user.username})')
+    try:
+        cancelar_suscripcion(s, por=f'el panel ({request.user.email or request.user.username})')
+    except Exception:
+        _log_cobros.exception('No se pudo cancelar en Mercado Pago la suscripción %s', s.pk)
+        messages.error(request, 'Mercado Pago no respondió: la suscripción sigue activa. Intenta de nuevo en unos minutos.')
+        return _volver_a(request, s)
     messages.success(request, f'Suscripción de {s.email} cancelada: no se le vuelve a cobrar.')
     return _volver_a(request, s)
+
+
+def _avisar_a_mercadopago(request, s, estado):
+    """Pausa o reanuda también en Mercado Pago, que es quien cobra esas.
+
+    Devuelve False (y deja el mensaje) si Mercado Pago no respondió: en ese
+    caso no se cambia nada acá, para no mostrar pausada una que se sigue cobrando.
+    """
+    if not (s.es_mercadopago and s.mp_preapproval_id):
+        return True
+    from payments import mp_suscripciones
+    try:
+        mp_suscripciones.cambiar_estado(s.mp_preapproval_id, estado)
+    except Exception:
+        _log_cobros.exception('Mercado Pago no aceptó %s la suscripción %s', estado, s.pk)
+        messages.error(request, 'Mercado Pago no respondió: no se cambió nada. Intenta de nuevo en unos minutos.')
+        return False
+    return True
 
 
 _log_cobros = logging.getLogger('ingenioblocks.pagos')
@@ -2922,7 +2945,9 @@ def suscripcion_detalle(request, pk):
     """Una suscripción: sus datos, su historial de cobros y la fecha del próximo."""
     s = get_object_or_404(Suscripcion.objects.select_related('producto', 'tarjeta', 'orden_inicial'), pk=pk)
     error = ''
-    if request.method == 'POST':
+    if request.method == 'POST' and s.es_mercadopago:
+        error = 'La fecha de las suscripciones de Mercado Pago la pone Mercado Pago.'
+    elif request.method == 'POST':
         try:
             fecha = datetime.strptime(request.POST.get('proximo_cobro', ''), '%Y-%m-%d').date()
         except ValueError:
@@ -2949,7 +2974,7 @@ def suscripcion_detalle(request, pk):
 @require_POST
 def suscripcion_pausar(request, pk):
     s = get_object_or_404(Suscripcion, pk=pk)
-    if s.estado == Suscripcion.ACTIVA:
+    if s.estado == Suscripcion.ACTIVA and _avisar_a_mercadopago(request, s, 'paused'):
         s.estado = Suscripcion.PAUSADA
         s.save(update_fields=['estado'])
         _log_cobros.info('Suscripción %s pausada por %s', s.pk, request.user.email or request.user.username)
@@ -2963,7 +2988,8 @@ def suscripcion_reanudar(request, pk):
     """Vuelve a cobrarse. Si el próximo cobro quedó atrás mientras estaba
     pausada, se corre a mañana: reanudar no puede significar "cobrar ya"."""
     s = get_object_or_404(Suscripcion, pk=pk)
-    if s.estado in (Suscripcion.PAUSADA, Suscripcion.SUSPENDIDA):
+    if (s.estado in (Suscripcion.PAUSADA, Suscripcion.SUSPENDIDA)
+            and _avisar_a_mercadopago(request, s, 'authorized')):
         s.estado = Suscripcion.ACTIVA
         s.intentos_fallidos = 0
         s.ultimo_error = ''

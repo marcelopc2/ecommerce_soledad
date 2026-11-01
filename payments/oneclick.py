@@ -209,8 +209,11 @@ def _datos_del_cliente(suscripcion):
     return m.parent_name, m.student_name, m.phone
 
 
-def orden_de_renovacion(suscripcion):
-    """La orden del cobro de este mes, con los datos de la primera compra."""
+def orden_de_renovacion(suscripcion, pasarela=Order.ONECLICK):
+    """La orden del cobro de este mes, con los datos de la primera compra.
+
+    También la usan los cobros de Mercado Pago (pasarela=MERCADOPAGO).
+    """
     nombre, alumno, telefono = _datos_del_cliente(suscripcion)
     with transaction.atomic():
         order = Order.objects.create(
@@ -220,7 +223,7 @@ def orden_de_renovacion(suscripcion):
             customer_phone=telefono,
             total_amount=suscripcion.monto,
             status='PENDING',
-            pasarela=Order.ONECLICK,
+            pasarela=pasarela,
             suscripcion=suscripcion,
         )
         order.products.set([suscripcion.producto])

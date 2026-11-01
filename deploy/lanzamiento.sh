@@ -94,6 +94,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #       en Ajustes → Interruptores, y las de WordPress solo con su interruptor).
 0 9 * * * www-data cd /srv/ingenioblocks && flock -n /tmp/ib-avisos.lock venv/bin/python manage.py enviar_avisos_desbloqueo 2>&1 | grep -v 'AXES: BEGIN' >> logs/avisos.log
 0 10 * * * www-data cd /srv/ingenioblocks && flock -n /tmp/ib-cobros.lock venv/bin/python manage.py cobrar_suscripciones 2>&1 | grep -v 'AXES: BEGIN' >> logs/cobros.log
+# 11:00 suscripciones de Mercado Pago: no cobra (cobra Mercado Pago), registra
+#       los cobros y cancelaciones que el webhook no haya avisado.
+0 11 * * * www-data cd /srv/ingenioblocks && flock -n /tmp/ib-mp.lock venv/bin/python manage.py sincronizar_suscripciones_mp 2>&1 | grep -v 'AXES: BEGIN' >> logs/cobros.log
 CRON
     chmod 644 /etc/cron.d/ingenioblocks-diarias
     echo "==> Tareas diarias programadas:"

@@ -97,6 +97,10 @@ export default function Checkout() {
   // Una suscripción se cobra sola todos los meses: hay que aceptarlo marcando
   // la casilla, no basta con que el precio diga "mensual".
   const [aceptaCobro, setAceptaCobro] = useState(false)
+  // Mercado Pago exige que la suscripción quede a nombre de una cuenta suya:
+  // si el correo de la tienda no tiene cuenta, se pide el de Mercado Pago.
+  const [pedirCorreoMp, setPedirCorreoMp] = useState(false)
+  const [correoMp, setCorreoMp] = useState('')
   // Tarjetas ya inscritas en Transbank (de una compra anterior, o traídas del
   // sitio viejo): con sesión iniciada se paga con un clic, sin volver a
   // pasar por la página de Transbank.
@@ -292,6 +296,7 @@ export default function Checkout() {
     }
     if (cuponAplicado) payload.coupon_code = cuponAplicado.code
     if (esSuscripcion) payload.acepta_cobro_automatico = aceptaCobro
+    if (gateway === 'mp-suscripcion' && correoMp.trim()) payload.mp_email = correoMp.trim()
     if (esRetiro) payload.delivery_method = 'PICKUP'
     if (requiereEnvio && !esRetiro) {
       payload.shipping = {
@@ -321,6 +326,7 @@ export default function Checkout() {
       const url = {
         webpay: '/payments/create/',
         oneclick: '/payments/oneclick/create/',
+        'mp-suscripcion': '/payments/mp-suscribir/',
       }[gateway] || '/payments/mp-create/'
       const { data } = await api.post(url, payload)
       if (gateway === 'webpay' || gateway === 'oneclick') {
@@ -339,6 +345,7 @@ export default function Checkout() {
       }
     } catch (err) {
       setQuoteMsg('')
+      if (err.response?.data?.pedir_correo_mp) setPedirCorreoMp(true)
       setErrorPago(
         err.response?.data?.error ||
         'No pudimos iniciar el pago. Revisa tu conexión e intenta nuevamente.'
@@ -666,8 +673,8 @@ export default function Checkout() {
               <input type="checkbox" checked={aceptaCobro}
                      onChange={e => setAceptaCobro(e.target.checked)} />
               <span>
-                Acepto que se cobre {clp(product.effective_price)} {cadaMeses === 1 ? 'cada mes' : `cada ${cadaMeses} meses`} a
-                mi tarjeta de forma automática, hasta que cancele la suscripción desde mi perfil.
+                Acepto que se cobre {clp(product.effective_price)} {cadaMeses === 1 ? 'cada mes' : `cada ${cadaMeses} meses`} de
+                forma automática (con mi tarjeta o mi cuenta de Mercado Pago), hasta que cancele la suscripción desde mi perfil.
                 {cuponAplicado && ' El cupón aplica solo a este primer pago.'}
               </span>
             </label>
@@ -684,13 +691,34 @@ export default function Checkout() {
               disabled={!puedePagar} onClick={() => handleCheckout(esSuscripcion ? 'oneclick' : 'webpay')}>
               {paying ? <><Cargando />Procesando…</> : (tarjetas.length ? 'Pagar con otra tarjeta' : 'Pagar con tarjeta')}
             </button>
-            {/* MercadoPago no deja la tarjeta guardada para volver a cobrar,
-                así que una suscripción solo se puede pagar con Transbank. */}
             {!esSuscripcion && (
               <button className="co-btn-pagar co-btn-mp"
                 disabled={!puedePagar} onClick={() => handleCheckout('mercadopago')}>
                 {paying ? <><Cargando />Procesando…</> : 'Pagar con MercadoPago'}
               </button>
+            )}
+            {/* La suscripción con Mercado Pago la cobra Mercado Pago cada mes.
+                Cobra siempre el mismo monto, así que no admite el cupón del
+                primer pago: con cupón se paga con tarjeta. */}
+            {esSuscripcion && !cuponAplicado && (
+              <>
+                {pedirCorreoMp && (
+                  <div className="co-campo co-correo-mp">
+                    <label htmlFor="co-correo-mp">Correo de tu cuenta de Mercado Pago</label>
+                    <input id="co-correo-mp" type="email" placeholder="el correo con que entras a Mercado Pago"
+                      value={correoMp} onChange={e => setCorreoMp(e.target.value)} />
+                  </div>
+                )}
+                <button className="co-btn-pagar co-btn-mp"
+                  disabled={!puedePagar || (pedirCorreoMp && !correoMp.trim())}
+                  onClick={() => handleCheckout('mp-suscripcion')}>
+                  {paying ? <><Cargando />Procesando…</> : 'Suscribirme con Mercado Pago'}
+                </button>
+                <p className="co-ayuda co-ayuda-mp">Necesitas una cuenta de Mercado Pago.</p>
+              </>
+            )}
+            {esSuscripcion && cuponAplicado && (
+              <p className="co-ayuda co-ayuda-mp">Con cupón, la suscripción se paga con tarjeta.</p>
             )}
           </div>
 
@@ -708,7 +736,7 @@ export default function Checkout() {
           {paying && <p className="co-hint">Redirigiendo al pago…</p>}
 
           <p className="co-seguro">
-            <span aria-hidden="true">🔒</span> Pago seguro · Transbank{esSuscripcion ? '' : ' y MercadoPago'}
+            <span aria-hidden="true">🔒</span> Pago seguro · Transbank y MercadoPago
           </p>
         </aside>
       </div>

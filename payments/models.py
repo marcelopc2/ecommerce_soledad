@@ -101,6 +101,15 @@ class Order(models.Model):
         null=True, blank=True,
     )
 
+    #: Con Mercado Pago la suscripción la cobra Mercado Pago, no nosotros. La
+    #: orden con que se contrata guarda el id de esa suscripción (preapproval)
+    #: para poder reconocer sus cobros cuando lleguen.
+    mp_preapproval_id = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+    #: El pago de Mercado Pago que pagó esta orden, cuando es un cobro de
+    #: suscripción. unique: el mismo cobro avisa por varios caminos (webhook,
+    #: vuelta del navegador, revisión diaria) y tiene que entregarse una vez.
+    mp_payment_id = models.CharField(max_length=64, blank=True, null=True, unique=True)
+
     # Indexado porque es el orden por defecto de los listados del panel.
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -311,12 +320,18 @@ class TarjetaOneclick(models.Model):
 
 
 class Suscripcion(models.Model):
-    """Un cobro automático cada N meses con la tarjeta inscrita en Oneclick.
+    """Un cobro automático cada N meses.
 
     Nace cuando se paga la primera vez un producto marcado como suscripción
-    (Product.es_suscripcion). Desde ahí `manage.py cobrar_suscripciones` le
-    cobra cuando llega `proximo_cobro`, y cada cobro es una Order normal: lleva
-    su boleta y extiende la membresía igual que una compra hecha a mano.
+    (Product.es_suscripcion). Cada cobro es una Order normal: lleva su boleta y
+    extiende la membresía igual que una compra hecha a mano.
+
+    Hay dos maneras de cobrarla:
+    - Oneclick: la tarjeta queda inscrita en Transbank y `manage.py
+      cobrar_suscripciones` le cobra cuando llega `proximo_cobro`.
+    - Mercado Pago: la cobra Mercado Pago solo, en sus fechas (preapproval), y
+      nos avisa cada cobro (ver payments/mp_suscripciones.py). Acá
+      `proximo_cobro` es solo informativo.
     """
     ACTIVA = 'ACTIVA'
     PAUSADA = 'PAUSADA'
@@ -348,7 +363,18 @@ class Suscripcion(models.Model):
 
     email = models.EmailField(db_index=True)
     producto = models.ForeignKey(Product, related_name='suscripciones', on_delete=models.PROTECT)
-    tarjeta = models.ForeignKey(TarjetaOneclick, related_name='suscripciones', on_delete=models.PROTECT)
+    ONECLICK = 'ONECLICK'
+    MERCADOPAGO = 'MERCADOPAGO'
+    PASARELAS = (
+        (ONECLICK, 'Tarjeta (Transbank Oneclick)'),
+        (MERCADOPAGO, 'Mercado Pago'),
+    )
+    pasarela = models.CharField(max_length=12, choices=PASARELAS, default=ONECLICK, db_index=True)
+    #: Solo las de Oneclick: con Mercado Pago la tarjeta la guarda Mercado Pago.
+    tarjeta = models.ForeignKey(TarjetaOneclick, related_name='suscripciones', on_delete=models.PROTECT,
+                                null=True, blank=True)
+    #: El id de la suscripción en Mercado Pago (preapproval).
+    mp_preapproval_id = models.CharField(max_length=64, blank=True, null=True, unique=True)
     #: La compra con que se contrató. Las traídas de WordPress no tienen.
     orden_inicial = models.OneToOneField(
         Order, related_name='suscripcion_iniciada', on_delete=models.PROTECT,
@@ -382,6 +408,19 @@ class Suscripcion(models.Model):
     @property
     def activa(self):
         return self.estado == self.ACTIVA
+
+    @property
+    def es_mercadopago(self):
+        return self.pasarela == self.MERCADOPAGO
+
+    @property
+    def medio_de_pago(self):
+        """Con qué se cobra, para mostrarlo: "Visa terminada en 1234" o "Mercado Pago"."""
+        if self.es_mercadopago:
+            return 'Mercado Pago'
+        if self.tarjeta is None:
+            return 'Tarjeta'
+        return f'{self.tarjeta.tipo or "Tarjeta"} terminada en {self.tarjeta.ultimos4}'
 
 
 class AjustesCobros(models.Model):

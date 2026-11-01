@@ -613,3 +613,8 @@
   cursor: pointer;
 }
 .co-acepta input { margin-top: 3px; width: 17px; height: 17px; accent-color: #8200db; flex-shrink: 0; }
+
+/* Suscripción con Mercado Pago: el aviso de que hace falta cuenta, y el
+   correo de esa cuenta cuando no es el mismo de la tienda. */
+.co-ayuda-mp { margin: -2px 0 0; text-align: center; }
+.co-correo-mp { margin: 4px 0 0; }

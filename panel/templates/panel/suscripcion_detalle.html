@@ -27,8 +27,8 @@
         <dt>Alumno</dt><dd>{% if alumno %}<a href="{% url 'panel:membership_detail' alumno.pk %}">{{ alumno.student_name|default:alumno.user.email }}</a>{% else %}<span class="text-muted">No tiene cuenta en el Aula con este correo</span>{% endif %}</dd>
         <dt>Qué paga</dt><dd>{{ s.nombre|default:s.producto.name }}</dd>
         <dt>Cuánto</dt><dd>${{ s.monto|intcomma }} {% if s.cada_meses == 1 %}al mes{% else %}cada {{ s.cada_meses }} meses{% endif %}</dd>
-        <dt>Tarjeta</dt><dd>{{ s.tarjeta.tipo|default:'Tarjeta' }} terminada en {{ s.tarjeta.ultimos4 }}</dd>
-        <dt>Origen</dt><dd>{{ s.get_origen_display }}{% if s.origen == 'WORDPRESS' %} — hoy la sigue cobrando el WordPress{% endif %}</dd>
+        <dt>Medio de pago</dt><dd>{{ s.medio_de_pago }}{% if s.es_mercadopago %} — la cobra Mercado Pago en sus fechas{% endif %}</dd>
+        <dt>Origen</dt><dd>{{ s.get_origen_display }}</dd>
         <dt>Desde</dt><dd>{{ s.creada_en|date:'d-m-Y' }}</dd>
         {% if s.cancelada_en %}<dt>Cancelada</dt><dd>{{ s.cancelada_en|date:'d-m-Y H:i' }}</dd>{% endif %}
         {% if s.ultimo_error %}<dt>Último problema</dt><dd>{{ s.ultimo_error }}{% if s.intentos_fallidos %} ({{ s.intentos_fallidos }} intento{{ s.intentos_fallidos|pluralize }}){% endif %}</dd>{% endif %}
@@ -36,7 +36,13 @@
       {% include 'panel/partials/suscripcion_acciones.html' with volver='detalle' %}
     </div></div>
 
-    {% if s.estado != 'CANCELADA' %}
+    {% if s.estado != 'CANCELADA' and s.es_mercadopago %}
+    <div class="pnl-card mt-4"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-calendar-event"></i> Próximo cobro</div>
+      <p class="mb-0">{% if s.activa %}{{ s.proximo_cobro|date:'d-m-Y' }}{% else %}—{% endif %}</p>
+      <p class="pnl-campo-ayuda mt-2 mb-0">La fecha la pone Mercado Pago y no se puede cambiar desde acá.</p>
+    </div></div>
+    {% elif s.estado != 'CANCELADA' %}
     <div class="pnl-card mt-4"><div class="card-pad">
       <div class="form-section-title"><i class="bi bi-calendar-event"></i> Próximo cobro</div>
       <form method="post" class="d-flex gap-2 align-items-end flex-wrap">
@@ -67,7 +73,7 @@
                 <td>
                   {% if o.status == 'PAID' %}<span class="badge-soft green">Pagado</span>
                   {% elif o.status == 'FAILED' %}<span class="badge-soft red">Rechazado</span>
-                  {% elif o.status == 'REVIEW' %}<span class="badge-soft yellow">Revisar en Transbank</span>
+                  {% elif o.status == 'REVIEW' %}<span class="badge-soft yellow">Revisar en {% if o.pasarela == 'MERCADOPAGO' %}Mercado Pago{% else %}Transbank{% endif %}</span>
                   {% else %}<span class="badge-soft gray">{{ o.get_status_display }}</span>{% endif %}
                 </td>
               </tr>
