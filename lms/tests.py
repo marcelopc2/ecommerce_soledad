@@ -413,3 +413,22 @@ class CategoriasDeCursosTests(TestCase):
         self.assertEqual(len(acceso), 3)
         self.assertTrue(acceso[0]['unlocked'],
                         'el primero debe estar disponible, como antes')
+
+
+class AvisosConCorreosEnPausaTests(TestCase):
+    """Con la pausa de correos, la tarea de avisos no consume los avisos."""
+
+    def test_no_marca_avisos_como_enviados(self):
+        from io import StringIO
+        from django.core.management import call_command
+        from django.test import override_settings
+        from comunicaciones.models import AjustesCorreos
+        from lms.models import UnlockNotice
+        a = AjustesCorreos.obtener()
+        a.pausar_correos_a_clientes = True
+        a.save()
+        salida = StringIO()
+        with override_settings(ENVIAR_CORREOS=True):
+            call_command('enviar_avisos_desbloqueo', stdout=salida)
+        self.assertIn('en pausa', salida.getvalue())
+        self.assertEqual(UnlockNotice.objects.count(), 0)

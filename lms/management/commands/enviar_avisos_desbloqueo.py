@@ -41,6 +41,16 @@ class Command(BaseCommand):
         if simular:
             self.stdout.write(self.style.WARNING('Modo simulación: no se envía ni se guarda nada.\n'))
 
+        else:
+            # Con los correos a clientes en pausa no se hace NADA: cada aviso se
+            # marca como enviado antes de mandarlo, así que correr ahora los
+            # daría por avisados sin que le llegue nada a nadie. Quedan
+            # pendientes y salen la primera vez que corra sin la pausa.
+            from comunicaciones.freno import correos_a_clientes
+            if not correos_a_clientes():
+                self.stdout.write('Correos a clientes en pausa: los avisos quedan pendientes.')
+                return
+
         avisos_curso = self._avisar_cursos(simular)
         avisos_diploma = self._avisar_diplomas(simular)
 
