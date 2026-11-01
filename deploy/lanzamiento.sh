@@ -29,9 +29,16 @@ PY="sudo -u www-data venv/bin/python"
 paso_importar() {
     local volcado="${1:?Falta la ruta del volcado .sql}"
     [ -f "$volcado" ] || { echo "No encuentro $volcado"; exit 1; }
-    chmod 644 "$volcado"
+    # www-data no puede leer dentro de /root: el volcado se pasa a una carpeta
+    # propia, legible solo por root y www-data, y se borra al terminar.
+    mkdir -p /srv/lanzamiento && chown root:www-data /srv/lanzamiento && chmod 750 /srv/lanzamiento
+    if [ "$(dirname "$(realpath "$volcado")")" != /srv/lanzamiento ]; then
+        mv "$volcado" /srv/lanzamiento/ && volcado="/srv/lanzamiento/$(basename "$volcado")"
+    fi
+    chown root:www-data "$volcado" && chmod 640 "$volcado"
     echo "==> Respaldo antes de importar"
-    ./deploy/respaldar.sh
+    # El mismo que corre el cron: carga las claves de Postgres del .env.
+    /usr/local/bin/ingenioblocks-respaldo
     echo "==> Correos a clientes: confirmando la PAUSA"
     $PY manage.py shell -c "
 from comunicaciones.models import AjustesCorreos
