@@ -107,6 +107,17 @@ class PrimerPagoTests(TestCase):
         self.assertTrue(m.is_active)
         self.assertGreater(m.expires_at, timezone.now() + timedelta(days=27))
 
+    def test_una_cuenta_del_equipo_que_compra_no_pierde_el_acceso_permanente(self):
+        """La dueña compra para probar la tienda: no puede quedar con fecha y
+        ver todo con candado al mes siguiente."""
+        m = _membresia('duena@b.cl', sin_vencimiento=True)
+        m.user.is_staff = True
+        m.user.save()
+        m = self._comprar(m, meses=1)
+        self.assertTrue(m.sin_vencimiento)
+        self.assertTrue(m.is_active)
+        self.assertTrue(m.user.is_staff)
+
 
 class FechaAManoTests(TestCase):
     """Ponerle una fecha desde el panel es decir "esta sí vence"."""

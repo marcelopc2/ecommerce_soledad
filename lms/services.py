@@ -790,12 +790,20 @@ def _grant(order):
     # cuanto paga por acá: desde ese pago ya somos nosotros los que cobramos, y
     # dejarla abierta sería regalarle el acceso para siempre. Se cuenta desde
     # HOY y no desde su expires_at viejo, que es una fecha que nunca se usó.
-    if membership.sin_vencimiento:
-        membership.sin_vencimiento = False
-        base = timezone.now()
+    #
+    # Salvo las cuentas del equipo: la dueña o una administradora que compra
+    # para probar la tienda no puede perder su acceso permanente (le pasó a
+    # Soledad: una compra de prueba la dejó con fecha y al mes vio todo con
+    # candado). Para ellas la compra no toca el vencimiento.
+    if membership.sin_vencimiento and user.is_staff:
+        pass
     else:
-        base = membership.expires_at if membership.expires_at > timezone.now() else timezone.now()
-    membership.expires_at = base + relativedelta(months=months)
+        if membership.sin_vencimiento:
+            membership.sin_vencimiento = False
+            base = timezone.now()
+        else:
+            base = membership.expires_at if membership.expires_at > timezone.now() else timezone.now()
+        membership.expires_at = base + relativedelta(months=months)
     membership.save()
     membership.courses.add(*courses)
     membership.orders.add(order)
