@@ -2291,7 +2291,10 @@ figure.lp-gmodal-card { cursor: default; }
      sin esto su posición dependía de cuántas líneas ocupara el título. Con
      poco texto (pantallas ~600-819px, título en 2 líneas) el bloque quedaba
      bajo y la foto subía hasta taparse con el header. */
-  .lp-hero-inner { grid-template-columns: 1fr; min-height: 620px; }
+  /* align-items: start porque, centrado en ese alto fijo, el texto bajaba y
+     dejaba un hueco grande entre el header y la etiqueta; el alto sobrante
+     queda abajo, que es donde va la foto. */
+  .lp-hero-inner { grid-template-columns: 1fr; min-height: 620px; align-items: start; }
   .lp-hero-copy { position: relative; z-index: 2; }
   /* La foto queda DETRÁS del texto (no apilada abajo) y más grande: así la
      mesa blanca del fondo de la foto cae bien pasado el corte diagonal
@@ -2386,6 +2389,12 @@ figure.lp-gmodal-card { cursor: default; }
   .lp-testimonios { padding: 28px 16px 60px; }
   .lp-faq         { padding: 56px 16px; }
   .lp-contacto    { padding: 48px 16px; }
+
+  .lp-hero-inner { padding-top: 28px; }
+  /* El botón tapaba la cara del niño: la foto se corre a la derecha y crece
+     un poco. Lo que se sale por la derecha son cajas de piezas, no el niño. */
+  .lp-hero-photo { right: -32%; width: 124%; }
+  .lp-hero-photo img { width: 100%; max-width: none; }
 
   .lp-hero-copy h1 { line-height: 1.12; }
   .lp-hero-copy p { font-size: 15px; }
