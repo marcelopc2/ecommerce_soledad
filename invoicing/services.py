@@ -40,22 +40,63 @@ def _headers():
     return {'apikey': api_key, 'Content-Type': 'application/json'}
 
 
+#: Copia de los datos del emisor de la última vez que OpenFactura respondió.
+#: El 1-nov-2026 (día del lanzamiento) su /organization devolvía error 500
+#: "OF-22" una y otra vez: sin esta copia, ninguna boleta habría salido.
+def _archivo_emisor():
+    return settings.PROTECTED_MEDIA_ROOT / 'openfactura_emisor.json'
+
+
+#: Último recurso, si OpenFactura nunca llegó a responder: los datos de la
+#: empresa escritos en el .env (los mismos que salen impresos en la boleta).
+EMISOR_ENV = {
+    'rut': 'OPENFACTURA_EMISOR_RUT',
+    'razonSocial': 'OPENFACTURA_EMISOR_RAZON_SOCIAL',
+    'glosaDescriptiva': 'OPENFACTURA_EMISOR_GIRO',
+    'direccion': 'OPENFACTURA_EMISOR_DIRECCION',
+    'comuna': 'OPENFACTURA_EMISOR_COMUNA',
+}
+
+
 def get_organization():
     """
     Datos del emisor (la empresa) según la API key. Se usan para el bloque Emisor
     de cada boleta, así no hay que hardcodear el RUT/giro de la clienta. Cacheado.
+
+    Si OpenFactura no responde se usa la copia guardada la última vez que sí
+    respondió, y si no hay copia, los datos del .env (EMISOR_ENV). Solo si no
+    hay nada de eso se falla: inventar un RUT sería peor que no emitir.
     """
+    import json
     global _ORG_CACHE
     if _ORG_CACHE is not None:
         return _ORG_CACHE
 
     base, _ = _config()
-    resp = requests.get(f'{base}/v2/dte/organization', headers=_headers(), timeout=TIMEOUT)
-    if resp.status_code >= 400:
-        raise RuntimeError(f"OpenFactura organization {resp.status_code}: {resp.text[:200]}")
+    error = None
+    try:
+        resp = requests.get(f'{base}/v2/dte/organization', headers=_headers(), timeout=TIMEOUT)
+        if resp.status_code >= 400:
+            error = f"OpenFactura organization {resp.status_code}: {resp.text[:200]}"
+        else:
+            _ORG_CACHE = resp.json()
+            try:
+                _archivo_emisor().write_text(json.dumps(_ORG_CACHE, ensure_ascii=False), encoding='utf-8')
+            except OSError:
+                log.exception('No se pudo guardar la copia de los datos del emisor')
+            return _ORG_CACHE
+    except requests.RequestException as e:
+        error = f'OpenFactura organization no respondió: {e}'
 
-    _ORG_CACHE = resp.json()
-    return _ORG_CACHE
+    archivo = _archivo_emisor()
+    if archivo.exists():
+        log.warning('%s — se usa la copia guardada de los datos del emisor', error)
+        return json.loads(archivo.read_text(encoding='utf-8'))
+    desde_env = {k: os.environ.get(v, '').strip() for k, v in EMISOR_ENV.items()}
+    if desde_env['rut'] and desde_env['razonSocial']:
+        log.warning('%s — se usan los datos del emisor del .env', error)
+        return desde_env
+    raise RuntimeError(error)
 
 
 def _es_exento(product):
