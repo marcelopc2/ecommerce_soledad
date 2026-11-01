@@ -33,7 +33,8 @@ class Command(BaseCommand):
                             help='Segundos entre un correo y otro (por omisión 1,5)')
 
     def handle(self, *args, **op):
-        if not settings.ENVIAR_CORREOS:
+        from comunicaciones.freno import correos_a_clientes
+        if not correos_a_clientes():
             self.stdout.write('Freno de correos puesto: no se manda nada.')
             return
 

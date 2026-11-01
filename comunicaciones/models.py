@@ -167,3 +167,29 @@ class DestinatarioMasivo(models.Model):
 
     def __str__(self):
         return f'{self.email} · {self.estado}'
+
+
+class AjustesCorreos(models.Model):
+    """Pausa manual de los correos a clientes (Ajustes → Interruptores).
+
+    El freno de siempre (settings.ENVIAR_CORREOS) se suelta solo cuando el sitio
+    pasa a ingenioblocks.com. Esto permite mantenerlos en pausa después de eso:
+    la tienda quiere que lo primero que reciban las familias sea su propio
+    anuncio de la página nueva, no un aviso automático. Mientras esté en pausa
+    solo le llegan correos al equipo. Ver comunicaciones.freno.
+    """
+    pausar_correos_a_clientes = models.BooleanField(default=False)
+    cambiado_por = models.CharField(max_length=200, blank=True)
+    cambiado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'ajustes de correos'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

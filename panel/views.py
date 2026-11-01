@@ -182,7 +182,12 @@ def dashboard(request):
     # Lo que hay que HACER hoy, con el botón que lleva directo a resolverlo.
     # Solo se muestran los que tienen algo: una bandeja con ceros es ruido.
     from catalog.models import MensajeContacto
+    from comunicaciones.models import AjustesCorreos
     pendientes = [p for p in [
+        (1 if (settings.ENVIAR_CORREOS and AjustesCorreos.obtener().pausar_correos_a_clientes) else 0,
+         'bi-envelope-slash', 'Correos a clientes en pausa',
+         'No le llega ningún correo a las familias (compras, claves, avisos). Quítala en Interruptores.',
+         reverse('panel:interruptores'), 'red'),
         (MensajeContacto.objects.filter(leido=False).count(), 'bi-chat-left-text', 'Mensajes sin leer',
          'Llegaron por el formulario de contacto de la portada.', reverse('panel:mensajes') + '?ver=sin_leer', 'purple'),
         (Order.objects.filter(ORDERS_POR_DESPACHAR).count(), 'bi-truck', 'Pedidos por despachar',
@@ -3060,6 +3065,7 @@ def interruptores(request):
     (queda en el log quién y cuándo); esto solo los junta.
     """
     from catalog.models import SeccionClub, SeccionConcurso
+    from comunicaciones.models import AjustesCorreos
     from shipments.models import AjustesEnvios
     cobros = AjustesCobros.obtener()
     return render(request, 'panel/interruptores.html', {
@@ -3074,9 +3080,28 @@ def interruptores(request):
         'concurso': SeccionConcurso.obtener(),
         'concurso_estado': SeccionConcurso.obtener().get_estado_display().split(' — ')[0],
         'correos_permitidos': settings.ENVIAR_CORREOS,
+        # El interruptor dice "salen correos": prendido = sin pausa.
+        'correos_salen': not AjustesCorreos.obtener().pausar_correos_a_clientes,
         'modo_local': getattr(settings, 'MODO_LOCAL', False),
         'section': 'interruptores',
     })
+
+
+@staff_required
+@require_POST
+def correos_interruptor(request):
+    """Pausa o suelta los correos a clientes (ver comunicaciones.freno)."""
+    from comunicaciones.models import AjustesCorreos
+    a = AjustesCorreos.obtener()
+    # El interruptor dice "salen correos": prendido = sin pausa.
+    a.pausar_correos_a_clientes = request.POST.get('valor') != '1'
+    a.cambiado_por = request.user.email or request.user.username
+    a.cambiado_en = timezone.now()
+    a.save()
+    log.warning('CORREOS: %s puso pausar_correos_a_clientes = %s', a.cambiado_por, a.pausar_correos_a_clientes)
+    messages.success(request, 'Los correos a clientes quedaron %s.' % (
+        'EN PAUSA: solo le llegan al equipo' if a.pausar_correos_a_clientes else 'PRENDIDOS'))
+    return _volver(request, 'panel:interruptores')
 
 
 @staff_required

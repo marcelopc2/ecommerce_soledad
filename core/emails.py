@@ -134,7 +134,8 @@ def enviar_email(plantilla, asunto, destinatarios, contexto=None,
     # La única excepción es el equipo: no son clientes, que es a quien el freno
     # protege. Sin ella no se podía probar un correo masivo antes del
     # lanzamiento, ni recuperar la clave del panel.
-    if not settings.ENVIAR_CORREOS:
+    from comunicaciones.freno import correos_a_clientes
+    if not correos_a_clientes():
         equipo = set(correos_de_gestion())
         frenados = [d for d in destinatarios if normalizar(d) not in equipo]
         if frenados:

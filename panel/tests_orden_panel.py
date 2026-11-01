@@ -81,3 +81,37 @@ class PedidosWordPressTests(TestCase):
         self.assertContains(r, reverse('panel:membership_detail', args=[m.pk]))
         self.assertContains(r, 'Pago aprobado')
         self.assertNotContains(r, '#56')   # los correos no son pedidos
+
+
+class PausaCorreosTests(TestCase):
+    """Correos a clientes en pausa aunque el sitio ya esté en el dominio real."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin@ib.cl', email='admin@ib.cl', is_staff=True)
+        self.client.force_login(self.admin)
+
+    def _mandar(self):
+        from django.core import mail
+        from core.emails import enviar_email
+        mail.outbox = []
+        enviar_email('contacto_interno', asunto='x', destinatarios=['cliente@correo.cl', 'admin@ib.cl'],
+                     contexto={'nombre': 'a', 'email': 'a@b.cl'})
+        return sorted(d for m in mail.outbox for d in m.to)
+
+    def test_en_pausa_solo_le_llega_al_equipo(self):
+        from django.test import override_settings
+        with override_settings(ENVIAR_CORREOS=True):
+            self.assertIn('cliente@correo.cl', self._mandar())
+            self.client.post(reverse('panel:correos_interruptor'), {'valor': '0'})
+            self.assertEqual(self._mandar(), ['admin@ib.cl'])
+            r = self.client.get(reverse('panel:dashboard'))
+            self.assertContains(r, 'Correos a clientes en pausa')
+            self.client.post(reverse('panel:correos_interruptor'), {'valor': '1'})
+            self.assertIn('cliente@correo.cl', self._mandar())
+
+    def test_el_interruptor_se_ve(self):
+        from comunicaciones.models import AjustesCorreos
+        r = self.client.get(reverse('panel:interruptores'))
+        self.assertContains(r, 'Correos a clientes')
+        self.client.post(reverse('panel:correos_interruptor'), {'valor': '0'})
+        self.assertTrue(AjustesCorreos.obtener().pausar_correos_a_clientes)

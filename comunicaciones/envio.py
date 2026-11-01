@@ -137,6 +137,10 @@ def motivo_para_no_enviar(envio):
     if not settings.ENVIAR_CORREOS:
         return ('El envío a todos se activa cuando el sitio esté en su dominio '
                 'definitivo. Mientras tanto funciona solo la prueba al equipo.')
+    from .freno import correos_a_clientes
+    if not correos_a_clientes():
+        return ('Los correos a clientes están en pausa (Ajustes → Interruptores). '
+                'Quítala para poder mandar este correo a todos.')
     if not envio.prueba_enviada_en:
         return ('Primero envíalo de prueba (marcando «Prueba: solo a los administradores») '
                 'y revisa que se vea bien.')

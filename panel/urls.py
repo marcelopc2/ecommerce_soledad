@@ -112,6 +112,7 @@ urlpatterns = [
     path('mensajes/<int:pk>/leido/', views.mensaje_leido, name='mensaje_leido'),
     path('buscar/', views.buscar, name='buscar'),
     path('ajustes/', views.interruptores, name='interruptores'),
+    path('ajustes/correos/', views.correos_interruptor, name='correos_interruptor'),
     path('ajustes/club/', views.club_interruptor, name='club_interruptor'),
     path('portada/textos/', views.textos_portada, name='textos_portada'),
     path('portada/club/', views.configuracion, {'tab': 'club'}, name='cfg_club'),

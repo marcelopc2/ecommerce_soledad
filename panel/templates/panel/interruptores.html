@@ -24,20 +24,14 @@
       <div class="form-section-title"><i class="bi bi-truck"></i> Pedidos y correos</div>
       {% url 'panel:envios_ajustes' as url_envios %}
       {% include 'panel/partials/interruptor.html' with titulo='Mandar los pedidos a Shipit al pagar' texto='Cada pedido pagado con despacho aparece solo en «Ventas» de Shipit. Apagado, se manda a mano desde el pedido.' prendido=envios.enviar_a_shipit_al_pagar accion=url_envios %}
-      <div class="ix-fila">
-        <div class="ix-texto">
-          <div class="ix-titulo">Correos a clientes
-            {% if correos_permitidos and not modo_local %}<span class="badge-soft green">Prendido</span>
-            {% else %}<span class="badge-soft gray">Apagado</span>{% endif %}
-          </div>
-          <div class="ix-desc">
-            {% if modo_local %}En este computador los correos se guardan como archivos y no le llegan a nadie.
-            {% elif correos_permitidos %}Salen los correos de compras, avisos y boletas.
-            {% else %}Este es el sitio de pruebas: solo le llegan correos a las cuentas de gestión. Se prenden solos el día que el sitio pase a ingenioblocks.com.{% endif %}
-          </div>
-        </div>
-        <span class="ix-fijo" title="No se cambia desde acá"><i class="bi bi-lock"></i></span>
-      </div>
+      {% url 'panel:correos_interruptor' as url_correos %}
+      {% if modo_local %}
+        {% include 'panel/partials/interruptor.html' with titulo='Correos a clientes' texto='Compras, claves, avisos de modelo nuevo y correos masivos.' prendido=correos_salen accion=url_correos bloqueado='En este computador los correos se guardan como archivos y no le llegan a nadie.' %}
+      {% elif not correos_permitidos %}
+        {% include 'panel/partials/interruptor.html' with titulo='Correos a clientes' texto='Compras, claves, avisos de modelo nuevo y correos masivos.' prendido=correos_salen accion=url_correos bloqueado='Este es el sitio de pruebas: solo le llegan correos al equipo. Además de este interruptor, se sueltan cuando el sitio pase a ingenioblocks.com.' %}
+      {% else %}
+        {% include 'panel/partials/interruptor.html' with titulo='Correos a clientes' texto='Compras, claves, avisos de modelo nuevo y correos masivos. Apagado, solo le llegan al equipo.' prendido=correos_salen accion=url_correos %}
+      {% endif %}
     </div></div>
   </div>
 
