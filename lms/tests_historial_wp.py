@@ -135,3 +135,87 @@ class HistorialWordPressTests(TestCase):
         self.client.force_login(admin)
         r = self.client.get(reverse('panel:membership_detail', args=[self.m.pk]))
         self.assertNotContains(r, 'Historial en la página anterior')
+
+
+VOLCADO_EXTRAS = VOLCADO + """
+INSERT INTO `wp_comments` (`comment_ID`, `comment_post_ID`, `comment_date`, `comment_content`, `comment_type`) VALUES
+(1, 100, '2025-07-01 12:05:00', '<div class=''x''>Pago <b>aprobado</b></div>', 'order_note'),
+(2, 100, '2025-07-02 09:00:00', 'El pedido se ha enviado a Shipit correctamente', 'order_note');
+
+INSERT INTO `wp_transbank_execution_error_log` (`id`, `order_id`, `error`, `custom_error`, `created_at`) VALUES
+(1, 103, 'x', 'Tarjeta rechazada', '2025-09-01 12:01:00');
+
+INSERT INTO `wp_usermeta` (`umeta_id`, `user_id`, `meta_key`, `meta_value`) VALUES
+(1, 10, 'billing_first_name', 'Ana'),
+(2, 10, 'billing_address_1', 'Calle Falsa 123'),
+(3, 10, 'billing_city', 'Ñuñoa'),
+(4, 10, 'pmpro_logins', 'a:2:{s:4:"last";s:15:"October 9, 2026";s:7:"alltime";i:42;}'),
+(5, 10, 'wc_last_active', '1792454400');
+
+INSERT INTO `wp_wpmailsmtp_emails_log` (`id`, `subject`, `people`, `status`, `date_sent`) VALUES
+(7, 'Tu pedido ya está completo', '{"to":["ana@correo.cl"]}', '1', '2025-07-01 12:10:00'),
+(8, 'Nuevo modelo disponible', '{"to":["ana@correo.cl"]}', '0', '2025-07-08 12:10:00');
+
+INSERT INTO `wp_e_submissions` (`id`, `form_name`, `referer`, `created_at_gmt`, `created_at`) VALUES
+(5, 'New Form', 'https://ingenioblocks.com/', '2025-05-01 10:00:00', '2025-05-01 06:00:00');
+
+INSERT INTO `wp_e_submissions_values` (`id`, `submission_id`, `key`, `value`) VALUES
+(1, 5, 'name', 'Pedro'),
+(2, 5, 'email', 'pedro@correo.cl'),
+(3, 5, 'field_16509eb', '+56912345678'),
+(4, 5, 'field_8ac25fa', '¿Tienen envío a regiones?');
+
+INSERT INTO `wp_posts` (`ID`, `post_title`, `post_type`, `post_status`) VALUES
+(900, 'niño26', 'shop_coupon', 'publish');
+
+INSERT INTO `wp_postmeta` (`meta_id`, `post_id`, `meta_key`, `meta_value`) VALUES
+(1, 900, 'discount_type', 'fixed_cart'),
+(2, 900, 'coupon_amount', '10490'),
+(3, 900, 'usage_limit', '2');
+"""
+
+
+class DatosExtraWordPressTests(TestCase):
+    def setUp(self):
+        fd, self.ruta = tempfile.mkstemp(suffix='.sql')
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(VOLCADO_EXTRAS)
+        self.addCleanup(os.remove, self.ruta)
+        ana = User.objects.create_user(username='ana@correo.cl', email='ana@correo.cl')
+        self.m = Membership.objects.create(user=ana, expires_at=timezone.now() + timedelta(days=30))
+
+    def _correr(self):
+        call_command('historial_desde_wordpress', dump=self.ruta, aplicar=True, stdout=StringIO())
+
+    def test_trae_notas_correos_perfil_mensajes_y_cupones(self):
+        from catalog.models import MensajeContacto
+        from lms.models import PerfilWordPress
+        from payments.models import Coupon
+        self._correr()
+        self._correr()   # repetirlo no duplica nada
+        compra = H.objects.get(tipo=H.COMPRA, wp_id=100)
+        self.assertEqual([t for _, t in compra.notas], ['Pago aprobado',
+                                                         'El pedido se ha enviado a Shipit correctamente'])
+        self.assertIn('Transbank: Tarjeta rechazada', [t for _, t in H.objects.get(wp_id=103).notas])
+        correos = H.objects.filter(tipo=H.CORREO, email='ana@correo.cl')
+        self.assertEqual(correos.count(), 2)
+        self.assertEqual(correos.get(detalle='Nuevo modelo disponible').estado, 'No salió')
+        datos = PerfilWordPress.objects.get(email='ana@correo.cl').datos
+        self.assertEqual(datos['ingresos'], 42)
+        self.assertEqual(datos['facturacion']['city'], 'Ñuñoa')
+        self.assertIn('ultima_actividad', datos)
+        msj = MensajeContacto.objects.get()
+        self.assertEqual((msj.nombre, msj.telefono, msj.leido), ('Pedro', '+56912345678', True))
+        cupon = Coupon.objects.get()
+        self.assertEqual((cupon.code, cupon.discount_type, cupon.value, cupon.max_uses, cupon.is_active),
+                         ('NIÑO26', 'AMOUNT', 10490, 2, False))
+
+    def test_la_ficha_muestra_perfil_notas_y_correos(self):
+        self._correr()
+        admin = User.objects.create_user(username='admin@ib.cl', email='admin@ib.cl', is_staff=True)
+        self.client.force_login(admin)
+        r = self.client.get(reverse('panel:membership_detail', args=[self.m.pk]))
+        self.assertContains(r, 'Calle Falsa 123')
+        self.assertContains(r, 'Correos que recibió')
+        self.assertContains(r, 'notas del pedido')
+        self.assertNotContains(r, 'Correo enviado</span>')   # los correos no van en la tabla de compras

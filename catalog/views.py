@@ -125,6 +125,14 @@ class ContactView(APIView):
         data = serializer.validated_data
         nombre_completo = f"{data['nombre']} {data.get('apellido', '')}".strip()
 
+        # Primero se guarda: así el mensaje queda en el panel (Correos →
+        # Mensajes recibidos) aunque el correo de aviso no salga.
+        from .models import MensajeContacto
+        MensajeContacto.objects.create(
+            nombre=nombre_completo[:200], email=data['email'], telefono=(data.get('telefono') or '')[:40],
+            mensaje=data.get('comentarios') or '', pagina=(request.META.get('HTTP_REFERER') or '')[:300],
+        )
+
         try:
             # fail_silently=False acá a propósito: a diferencia de los correos
             # post-compra, si este no sale el mensaje se pierde sin que nadie
@@ -145,11 +153,9 @@ class ContactView(APIView):
         except Exception:
             # Un mensaje de contacto perdido es un cliente perdido: queda en el
             # log con el correo de quien escribió para poder responderle igual.
-            log.exception('No se pudo enviar el mensaje de contacto de %s', data['email'])
-            return Response(
-                {'error': 'No pudimos enviar tu mensaje. Intenta nuevamente en unos minutos.'},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+            # Ya quedó guardado en el panel: para quien escribió, llegó.
+            log.exception('No salió el aviso por correo del mensaje de contacto de %s '
+                          '(quedó guardado en el panel)', data['email'])
         return Response({'ok': True})
 
 

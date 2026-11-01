@@ -21,6 +21,7 @@ MENU = [
     ('pedidos', 'Pedidos', 'bi-bag-check-fill', [
         ('orders', 'Pedidos', 'panel:orders', False),
         ('suscripciones', 'Suscripciones', 'panel:suscripciones', False),
+        ('pedidos-wp', 'Página anterior', 'panel:pedidos_wordpress', False),
     ]),
     ('alumnos', 'Alumnos', 'bi-people-fill', [
         ('memberships', 'Alumnos', 'panel:memberships', False),
@@ -43,6 +44,7 @@ MENU = [
     ]),
     ('correos', 'Correos', 'bi-envelope-paper-fill', [
         ('correos', 'Correos masivos', 'panel:correos', False),
+        ('mensajes', 'Mensajes recibidos', 'panel:mensajes', False),
     ]),
     ('ajustes', 'Ajustes', 'bi-gear-fill', [
         ('interruptores', 'Interruptores', 'panel:interruptores', False),

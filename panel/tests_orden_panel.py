@@ -64,3 +64,20 @@ class OrdenPanelTests(TestCase):
         self.client.force_login(alumno)
         r = self.client.get(reverse('panel:buscar'), {'q': 'admin'})
         self.assertNotEqual(r.status_code, 200)
+
+
+class PedidosWordPressTests(TestCase):
+    def test_lista_los_pedidos_de_la_pagina_anterior(self):
+        from lms.models import HistorialWordPress as H
+        admin = User.objects.create_user(username='admin@ib.cl', email='admin@ib.cl', is_staff=True)
+        self.client.force_login(admin)
+        u = User.objects.create_user(username='ana@b.cl', email='ana@b.cl')
+        m = Membership.objects.create(user=u, expires_at=timezone.now())
+        H.objects.create(tipo=H.COMPRA, wp_id=55, email='ana@b.cl', fecha=timezone.now(), estado='Completado',
+                         pagado=True, monto=58900, detalle='Kit', notas=[['2025-07-01 12:00:00', 'Pago aprobado']])
+        H.objects.create(tipo=H.CORREO, wp_id=56, email='ana@b.cl', fecha=timezone.now(), detalle='Hola')
+        r = self.client.get(reverse('panel:pedidos_wordpress'))
+        self.assertContains(r, '#55')
+        self.assertContains(r, reverse('panel:membership_detail', args=[m.pk]))
+        self.assertContains(r, 'Pago aprobado')
+        self.assertNotContains(r, '#56')   # los correos no son pedidos

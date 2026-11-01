@@ -1,0 +1,75 @@
+{% extends 'panel/base.html' %}
+
+{% block title %}Mensajes recibidos{% endblock %}
+{% block crumb %}Correos{% endblock %}
+{% block heading %}Mensajes recibidos{% endblock %}
+
+{% block content %}
+{% comment %}
+  Lo que llega por el formulario de contacto de la portada (y lo que llegó a la
+  página anterior). Abrir un mensaje lo marca como leído. Ver panel.views.mensajes.
+{% endcomment %}
+<div class="d-flex gap-2 mfilter-group pnl-filtros">
+  <a class="mfilter-pill{% if not filtro %} active{% endif %}" href="?">Todos ({{ total }})</a>
+  <a class="mfilter-pill purple{% if filtro == 'sin_leer' %} active{% endif %}" href="?ver=sin_leer">{{ sin_leer }} sin leer</a>
+</div>
+
+<div class="pnl-card">
+  <div class="pnl-toolbar">
+    <form class="pnl-search" method="get">
+      <i class="bi bi-search"></i>
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, correo, teléfono o lo que escribió…">
+      {% if filtro %}<input type="hidden" name="ver" value="{{ filtro }}">{% endif %}
+    </form>
+  </div>
+  <div class="msj-lista">
+    {% for m in items %}
+      <details class="msj{% if not m.leido %} nuevo{% endif %}" data-leido-url="{% url 'panel:mensaje_leido' m.pk %}">
+        <summary>
+          <span class="msj-punto" title="Sin leer"></span>
+          <span class="msj-quien"><b>{{ m.nombre|default:m.email }}</b><small>{{ m.email }}{% if m.telefono %} · {{ m.telefono }}{% endif %}</small></span>
+          <span class="msj-extracto">{% if m.motivo %}<span class="badge-soft gray">{{ m.motivo }}</span> {% endif %}{{ m.mensaje|truncatechars:90|default:'(sin mensaje)' }}</span>
+          <span class="msj-fecha">{{ m.creado|date:'d-m-Y H:i' }}{% if m.origen == 'WORDPRESS' %}<small>pág. anterior</small>{% endif %}</span>
+        </summary>
+        <div class="msj-cuerpo">
+          <p>{{ m.mensaje|default:'(sin mensaje)'|linebreaksbr }}</p>
+          <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-brand btn-sm" href="mailto:{{ m.email }}?subject=Re:%20tu%20mensaje%20a%20Ingenio%20Blocks"><i class="bi bi-reply me-1"></i> Responder por correo</a>
+            {% if m.telefono %}<a class="btn btn-ghost btn-sm" href="https://wa.me/{{ m.telefono|cut:'+'|cut:' '|cut:'-' }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i> WhatsApp</a>{% endif %}
+            <button type="button" class="btn btn-ghost btn-sm" data-marcar-no-leido><i class="bi bi-envelope me-1"></i> Marcar como no leído</button>
+          </div>
+          {% if m.pagina %}<div class="cell-sub mt-2">Escribió desde: {{ m.pagina }}</div>{% endif %}
+        </div>
+      </details>
+    {% empty %}
+      <div class="empty-cell p-4">No hay mensajes{% if filtro or q %} con este filtro{% endif %}.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    if (document.body.dataset.mensajesListo) return
+    document.body.dataset.mensajesListo = '1'
+    function csrf() { var m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : '' }
+    function marcar(el, valor) {
+      fetch(el.dataset.leidoUrl, { method: 'POST', headers: { 'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'valor=' + valor })
+      el.classList.toggle('nuevo', valor === '0')
+    }
+    // Abrir un mensaje lo marca como leído.
+    document.body.addEventListener('toggle', function (e) {
+      var el = e.target
+      if (el.classList && el.classList.contains('msj') && el.open && el.classList.contains('nuevo')) marcar(el, '1')
+    }, true)
+    document.body.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-marcar-no-leido]')
+      if (!b) return
+      var el = b.closest('.msj')
+      marcar(el, '0')
+      el.open = false
+    })
+  })()
+</script>
+{% endblock %}

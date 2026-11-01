@@ -17,6 +17,7 @@
         <span class="badge-soft gray"><i class="bi bi-info-circle"></i> Solo para consultar</span>
       </div>
 
+      {% if not h.solo_perfil %}
       <div class="hwp-resumen">
         <div class="hwp-dato">
           <span class="hwp-num">{{ h.compras }}</span>
@@ -48,10 +49,22 @@
           </div>
         {% endif %}
       </div>
+      {% endif %}
+
+      {% if h.perfil %}
+        <div class="hwp-perfil">
+          <div><span>Se registró</span><b>{{ h.perfil.registrado|date:'d-m-Y'|default:'—' }}</b></div>
+          <div><span>Última actividad</span><b>{{ h.perfil.ultima_actividad|date:'d-m-Y'|default:'—' }}</b></div>
+          <div><span>Veces que entró</span><b>{{ h.perfil.ingresos|default:'—' }}</b>{% if h.perfil.ultimo_ingreso %}<small>última: {{ h.perfil.ultimo_ingreso }}</small>{% endif %}</div>
+          {% if h.perfil.facturacion %}<div class="ancho"><span>Facturación</span><b>{{ h.perfil.facturacion.nombre|default:'—' }}</b><small>{{ h.perfil.facturacion.lugar }}{% if h.perfil.facturacion.telefono %} · {{ h.perfil.facturacion.telefono }}{% endif %}</small></div>{% endif %}
+          {% if h.perfil.despacho %}<div class="ancho"><span>Despacho</span><b>{{ h.perfil.despacho.nombre|default:'—' }}</b><small>{{ h.perfil.despacho.lugar }}</small></div>{% endif %}
+        </div>
+      {% endif %}
     </div>
 
+    {% if h.registros %}
     <details class="hwp-detalle">
-      <summary><i class="bi bi-chevron-right"></i> Ver el detalle <span class="cell-sub">({{ h.registros|length }})</span></summary>
+      <summary><i class="bi bi-chevron-right"></i> Ver compras y accesos <span class="cell-sub">({{ h.registros|length }})</span></summary>
       <div class="table-responsive">
         <table class="table pnl-table mb-0">
           <thead><tr><th>Fecha</th><th>Qué</th><th>Producto</th><th>Estado</th><th class="text-end">Monto</th></tr></thead>
@@ -68,6 +81,12 @@
                 <td>
                   {{ r.producto }}
                   {% if r.extra %}<div class="cell-sub">{{ r.extra }}</div>{% endif %}
+                  {% if r.notas_legibles %}
+                    <details class="hwp-notas">
+                      <summary>{{ r.notas_legibles|length }} nota{{ r.notas_legibles|pluralize }} del pedido</summary>
+                      <ul>{% for f, texto in r.notas_legibles %}<li><span>{{ f|date:'d-m-Y H:i' }}</span> {{ texto }}</li>{% endfor %}</ul>
+                    </details>
+                  {% endif %}
                 </td>
                 <td>
                   {% if r.pagado or r.estado == 'Activa' or r.estado == 'Vigente' %}<span class="badge-soft green">{{ r.estado }}</span>
@@ -81,5 +100,26 @@
         </table>
       </div>
     </details>
+    {% endif %}
+
+    {% if h.correos %}
+    <details class="hwp-detalle">
+      <summary><i class="bi bi-chevron-right"></i> Correos que recibió <span class="cell-sub">({{ h.correos|length }})</span></summary>
+      <div class="table-responsive">
+        <table class="table pnl-table mb-0">
+          <thead><tr><th>Fecha</th><th>Asunto</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for c in h.correos %}
+              <tr>
+                <td class="cell-sub" style="white-space:nowrap">{{ c.fecha|date:'d-m-Y H:i' }}</td>
+                <td>{{ c.detalle }}</td>
+                <td>{% if c.estado == 'Enviado' %}<span class="badge-soft green">Enviado</span>{% else %}<span class="badge-soft red">{{ c.estado }}</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+    {% endif %}
   </div>
 </div>

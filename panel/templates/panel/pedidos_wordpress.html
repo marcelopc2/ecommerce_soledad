@@ -1,0 +1,66 @@
+{% extends 'panel/base.html' %}
+{% load humanize %}
+
+{% block title %}Pedidos de la página anterior{% endblock %}
+{% block crumb %}Pedidos{% endblock %}
+{% block heading %}Pedidos de la página anterior{% endblock %}
+
+{% block content %}
+{% comment %}
+  Los pedidos de WordPress, traídos con historial_desde_wordpress. Solo para
+  consultar: no se cobran, no se despachan ni se les emite boleta desde acá.
+{% endcomment %}
+<div class="d-flex gap-2 mfilter-group pnl-filtros">
+  <a class="mfilter-pill{% if not ver %} active{% endif %}" href="?q={{ q|urlencode }}">Todos ({{ conteos.todos }})</a>
+  <a class="mfilter-pill green{% if ver == 'pagados' %} active{% endif %}" href="?q={{ q|urlencode }}&amp;ver=pagados">{{ conteos.pagados }} pagados · ${{ total|intcomma }}</a>
+  <a class="mfilter-pill teal{% if ver == 'renovaciones' %} active{% endif %}" href="?q={{ q|urlencode }}&amp;ver=renovaciones">{{ conteos.renovaciones }} renovaciones</a>
+  <a class="mfilter-pill red{% if ver == 'fallidos' %} active{% endif %}" href="?q={{ q|urlencode }}&amp;ver=fallidos">{{ conteos.fallidos }} cobros fallidos</a>
+</div>
+
+<div class="pnl-card">
+  <div class="pnl-toolbar">
+    <form class="pnl-search" method="get">
+      <i class="bi bi-search"></i>
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por correo, producto o número de pedido…">
+      {% if ver %}<input type="hidden" name="ver" value="{{ ver }}">{% endif %}
+    </form>
+    <span class="badge-soft gray ms-auto"><i class="bi bi-info-circle"></i> Solo para consultar</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table pnl-table mb-0">
+      <thead><tr><th>Fecha</th><th>Pedido</th><th>Cliente</th><th>Producto</th><th>Estado</th><th class="text-end">Monto</th></tr></thead>
+      <tbody>
+        {% for r in pagina %}
+          <tr>
+            <td class="cell-sub" style="white-space:nowrap">{{ r.fecha|date:'d-m-Y H:i' }}</td>
+            <td><span class="cell-sub">#{{ r.wp_id }}</span><div><span class="badge-soft {% if r.tipo == 'COMPRA' %}purple{% elif r.tipo == 'RENOVACION' %}teal{% else %}green{% endif %}">{{ r.get_tipo_display }}</span></div></td>
+            <td>{% if r.ficha %}<a href="{% url 'panel:membership_detail' r.ficha %}">{{ r.email }}</a>{% else %}{{ r.email }}{% endif %}</td>
+            <td>
+              {{ r.detalle|default:'—' }}{% if r.medio_pago %}<div class="cell-sub">{{ r.medio_pago }}</div>{% endif %}
+              {% if r.notas_legibles %}
+                <details class="hwp-notas">
+                  <summary>{{ r.notas_legibles|length }} nota{{ r.notas_legibles|pluralize }} del pedido</summary>
+                  <ul>{% for f, texto in r.notas_legibles %}<li><span>{{ f|date:'d-m-Y H:i' }}</span> {{ texto }}</li>{% endfor %}</ul>
+                </details>
+              {% endif %}
+            </td>
+            <td>{% if r.pagado %}<span class="badge-soft green">{{ r.estado }}</span>{% elif r.estado == 'Falló el pago' or r.estado == 'Cancelado' %}<span class="badge-soft red">{{ r.estado }}</span>{% else %}<span class="badge-soft gray">{{ r.estado }}</span>{% endif %}</td>
+            <td class="text-end fw-semibold">${{ r.monto|intcomma }}</td>
+          </tr>
+        {% empty %}
+          <tr class="no-hover"><td colspan="6" class="empty-cell">No hay pedidos de la página anterior{% if q or ver %} con este filtro{% endif %}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagina.has_other_pages %}
+    <div class="card-pad d-flex justify-content-between align-items-center">
+      <span class="cell-sub">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+      <div class="d-flex gap-2">
+        {% if pagina.has_previous %}<a class="btn btn-ghost btn-sm" href="?q={{ q|urlencode }}&amp;ver={{ ver }}&amp;page={{ pagina.previous_page_number }}">Anterior</a>{% endif %}
+        {% if pagina.has_next %}<a class="btn btn-ghost btn-sm" href="?q={{ q|urlencode }}&amp;ver={{ ver }}&amp;page={{ pagina.next_page_number }}">Siguiente</a>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -181,7 +181,10 @@ def dashboard(request):
 
     # Lo que hay que HACER hoy, con el botón que lleva directo a resolverlo.
     # Solo se muestran los que tienen algo: una bandeja con ceros es ruido.
+    from catalog.models import MensajeContacto
     pendientes = [p for p in [
+        (MensajeContacto.objects.filter(leido=False).count(), 'bi-chat-left-text', 'Mensajes sin leer',
+         'Llegaron por el formulario de contacto de la portada.', reverse('panel:mensajes') + '?ver=sin_leer', 'purple'),
         (Order.objects.filter(ORDERS_POR_DESPACHAR).count(), 'bi-truck', 'Pedidos por despachar',
          'Pagados con envío que todavía no salen.', reverse('panel:orders') + '?estado=por_despachar', 'yellow'),
         (Order.objects.filter(ORDERS_SIN_BOLETA).count(), 'bi-receipt', 'Boletas sin emitir',
@@ -744,11 +747,19 @@ def _historial_wp(m):
     que se le cortó el acceso; cada tramo después del primero, una vez que volvió.
     """
     from datetime import timedelta as _td
-    from lms.models import HistorialWordPress as H
+    from lms.models import HistorialWordPress as H, PerfilWordPress
 
-    registros = list(H.objects.filter(email__iexact=_correo_de(m)))
-    if not registros:
+    todo = list(H.objects.filter(email__iexact=_correo_de(m)))
+    # Los correos van en su propia lista: son muchos (uno por cada aviso de
+    # modelo nuevo) y en la tabla taparían las compras.
+    correos = sorted((r for r in todo if r.tipo == H.CORREO), key=lambda r: r.fecha, reverse=True)
+    registros = [r for r in todo if r.tipo != H.CORREO]
+    perfil = PerfilWordPress.objects.filter(email__iexact=_correo_de(m)).first()
+    if not registros and not correos and not perfil:
         return None
+    datos = _perfil_legible(perfil.datos) if perfil else None
+    if not registros:
+        return {'registros': [], 'correos': correos, 'perfil': datos, 'solo_perfil': True}
 
     # Para la tabla: lo más nuevo arriba y, el mismo día, la compra antes que
     # el periodo que abrió. Los periodos de cero días son el rastro de un
@@ -763,6 +774,7 @@ def _historial_wp(m):
         producto, _, cada = r.detalle.partition(' · ')
         r.producto = producto or '—'
         r.extra = ' · '.join(x for x in (cada, r.medio_pago) if x)
+        r.notas_legibles = [(_fecha_iso(f), t) for f, t in (r.notas or []) if t]
     compras = [r for r in registros if r.tipo in (H.COMPRA, H.RENOVACION, H.RESUSCRIPCION)]
     pagadas = [r for r in compras if r.pagado]
     ahora = timezone.now()
@@ -786,6 +798,35 @@ def _historial_wp(m):
         'reactivaciones': max(len(tramos) - 1, 0),
         'desde': min(r.fecha for r in registros),
         'ultima_compra': max((r.fecha for r in pagadas), default=None),
+        'correos': correos,
+        'perfil': datos,
+    }
+
+
+def _fecha_iso(texto):
+    """'2025-07-07 14:32:21' o ISO -> datetime (o None). Para fechas guardadas como texto en JSON."""
+    from django.utils.dateparse import parse_datetime
+    try:
+        return parse_datetime((texto or '').replace(' ', 'T', 1)) if texto else None
+    except ValueError:
+        return None
+
+
+def _perfil_legible(datos):
+    """Los datos de PerfilWordPress listos para la ficha."""
+    def direccion(d):
+        if not d:
+            return None
+        nombre = ' '.join(x for x in (d.get('first_name'), d.get('last_name')) if x)
+        lugar = ', '.join(x for x in (d.get('address_1'), d.get('address_2'), d.get('city'), d.get('state')) if x)
+        return {'nombre': nombre, 'lugar': lugar, 'telefono': d.get('phone', '')}
+    return {
+        'registrado': _fecha_iso(datos.get('registrado')),
+        'ultima_actividad': _fecha_iso(datos.get('ultima_actividad')),
+        'ingresos': datos.get('ingresos'),
+        'ultimo_ingreso': datos.get('ultimo_ingreso'),
+        'facturacion': direccion(datos.get('facturacion')),
+        'despacho': direccion(datos.get('despacho')),
     }
 
 
@@ -3239,3 +3280,72 @@ def buscar(request):
             for c in Coupon.objects.filter(code__icontains=q)[:3]]))
         grupos = [g for g in grupos if g[2]]
     return render(request, 'panel/partials/buscar_resultados.html', {'q': q, 'grupos': grupos})
+
+
+@staff_required
+def mensajes(request):
+    """Lo que llegó por el formulario de contacto: los del sitio nuevo y los de
+    la página anterior. Abrir uno lo marca como leído."""
+    from catalog.models import MensajeContacto
+    filtro = request.GET.get('ver', '')
+    items = MensajeContacto.objects.all()
+    if filtro == 'sin_leer':
+        items = items.filter(leido=False)
+    q = request.GET.get('q', '').strip()
+    if q:
+        items = busqueda.filtrar(items, q, campos=('nombre', 'email', 'mensaje', 'motivo'), telefonos=('telefono',))
+    return render(request, 'panel/mensajes.html', {
+        'items': items[:300], 'filtro': filtro, 'q': q,
+        'sin_leer': MensajeContacto.objects.filter(leido=False).count(),
+        'total': MensajeContacto.objects.count(),
+        'section': 'mensajes',
+    })
+
+
+@staff_required
+@require_POST
+def mensaje_leido(request, pk):
+    from catalog.models import MensajeContacto
+    MensajeContacto.objects.filter(pk=pk).update(leido=request.POST.get('valor', '1') == '1')
+    return HttpResponse(status=204)
+
+
+@staff_required
+def pedidos_wordpress(request):
+    """Los pedidos de la página anterior, todos juntos (en la ficha de cada
+    familia se ven solo los suyos). Solo para consultar."""
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    from lms.models import HistorialWordPress as H
+    base = H.objects.filter(tipo__in=(H.COMPRA, H.RENOVACION, H.RESUSCRIPCION))
+    q = request.GET.get('q', '').strip()
+    ver = request.GET.get('ver', '')
+    if q:
+        base = base.filter(Q(email__icontains=q) | Q(detalle__icontains=q) | Q(wp_id__icontains=q.lstrip('#')))
+    conteos = {
+        'todos': base.count(),
+        'pagados': base.filter(pagado=True).count(),
+        'fallidos': base.filter(estado='Falló el pago').count(),
+        'renovaciones': base.filter(tipo=H.RENOVACION).count(),
+    }
+    items = base
+    if ver == 'pagados':
+        items = items.filter(pagado=True)
+    elif ver == 'fallidos':
+        items = items.filter(estado='Falló el pago')
+    elif ver == 'renovaciones':
+        items = items.filter(tipo=H.RENOVACION)
+    total = sum(base.filter(pagado=True).values_list('monto', flat=True))
+    paginador = Paginator(items.order_by('-fecha'), 50)
+    try:
+        pagina = paginador.page(int(request.GET.get('page', 1)))
+    except (ValueError, EmptyPage, PageNotAnInteger):
+        pagina = paginador.page(1)
+    fichas = dict(Membership.objects.annotate(_c=Lower('user__email'))
+                  .filter(_c__in={r.email for r in pagina}).values_list('_c', 'pk'))
+    for r in pagina:
+        r.ficha = fichas.get(r.email)
+        r.notas_legibles = [(_fecha_iso(f), t) for f, t in (r.notas or []) if t]
+    return render(request, 'panel/pedidos_wordpress.html', {
+        'pagina': pagina, 'conteos': conteos, 'total': total, 'q': q, 'ver': ver,
+        'section': 'pedidos-wp',
+    })

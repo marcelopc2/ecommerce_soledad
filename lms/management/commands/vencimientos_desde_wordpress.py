@@ -17,8 +17,17 @@ por fuera de WooCommerce. La fecha buena estaba en el tercer lugar.
 Orden de preferencia
 --------------------
 1. `_schedule_end` de la suscripción; si tiene varias, la más lejana.
-2. El `enddate` de PMPro, que es lo que trae quien ya se dio de baja.
-3. Si no hay ninguna de las dos, se deja "sin vencimiento" y no se inventa nada.
+   Las que se cobran solas (activas y sin término) no tienen `_schedule_end`:
+   para esas vale `_schedule_next_payment`, que es hasta cuándo ya pagaron.
+   Sin esto, las familias que pagan cada mes quedaban vencidas.
+2. El `enddate` de una fila ACTIVA de PMPro, si es más lejano: es lo que queda
+   cuando la tienda le extendió el acceso a mano a alguien.
+3. El `enddate` de PMPro de cualquier fila, para quien ya se dio de baja.
+4. Si no hay ninguna, se deja "sin vencimiento" y no se inventa nada.
+
+La suscripción se asigna a la CUENTA que la compró (customer_id) y solo si no
+hay cuenta al correo de facturación: hay familias que facturan con otro correo,
+y su plan quedaba asignado a un correo que no es el de su cuenta.
 
     python manage.py vencimientos_desde_wordpress --dump volcado.sql
     python manage.py vencimientos_desde_wordpress --dump volcado.sql --aplicar
@@ -78,7 +87,8 @@ class Command(BaseCommand):
         self.stdout.write('  %d correos con alguna fecha utilizable' % len(fechas))
 
         cambios, sin_dato = [], []
-        for m in Membership.objects.select_related('user'):
+        # Las cuentas de gestión no se tocan: ven todo igual y su membresía es de prueba.
+        for m in Membership.objects.select_related('user').filter(user__is_staff=False):
             correo = (m.user.email or m.user.username or '').lower().strip()
             nueva, origen = fechas.get(correo, (None, ''))
             if nueva is None:
@@ -109,7 +119,7 @@ class Command(BaseCommand):
 
     def _fechas_por_correo(self, ruta):
         """{correo: (fecha, de_dónde_salió)} con la mejor fuente disponible."""
-        pedidos, fin_sub, correo_de, pmpro = [], {}, {}, []
+        pedidos, fin_sub, proximo_cobro, correo_de, pmpro = [], {}, {}, {}, []
 
         def f_pedido(f):
             pedidos.append(f)
@@ -117,6 +127,8 @@ class Command(BaseCommand):
         def f_meta(f):
             if f.get('meta_key') == '_schedule_end':
                 fin_sub[f.get('order_id')] = f.get('meta_value')
+            elif f.get('meta_key') == '_schedule_next_payment':
+                proximo_cobro[f.get('order_id')] = f.get('meta_value')
 
         def f_usuario(f):
             c = (f.get('user_email') or '').lower().strip()
@@ -136,30 +148,36 @@ class Command(BaseCommand):
         # 1) el término que puso el sitio viejo al comprar
         por_sub = {}
         for o in pedidos:
-            if o.get('type') != 'shop_subscription':
+            if o.get('type') != 'shop_subscription' or o.get('status') == 'trash':
                 continue
             f = _fecha(fin_sub.get(o['id']))
+            if not f and o.get('status') == 'wc-active':
+                f = _fecha(proximo_cobro.get(o['id']))
             if not f:
                 continue
-            c = ((o.get('billing_email') or '').lower().strip()
-                 or correo_de.get(o.get('customer_id'), ''))
+            c = (correo_de.get(o.get('customer_id'), '')
+                 or (o.get('billing_email') or '').lower().strip())
             # La más lejana: quien renovó tiene varias suscripciones y la que
             # manda es la última, no la primera.
             if c and (c not in por_sub or f > por_sub[c]):
                 por_sub[c] = f
 
         # 2) lo que declare PMPro, para quien ya se dio de baja
-        fin_pmpro = {}
+        fin_pmpro, fin_pmpro_activo = {}, {}
         for r in pmpro:
             c = correo_de.get(r.get('user_id'))
             f = _fecha(r.get('enddate'))
             if c and f and (c not in fin_pmpro or f > fin_pmpro[c]):
                 fin_pmpro[c] = f
+            if c and f and r.get('status') == 'active' and (c not in fin_pmpro_activo or f > fin_pmpro_activo[c]):
+                fin_pmpro_activo[c] = f
 
         fechas = {}
         for c in set(por_sub) | set(fin_pmpro):
             if c in por_sub:
                 fechas[c] = (por_sub[c], 'término de la suscripción')
+                if c in fin_pmpro_activo and fin_pmpro_activo[c] > por_sub[c]:
+                    fechas[c] = (fin_pmpro_activo[c], 'extendido a mano en PMPro')
             else:
                 fechas[c] = (fin_pmpro[c], 'fin en PMPro')
         return fechas

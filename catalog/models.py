@@ -2,6 +2,7 @@ import re
 
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.utils import timezone
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -805,3 +806,34 @@ class GanadorConcurso(models.Model):
 
     def __str__(self):
         return f'{self.nombre} ({self.categoria})'
+
+
+class MensajeContacto(models.Model):
+    """Un mensaje del formulario de contacto de la portada.
+
+    Antes solo se mandaba por correo: si el correo fallaba o se perdía en la
+    bandeja, no quedaba rastro. Ahora queda guardado y se ve en el panel
+    (Correos → Mensajes recibidos). También se traen los de la página anterior.
+    """
+    SITIO = 'SITIO'
+    WORDPRESS = 'WORDPRESS'
+    ORIGENES = [(SITIO, 'Sitio nuevo'), (WORDPRESS, 'Página anterior')]
+
+    nombre = models.CharField(max_length=200, blank=True)
+    email = models.EmailField()
+    telefono = models.CharField(max_length=40, blank=True)
+    motivo = models.CharField(max_length=120, blank=True)
+    mensaje = models.TextField(blank=True)
+    pagina = models.CharField(max_length=300, blank=True, help_text='Desde dónde escribió')
+    origen = models.CharField(max_length=10, choices=ORIGENES, default=SITIO)
+    wp_id = models.PositiveBigIntegerField(null=True, blank=True, unique=True)
+    leido = models.BooleanField(default=False)
+    creado = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-creado']
+        verbose_name = 'mensaje de contacto'
+        verbose_name_plural = 'mensajes de contacto'
+
+    def __str__(self):
+        return f'{self.email} · {self.creado:%d-%m-%Y}'

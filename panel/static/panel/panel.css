@@ -1444,3 +1444,38 @@ body.login-body {
 
 .pnl-plegable > summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--purple-600); }
 .pnl-plegable > summary span { font-weight: 500; color: var(--muted); font-size: 12.5px; }
+
+/* Historial: datos del perfil de la página anterior y notas de cada pedido. */
+.hwp-perfil { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 12px; }
+.hwp-perfil > div { display: flex; flex-direction: column; gap: 1px; padding: 10px 12px; border-radius: 12px; border: 1px dashed #e2d9ef; }
+.hwp-perfil > div.ancho { grid-column: span 2; }
+.hwp-perfil span { font-size: 11.5px; color: #a39bb0; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+.hwp-perfil b { font-size: 14px; color: var(--ink); }
+.hwp-perfil small { font-size: 12.5px; color: var(--muted); }
+.hwp-notas { margin-top: 6px; }
+.hwp-notas summary { cursor: pointer; font-size: 12px; color: var(--purple-600); font-weight: 600; }
+.hwp-notas ul { margin: 6px 0 0; padding-left: 16px; font-size: 12.5px; color: #4b4257; max-width: 520px; }
+.hwp-notas li { margin-bottom: 4px; }
+.hwp-notas li span { color: #a39bb0; font-size: 11.5px; margin-right: 4px; }
+@media (max-width: 600px) { .hwp-perfil > div.ancho { grid-column: auto; } }
+
+/* ---------- Mensajes recibidos ---------- */
+.msj { border-top: 1px solid var(--line); }
+.msj > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 12px minmax(160px, 240px) 1fr auto; gap: 14px;
+  align-items: center; padding: 14px 20px; }
+.msj > summary::-webkit-details-marker { display: none; }
+.msj > summary:hover { background: #faf8fc; }
+.msj-punto { width: 9px; height: 9px; border-radius: 50%; background: transparent; }
+.msj.nuevo .msj-punto { background: var(--purple-500); }
+.msj.nuevo .msj-quien b { color: var(--purple-600); }
+.msj-quien { display: flex; flex-direction: column; min-width: 0; }
+.msj-quien small, .msj-fecha small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msj-extracto { color: #4b4257; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msj-fecha { display: flex; flex-direction: column; align-items: flex-end; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.msj-cuerpo { padding: 0 20px 18px 46px; }
+.msj-cuerpo p { background: #faf8fc; border-radius: 12px; padding: 12px 14px; color: var(--ink); max-width: 760px; }
+@media (max-width: 700px) {
+  .msj > summary { grid-template-columns: 12px 1fr auto; }
+  .msj-extracto { display: none; }
+  .msj-cuerpo { padding-left: 20px; }
+}

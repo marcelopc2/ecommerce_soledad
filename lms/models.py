@@ -695,12 +695,14 @@ class HistorialWordPress(models.Model):
     RESUSCRIPCION = 'RESUSCRIPCION'
     SUSCRIPCION = 'SUSCRIPCION'
     PERIODO = 'PERIODO'
+    CORREO = 'CORREO'
     TIPO_CHOICES = [
         (COMPRA, 'Compra'),
         (RENOVACION, 'Renovación automática'),
         (RESUSCRIPCION, 'Volvió a suscribirse'),
         (SUSCRIPCION, 'Suscripción'),
         (PERIODO, 'Periodo de acceso'),
+        (CORREO, 'Correo enviado'),
     ]
 
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
@@ -713,6 +715,9 @@ class HistorialWordPress(models.Model):
     monto = models.PositiveIntegerField(default=0)
     detalle = models.CharField(max_length=300, blank=True)
     medio_pago = models.CharField(max_length=60, blank=True)
+    # Pedidos: las notas que WooCommerce le fue dejando (estados de Shipit,
+    # respuesta de Transbank, errores de cobro), como [[fecha iso, texto], ...].
+    notas = models.JSONField(default=list, blank=True)
 
     class Meta:
         ordering = ['-fecha']
@@ -722,3 +727,22 @@ class HistorialWordPress(models.Model):
 
     def __str__(self):
         return f'{self.email} · {self.get_tipo_display()} {self.fecha:%d-%m-%Y}'
+
+
+class PerfilWordPress(models.Model):
+    """Lo que la página anterior sabía de una familia y no tiene un lugar propio
+    acá: direcciones de facturación y despacho, cuándo se registró, cuándo fue
+    su última actividad y cuántas veces entró. Solo para consultar en la ficha.
+
+    Por correo y no por usuario, igual que HistorialWordPress: sobrevive a la
+    reimportación, que borra y vuelve a crear las cuentas de alumnos.
+    """
+    email = models.EmailField(unique=True)
+    datos = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = 'perfil de WordPress'
+        verbose_name_plural = 'perfiles de WordPress'
+
+    def __str__(self):
+        return self.email
