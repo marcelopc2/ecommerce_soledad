@@ -34,7 +34,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'requires_login', 'acepta_cupones', 'es_suscripcion', 'access_months',
             # presentación en la landing
             'show_on_landing', 'landing_order', 'landing_badge',
-            'price_note', 'features_list', 'highlight',
+            'price_note', 'texto_boton', 'features_list', 'highlight',
         ]
 
 class FAQSerializer(serializers.ModelSerializer):

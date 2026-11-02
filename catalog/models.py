@@ -95,6 +95,11 @@ class Product(models.Model):
     price_note = models.CharField(
         max_length=40, blank=True, default='', help_text="Nota junto al precio, ej: '/ pago único'",
     )
+    #: Lo que dice el botón de compra de la tarjeta. Vacío = "comprar <nombre>".
+    texto_boton = models.CharField(
+        max_length=40, blank=True, default='',
+        help_text="Texto del botón de compra. Vacío: 'comprar' + el nombre del producto.",
+    )
     features = models.TextField(
         blank=True, default='', help_text="Beneficios de la tarjeta, uno por línea",
     )

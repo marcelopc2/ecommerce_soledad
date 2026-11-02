@@ -78,7 +78,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'is_on_sale', 'sale_price', 'is_coming_soon', 'requires_login',
             'acepta_cupones', 'es_suscripcion',
             # cómo se ve la tarjeta en la portada
-            'landing_badge', 'price_note', 'features', 'highlight',
+            'landing_badge', 'price_note', 'texto_boton', 'features', 'highlight',
         ]
         # Etiquetas CORTAS: la explicación va en el globo de ayuda (ⓘ) del
         # template, no dentro del nombre del campo.
@@ -103,6 +103,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'es_suscripcion': 'Suscripción (cobro automático)',
             'landing_badge': 'Etiqueta',
             'price_note': 'Nota del precio',
+            'texto_boton': 'Texto del botón',
             'features': 'Beneficios',
             'highlight': 'Destacar',
         }
@@ -113,6 +114,7 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
             'features': forms.Textarea(attrs={'rows': 5, 'placeholder': 'Acceso al aula virtual por 6 meses.\n24 modelos (1 cada semana).\nCertificado de aprobación.'}),
             'landing_badge': forms.TextInput(attrs={'placeholder': 'pago único'}),
             'price_note': forms.TextInput(attrs={'placeholder': '/ pago único'}),
+            'texto_boton': forms.TextInput(attrs={'placeholder': 'comprar + nombre del producto'}),
         }
 
     def __init__(self, *args, **kwargs):

@@ -573,7 +573,7 @@ function KitCard({ product, onBuy }) {
       <div className="lp-card-footer">
         <PriceBlock product={product} />
         <button className="lp-btn-yellow lp-btn-cta lp-btn-card" disabled={soon} onClick={() => onBuy(product)}>
-          {soon ? 'Próximamente' : needsLogin ? 'inicia sesión para comprar' : `comprar ${product.name}`}
+          {soon ? 'Próximamente' : needsLogin ? 'inicia sesión para comprar' : (product.texto_boton || `comprar ${product.name}`)}
         </button>
       </div>
     </article>
@@ -602,7 +602,7 @@ function KitWide({ product, onBuy }) {
       <div className="lp-oferta-buy">
         <PriceBlock product={product} extraClass="lp-oferta-price" />
         <button className="lp-btn-yellow lp-btn-cta lp-btn-card" disabled={soon} onClick={() => onBuy(product)}>
-          {soon ? 'Próximamente' : needsLogin ? 'inicia sesión para comprar' : `comprar ${product.name}`}
+          {soon ? 'Próximamente' : needsLogin ? 'inicia sesión para comprar' : (product.texto_boton || `comprar ${product.name}`)}
         </button>
       </div>
     </article>

@@ -169,6 +169,20 @@
             </label>
             {{ form.price_note }}
           </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">
+              {{ form.texto_boton.label }}
+              <span class="pnl-ayuda" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <span class="pnl-ayuda-globo">
+                  Lo que dice el botón amarillo de la tarjeta, por ejemplo
+                  «quiero mi kit». Si lo dejas vacío dice «comprar» y el nombre
+                  del producto.
+                </span>
+              </span>
+            </label>
+            {{ form.texto_boton }}
+          </div>
         </div>
         <div class="mb-3">
           <label class="form-label">
