@@ -195,7 +195,13 @@ def _armar_y_mandar(plantilla, asunto, destinatarios, contexto, reply_to,
         headers=cabeceras,
     )
     msg.attach_alternative(cuerpo_html, 'text/html')   # parte HTML
-    msg.send(fail_silently=fail_silently)
+    enviados = msg.send(fail_silently=fail_silently)
+    # Con fail_silently el error de SMTP se traga y send() devuelve 0: sin
+    # esto, si Gmail rechaza la clave dejan de salir TODOS los correos y nadie
+    # se entera. Como error, además, llega por Telegram (core/alertas.py).
+    if fail_silently and not enviados:
+        log.error('CORREO NO SALIÓ: plantilla=%s asunto=%r a %s. Revisar el servidor de correo '
+                  '(¿cambió la clave de la cuenta?)', plantilla, asunto, destinatarios)
     return msg
 
 

@@ -159,6 +159,9 @@ def registrar_pago(preapproval, payment, entregar):
                 s.ultimo_error = 'Mercado Pago rechazó el cobro (lo reintenta solo)'
                 s.save(update_fields=['intentos_fallidos', 'ultimo_error'])
                 log.info('Suscripción %s: Mercado Pago rechazó el pago %s', s.pk, pago_id)
+                from core.alertas import avisar, clp
+                avisar(f'⚠️ Mercado Pago rechazó el cobro de {s.email} ({clp(s.monto)}). '
+                       f'Mercado Pago lo reintenta solo.')
             return None
 
         monto = int(payment.get('transaction_amount') or 0)

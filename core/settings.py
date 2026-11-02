@@ -28,7 +28,7 @@ CLAVES_DE_SERVICIOS_REALES = (
     'TBK_API_KEY_ID', 'TBK_API_KEY_SECRET', 'TBK_ENVIRONMENT', 'TBK_ONECLICK_TIENDA',
     'TBK_WEBPAY_CODIGO', 'TBK_WEBPAY_LLAVE', 'TBK_WEBPAY_AMBIENTE',
     'MP_ACCESS_TOKEN', 'SHIPIT_EMAIL', 'SHIPIT_TOKEN', 'OPENFACTURA_API_KEY',
-    'EMAIL_HOST_PASSWORD',
+    'EMAIL_HOST_PASSWORD', 'TELEGRAM_BOT_TOKEN',
 )
 if MODO_LOCAL and os.environ.get('PERMITIR_SERVICIOS_REALES_EN_LOCAL') != '1':
     for _clave in CLAVES_DE_SERVICIOS_REALES:
@@ -460,6 +460,21 @@ LOG_DIR = Path(os.environ.get('LOG_DIR', BASE_DIR / 'logs'))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
+# Alertas por Telegram (core/alertas.py). Sin las dos, no se manda nada.
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
+
+# El caché por defecto sigue en memoria. El de las alertas va en disco porque
+# lo comparten los procesos del sitio y los cron: es lo que evita avisar el
+# mismo problema cada vez que corre `vigilar_sitio`.
+CACHES = {
+    'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'},
+    'alertas': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': str(LOG_DIR / 'cache_alertas'),
+    },
+}
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -482,6 +497,11 @@ LOGGING = {
             'formatter': 'detallado',
             'encoding': 'utf-8',
         },
+        # Los errores llegan por Telegram a quien mantiene el sitio (core/alertas.py).
+        'telegram': {
+            'class': 'core.alertas.ManejadorTelegram',
+            'level': 'ERROR',
+        },
         'archivo_pagos': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': LOG_DIR / 'pagos.log',
@@ -492,19 +512,19 @@ LOGGING = {
         },
     },
     'root': {
-        'handlers': ['consola', 'archivo'],
+        'handlers': ['consola', 'archivo', 'telegram'],
         'level': LOG_LEVEL,
     },
     'loggers': {
         # Todo lo que toca plata o entrega de producto: se guarda aparte y
         # nunca se propaga al log general para que no se pierda entre el ruido.
         'ingenioblocks.pagos': {
-            'handlers': ['consola', 'archivo_pagos'],
+            'handlers': ['consola', 'archivo_pagos', 'telegram'],
             'level': 'INFO',
             'propagate': False,
         },
         'django.request': {
-            'handlers': ['consola', 'archivo'],
+            'handlers': ['consola', 'archivo', 'telegram'],
             'level': 'ERROR',
             'propagate': False,
         },

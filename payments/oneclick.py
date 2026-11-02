@@ -269,12 +269,24 @@ def cobrar_suscripcion(suscripcion, entregar):
         log.info('Suscripción %s: cobro rechazado (%s de %s)', suscripcion.pk,
                  suscripcion.intentos_fallidos, Suscripcion.INTENTOS_MAXIMOS)
         avisar_cobro_rechazado(suscripcion)
+        from core.alertas import avisar, clp
+        if suscripcion.estado == Suscripcion.SUSPENDIDA:
+            avisar(f'⛔ Suscripción SUSPENDIDA tras {Suscripcion.INTENTOS_MAXIMOS} rechazos: '
+                   f'{suscripcion.email} ({clp(suscripcion.monto)}). Ya no se le cobra; '
+                   f'a la familia le llegó el aviso.')
+        else:
+            avisar(f'⚠️ Cobro rechazado: {suscripcion.email} ({clp(suscripcion.monto)}), intento '
+                   f'{suscripcion.intentos_fallidos} de {Suscripcion.INTENTOS_MAXIMOS}. Se reintenta el '
+                   f'{suscripcion.proximo_cobro:%d-%m}.')
     else:
         # No se sabe si se cobró: se suspende hasta que alguien lo revise en el
         # portal de Transbank. Seguir cobrando podía cobrarle dos veces el mes.
         suscripcion.estado = Suscripcion.SUSPENDIDA
         suscripcion.ultimo_error = 'No se supo si el cobro pasó: revisar en Transbank'
         suscripcion.save()
+        log.error('REVISAR A MANO: no se supo si se cobró la suscripción %s (%s, $%s, orden %s). '
+                  'Quedó suspendida: confirmar en el portal de Transbank.',
+                  suscripcion.pk, suscripcion.email, suscripcion.monto, order.order_id)
 
     return order, resultado
 

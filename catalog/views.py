@@ -132,6 +132,13 @@ class ContactView(APIView):
             nombre=nombre_completo[:200], email=data['email'], telefono=(data.get('telefono') or '')[:40],
             mensaje=data.get('comentarios') or '', pagina=(request.META.get('HTTP_REFERER') or '')[:300],
         )
+        from core.alertas import avisar
+        avisar(
+            f"💬 Mensaje nuevo de {nombre_completo}\n{data['email']}"
+            f"{' · ' + data['telefono'] if data.get('telefono') else ''}\n\n"
+            f"{(data.get('comentarios') or '(sin texto)')[:1500]}\n\n"
+            f"Responder desde el panel: {settings.FRONTEND_URL}/gestion/mensajes/"
+        )
 
         try:
             # fail_silently=False acá a propósito: a diferencia de los correos
