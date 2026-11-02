@@ -76,10 +76,19 @@ class Command(BaseCommand):
             problema = revisar()
             marca = f'vigilar:{clave}:caido'
             if problema:
-                estado.set(marca, problema, None)
                 avisar(f'🔴 {problema} ({hora()})', firma=f'vigilar:{clave}')
                 self.stdout.write(f'PROBLEMA {clave}: {problema}')
-            elif estado.get(marca):
-                estado.delete(marca)
-                avisar(f'✅ Resuelto: {clave} volvió a estar bien ({hora()}).')
-                self.stdout.write(f'resuelto {clave}')
+                try:
+                    estado.set(marca, problema, None)
+                except Exception:
+                    pass   # sin la marca solo se pierde el aviso de "volvió"
+            else:
+                try:
+                    estaba_caido = estado.get(marca)
+                    if estaba_caido:
+                        estado.delete(marca)
+                except Exception:
+                    estaba_caido = None
+                if estaba_caido:
+                    avisar(f'✅ Resuelto: {clave} volvió a estar bien ({hora()}).')
+                    self.stdout.write(f'resuelto {clave}')

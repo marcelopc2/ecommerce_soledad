@@ -47,6 +47,10 @@ npm run build
 cd "$RAIZ"
 
 echo "==> 7/7  Reiniciando el servicio"
+# migrate y collectstatic corren como root: lo que hayan creado en logs/ (por
+# ejemplo el caché de las alertas) tiene que quedar del usuario del sitio, o
+# los cron de www-data no lo pueden escribir.
+chown -R www-data:www-data logs
 sudo systemctl restart "$SERVICIO"
 sleep 3
 sudo systemctl is-active --quiet "$SERVICIO" || {
