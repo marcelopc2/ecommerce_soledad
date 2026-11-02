@@ -52,15 +52,32 @@ def avisar(texto, firma=None):
     if firma and _ya_avisado(firma):
         return False
     try:
-        r = requests.post(
-            f'https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage',
-            data={'chat_id': settings.TELEGRAM_CHAT_ID, 'text': texto[:4000],
-                  'disable_web_page_preview': 'true'},
-            timeout=5,
-        )
-        return r.ok
+        return _mandar(settings.TELEGRAM_CHAT_ID, texto)
     except Exception:
         return False
+
+
+def _mandar(chat_id, texto):
+    r = requests.post(
+        f'https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage',
+        data={'chat_id': chat_id, 'text': texto[:4000], 'disable_web_page_preview': 'true'},
+        timeout=5,
+    )
+    if r.ok:
+        return True
+    # Cuando un grupo se vuelve "supergrupo" (pasa solo al cambiar ciertos
+    # ajustes del grupo), Telegram le cambia el número y rechaza el viejo
+    # diciendo cuál es el nuevo. Se sigue al nuevo para no perder alertas; el
+    # .env conviene actualizarlo igual (queda advertido en el log).
+    try:
+        nuevo = (r.json().get('parameters') or {}).get('migrate_to_chat_id')
+    except Exception:
+        nuevo = None
+    if nuevo:
+        logging.getLogger('ingenioblocks.alertas').warning(
+            'El grupo de alertas cambió de número: poner TELEGRAM_CHAT_ID=%s en el .env', nuevo)
+        return _mandar(nuevo, texto)
+    return False
 
 
 def clp(n):

@@ -51,6 +51,13 @@ class AvisarTests(Base):
         self.assertFalse(avisar('hola'))
         self.post.assert_not_called()
 
+    def test_si_el_grupo_cambia_de_numero_lo_sigue(self):
+        viejo = MagicMock(ok=False)
+        viejo.json.return_value = {'ok': False, 'parameters': {'migrate_to_chat_id': -1001234}}
+        self.post.side_effect = [viejo, MagicMock(ok=True)]
+        self.assertTrue(avisar('hola'))
+        self.assertEqual(self.post.call_args.kwargs['data']['chat_id'], -1001234)
+
     def test_si_telegram_falla_no_rompe_nada(self):
         self.post.side_effect = ConnectionError('sin internet')
         self.assertFalse(avisar('hola'))
