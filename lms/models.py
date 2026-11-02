@@ -532,10 +532,10 @@ class AjustesAula(models.Model):
     reanudar_goteo = models.BooleanField(
         default=True,
         verbose_name='Al renovar, el goteo empieza de nuevo desde donde quedó',
-        help_text='Se le abren de inmediato los primeros modelos de cada categoría '
-                  'contando desde el último que terminó, y de ahí sigue uno por '
-                  'semana. Si lo apagas, al renovar se le abre de golpe todo lo que '
-                  'el calendario había liberado mientras estuvo vencido.',
+        help_text='Al renovar se le abre de inmediato un solo modelo, el que sigue '
+                  'al último que terminó, y de ahí uno por semana. Si lo apagas, al '
+                  'renovar se le abre de golpe todo lo que el calendario había '
+                  'liberado mientras estuvo vencido.',
     )
     diplomas_tras_vencer = models.BooleanField(
         default=True,

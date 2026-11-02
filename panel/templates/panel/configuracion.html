@@ -292,10 +292,11 @@
               <div class="pnl-field-error">{{ ajustes_form.cursos_iniciales.errors.0 }}</div>
             {% endif %}
             <div class="pnl-campo-ayuda">
-              Cuántos modelos quedan disponibles apenas se compra, para que el alumno
-              tenga con qué empezar. Se abren <strong>en orden</strong>: al terminar uno
-              se abre el siguiente al instante, sin esperar la semana.
-              Del siguiente en adelante vuelve el ritmo de <strong>uno por semana</strong>.
+              Cuántos modelos quedan disponibles en la <strong>primera compra</strong>
+              (la Bienvenida y el modelo 1), para que el alumno tenga con qué empezar.
+              Se abren <strong>en orden</strong>: al terminar uno se abre el siguiente al
+              instante, sin esperar la semana. Del siguiente en adelante vuelve el ritmo
+              de <strong>uno por semana</strong>. Al renovar no se repite: se abre uno solo.
             </div>
           </div>
 
@@ -360,12 +361,12 @@
                 {{ ajustes_form.reanudar_goteo.label }}
               </label>
               <div class="pnl-campo-ayuda">
-                Al renovar se le abren de inmediato los primeros
-                <strong>{{ ajustes_form.instance.cursos_iniciales }}</strong> modelos contando
-                desde el último que terminó, y de ahí sigue uno por semana: igual que
-                cuando compró la primera vez. <strong>Si lo apagas</strong>, al renovar
-                recibe de golpe todos los modelos cuya fecha pasó mientras estuvo
-                vencido, y el ritmo semanal desaparece para él.
+                Al renovar (con el pack, la membresía o el kit) se le abre de inmediato
+                <strong>1 solo modelo</strong>: el que sigue al último que terminó. De ahí
+                sigue uno por semana. Los {{ ajustes_form.instance.cursos_iniciales }} del
+                primer día son solo para la primera compra. <strong>Si lo apagas</strong>,
+                al renovar recibe de golpe todos los modelos cuya fecha pasó mientras
+                estuvo vencido, y el ritmo semanal desaparece para él.
               </div>
             </div>
 
