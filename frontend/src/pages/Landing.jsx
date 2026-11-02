@@ -1069,7 +1069,7 @@ const IconRayo = () => (
 function Convocatoria({ datos }) {
   const { etiqueta, titulo, intro, bases = [], boton_texto, boton_enlace, sello, imagen_url } = datos
   return (
-    <section className="lp-concurso-band">
+    <section className="lp-concurso-band" id="concurso">
       <div className="lp-convocatoria">
         <div className="lp-convocatoria-texto">
           {etiqueta && <span className="lp-chip lp-chip-lila">{etiqueta}</span>}
@@ -1225,7 +1225,7 @@ function Faq() {
   const visibles = verMas ? faqs : faqs.slice(0, 6)
 
   return (
-    <section className="lp-faq">
+    <section className="lp-faq" id="preguntas-frecuentes">
       <span className="lp-chip lp-chip-lila">{textos.faq_etiqueta}</span>
       <h2 className="lp-h2">{textos.faq_titulo}</h2>
       <span className="lp-underline" />
