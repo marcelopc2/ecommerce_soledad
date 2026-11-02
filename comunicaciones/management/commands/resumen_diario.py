@@ -113,6 +113,30 @@ class Command(BaseCommand):
         lineas += [f'  • {s.email} · {clp(s.monto)}' for s in subs]
         return '\n'.join(lineas)
 
+    def _servidor(self):
+        """Si el sistema pide reinicio y cuántas actualizaciones tiene pendientes.
+
+        Las de seguridad se instalan solas (unattended-upgrades), pero algunas
+        (el núcleo del sistema) recién valen después de reiniciar: eso es lo
+        que hay que hacer a mano, de madrugada.
+        """
+        import subprocess
+        lineas = []
+        aviso = Path('/var/run/reboot-required')
+        if aviso.exists():
+            desde = datetime.fromtimestamp(aviso.stat().st_mtime)
+            lineas.append(ok(False, f'El servidor pide reiniciar desde el {desde:%d-%m} '
+                                    '(actualizaciones ya instaladas que necesitan reinicio)'))
+        try:
+            r = subprocess.run(['/usr/lib/update-notifier/apt-check'], capture_output=True,
+                               text=True, timeout=60)
+            normales, seguridad = (int(x) for x in r.stderr.strip().split(';')[:2])
+            lineas.append(ok(not seguridad, f'Actualizaciones del sistema: {normales} pendientes, '
+                                            f'{seguridad} de seguridad'))
+        except Exception:
+            pass   # en el computador local no existe: no se informa
+        return lineas
+
     def _chequeos(self):
         from comunicaciones.freno import correos_a_clientes
         from payments.models import AjustesCobros
@@ -149,6 +173,8 @@ class Command(BaseCommand):
         a = AjustesCobros.obtener()
         prendidos = settings.COBROS_AUTOMATICOS and a.cobros_automaticos
         lineas.append(ok(prendidos, 'Cobros automáticos: prendidos' if prendidos else 'Cobros automáticos: APAGADOS'))
+
+        lineas += self._servidor()
 
         try:
             from comunicaciones.management.commands.vigilar_sitio import dias_de_certificado, revisar_disco

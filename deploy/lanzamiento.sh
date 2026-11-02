@@ -101,6 +101,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # cada 10 minutos y resumen del día a las 21:00.
 */10 * * * * www-data cd /srv/ingenioblocks && flock -n /tmp/ib-vigilar.lock venv/bin/python manage.py vigilar_sitio 2>&1 | grep -v 'AXES: BEGIN' >> logs/vigilar.log
 0 21 * * * www-data cd /srv/ingenioblocks && venv/bin/python manage.py resumen_diario 2>&1 | grep -v 'AXES: BEGIN' >> logs/vigilar.log
+# El día 1 de cada mes, 10:00: recordatorio de actualizaciones (con el texto para Claude).
+0 10 1 * * www-data cd /srv/ingenioblocks && venv/bin/python manage.py recordatorio_mantencion 2>&1 | grep -v 'AXES: BEGIN' >> logs/vigilar.log
 CRON
     chmod 644 /etc/cron.d/ingenioblocks-diarias
     echo "==> Tareas diarias programadas:"

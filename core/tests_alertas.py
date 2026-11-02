@@ -117,6 +117,15 @@ class ResumenTests(Base):
         for parte in ('Resumen', 'Ventas', 'Pendientes', 'Chequeos'):
             self.assertIn(parte, texto)
 
+    def test_recordatorio_mensual_trae_el_texto_para_claude(self):
+        salida = MagicMock(stdout='[{"name": "Django", "version": "6.0.7", "latest_version": "6.1.2"}]')
+        with patch('comunicaciones.management.commands.recordatorio_mantencion.subprocess.run',
+                   return_value=salida):
+            call_command('recordatorio_mantencion', stdout=StringIO())
+        texto = self.textos()[-1]
+        self.assertIn('Django 6.0.7 → 6.1.2', texto)
+        self.assertIn('Mantención mensual de ingenioblocks.com', texto)
+
     def test_probar_manda_un_saludo(self):
         call_command('resumen_diario', '--probar', stdout=StringIO())
         self.assertIn('quedaron funcionando', self.textos()[-1])
