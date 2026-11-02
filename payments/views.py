@@ -668,7 +668,15 @@ class CreateMercadoPagoSuscripcionView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         # El correo de la cuenta de Mercado Pago puede no ser el de la tienda.
-        correo_mp = (request.data.get('mp_email') or order.customer_email).strip().lower()
+        correo_mp = str(request.data.get('mp_email') or order.customer_email).strip().lower()[:254]
+        try:
+            from django.core.validators import validate_email
+            validate_email(correo_mp)
+        except Exception:
+            order.status = 'FAILED'
+            order.save(update_fields=['status', 'updated_at'])
+            return Response({'error': 'Escribe un correo válido para tu cuenta de Mercado Pago.',
+                             'pedir_correo_mp': True}, status=status.HTTP_400_BAD_REQUEST)
         base_url = settings.BACKEND_PUBLIC_URL or request.build_absolute_uri('/').rstrip('/')
         vuelta = f"{base_url}{reverse('mp-suscripcion-vuelta')}?orden={order.order_id}"
         try:

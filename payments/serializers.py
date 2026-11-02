@@ -32,17 +32,38 @@ def validar_telefono_chileno(valor):
     return f'+56{d}'          # se guarda normalizado
 
 
+#: Símbolos que no van en un nombre. Todo lo que se muestra en el sitio, el
+#: panel, los correos y el diploma va escapado, así que no podrían ejecutar
+#: nada; se rechazan igual porque un nombre con "<" o "{" es basura o un
+#: intento de inyección, y termina impreso en un diploma o en una boleta.
+_NO_VAN_EN_UN_NOMBRE = set('<>{}[]/=;:@#$%^*+|~`"_') | {chr(92)}   # chr(92) = barra invertida
+#: Lo mínimo para direcciones y textos cortos: sin marcas de código.
+_NO_VAN_EN_UN_TEXTO = set('<>{}`') | {chr(92)}
+
+
+def sin_codigo(valor):
+    """Texto corto (dirección, comuna, teléfono): sin marcas de código ni
+    caracteres de control."""
+    v = ' '.join((valor or '').split())
+    if any(c in _NO_VAN_EN_UN_TEXTO or (ord(c) < 32) for c in v):
+        raise serializers.ValidationError('Hay caracteres que no se aceptan en este campo.')
+    return v
+
+
 def validar_nombre(valor, campo='nombre'):
-    """Nombre de persona: sin dígitos y con al menos 2 letras.
+    """Nombre de persona: sin dígitos ni símbolos, y con al menos 2 letras.
 
     No se exige apellido: hay gente que solo pone el nombre de pila del niño,
-    y rechazar eso sería más molesto que útil.
+    y rechazar eso sería más molesto que útil. Sí se aceptan tildes, ñ, el
+    apóstrofo (O'Higgins), el guion y el punto.
     """
     v = ' '.join((valor or '').split())        # colapsa espacios de más
     if len(v) < 2:
         raise serializers.ValidationError(f'Escribe el {campo} completo.')
     if any(c.isdigit() for c in v):
         raise serializers.ValidationError(f'El {campo} no puede tener números.')
+    if any(c in _NO_VAN_EN_UN_NOMBRE or ord(c) < 32 for c in v):
+        raise serializers.ValidationError(f'El {campo} solo puede tener letras.')
     return v
 
 
@@ -63,14 +84,32 @@ class ShippingSerializer(serializers.Serializer):
     # el servidor (ver payments/orders.py). Se acepta para no romper el payload.
     shipping_cost = serializers.IntegerField(required=False)
 
+    def validate_recipient_name(self, v):
+        return validar_nombre(v, 'nombre de quien recibe') if (v or '').strip() else ''
+
+    def validate_region(self, v):
+        return sin_codigo(v)
+
+    def validate_commune(self, v):
+        return sin_codigo(v)
+
+    def validate_address_detail(self, v):
+        return sin_codigo(v)
+
+    def validate_courier(self, v):
+        return sin_codigo(v)
+
+    def validate_service_name(self, v):
+        return sin_codigo(v)
+
     def validate_address_street(self, v):
-        v = ' '.join((v or '').split())
+        v = sin_codigo(v)
         if len(v) < 3:
             raise serializers.ValidationError('Escribe el nombre de la calle.')
         return v
 
     def validate_address_number(self, v):
-        v = (v or '').strip()
+        v = sin_codigo(v)
         if not v:
             raise serializers.ValidationError('Falta el número de la dirección.')
         return v
@@ -79,7 +118,7 @@ class ShippingSerializer(serializers.Serializer):
 class CheckoutSerializer(serializers.Serializer):
     """Payload de creación de pago (Webpay y MercadoPago comparten este formato)."""
     product_ids = serializers.ListField(
-        child=serializers.IntegerField(), allow_empty=False,
+        child=serializers.IntegerField(), allow_empty=False, max_length=20,
         error_messages={'empty': 'No hay productos en la compra.'},
     )
     email = serializers.EmailField(

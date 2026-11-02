@@ -136,3 +136,15 @@ class ContactSerializer(serializers.Serializer):
     email = serializers.EmailField()
     telefono = serializers.CharField(max_length=30, required=False, allow_blank=True)
     comentarios = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+
+    def validate_nombre(self, v):
+        from payments.serializers import validar_nombre
+        return validar_nombre(v, 'nombre')
+
+    def validate_apellido(self, v):
+        from payments.serializers import validar_nombre
+        return validar_nombre(v, 'apellido') if (v or '').strip() else ''
+
+    def validate_telefono(self, v):
+        from payments.serializers import sin_codigo
+        return sin_codigo(v)
