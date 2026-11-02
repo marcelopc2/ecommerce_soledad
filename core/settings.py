@@ -463,6 +463,10 @@ LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 # Alertas por Telegram (core/alertas.py). Sin las dos, no se manda nada.
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
+# Healthchecks.io: `vigilar_sitio` le avisa cada 10 minutos que el sitio está
+# bien. Si deja de avisar (servidor caído entero), Healthchecks manda la alerta
+# por Telegram: es lo único que el servidor no puede avisar de sí mismo.
+HEALTHCHECKS_PING_URL = os.environ.get('HEALTHCHECKS_PING_URL', '')
 
 # El caché por defecto sigue en memoria. El de las alertas va en disco porque
 # lo comparten los procesos del sitio y los cron: es lo que evita avisar el

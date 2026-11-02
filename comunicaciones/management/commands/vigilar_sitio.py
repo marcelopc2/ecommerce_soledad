@@ -70,12 +70,25 @@ class Command(BaseCommand):
     help = 'Revisa que el sitio esté arriba, con disco y certificado, y avisa por Telegram.'
 
     def handle(self, *args, **op):
+        problemas = self._revisar_todo()
+        # "Sigo vivo" a Healthchecks.io solo si el sitio responde: si el
+        # servidor se cae entero, o el sitio deja de responder, el aviso no
+        # llega y Healthchecks alerta por su cuenta.
+        if getattr(settings, 'HEALTHCHECKS_PING_URL', '') and 'sitio' not in problemas:
+            try:
+                requests.get(settings.HEALTHCHECKS_PING_URL, timeout=10)
+            except Exception:
+                pass
+
+    def _revisar_todo(self):
+        problemas = []
         estado = caches['alertas']
         for clave, revisar in (('sitio', revisar_sitio), ('disco', revisar_disco),
                                ('certificado', revisar_certificado)):
             problema = revisar()
             marca = f'vigilar:{clave}:caido'
             if problema:
+                problemas.append(clave)
                 avisar(f'🔴 {problema} ({hora()})', firma=f'vigilar:{clave}')
                 self.stdout.write(f'PROBLEMA {clave}: {problema}')
                 try:
@@ -92,3 +105,4 @@ class Command(BaseCommand):
                 if estaba_caido:
                     avisar(f'✅ Resuelto: {clave} volvió a estar bien ({hora()}).')
                     self.stdout.write(f'resuelto {clave}')
+        return problemas

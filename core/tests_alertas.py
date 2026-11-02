@@ -110,6 +110,18 @@ class VigilarTests(Base):
         self.assertTrue(any('Resuelto' in t and 'sitio' in t for t in textos))
 
 
+class LatidoTests(Base):
+    @override_settings(HEALTHCHECKS_PING_URL='https://hc-ping.com/abc')
+    def test_avisa_que_sigue_vivo_solo_si_el_sitio_responde(self):
+        modulo = 'comunicaciones.management.commands.vigilar_sitio'
+        with patch(f'{modulo}.revisar_certificado', return_value=None),                 patch(f'{modulo}.requests.get', return_value=MagicMock(status_code=200)) as get:
+            call_command('vigilar_sitio', stdout=StringIO())
+        self.assertIn('https://hc-ping.com/abc', [c.args[0] for c in get.call_args_list])
+        with patch(f'{modulo}.revisar_certificado', return_value=None),                 patch(f'{modulo}.requests.get', side_effect=[ConnectionError, MagicMock()]) as get:
+            call_command('vigilar_sitio', stdout=StringIO())
+        self.assertNotIn('https://hc-ping.com/abc', [c.args[0] for c in get.call_args_list])
+
+
 class ResumenTests(Base):
     def test_el_resumen_sale_con_sus_secciones(self):
         call_command('resumen_diario', stdout=StringIO())
