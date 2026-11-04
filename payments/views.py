@@ -56,6 +56,87 @@ def _entregar_compra(order):
     except Exception:
         log.exception('Falló el envío a Shipit de la orden %s', order.order_id)
 
+    # Al final, para que el aviso ya diga si salió la boleta y cómo se entrega.
+    try:
+        _avisar_a_la_tienda(order)
+    except Exception:
+        log.exception('Falló el aviso a la tienda de la orden %s', order.order_id)
+
+
+def _avisar_a_la_tienda(order):
+    """Correo a la tienda por cada compra y cada renovación.
+
+    Como el "Nuevo pedido" que mandaba WooCommerce: el equipo tiene el correo
+    siempre abierto y no siempre el panel. Responderlo le llega al cliente.
+    """
+    from django.utils import timezone as tz
+    s = order.suscripcion
+    inicial = getattr(order, 'suscripcion_iniciada', None)
+    if s is not None:
+        tipo = 'Renovación automática'
+        explicacion = f'Se cobró la suscripción de {order.customer_name or order.customer_email}.'
+    elif inicial is not None:
+        tipo = 'Nueva suscripción'
+        explicacion = 'Compra con cobro automático: desde ahora se le cobra solo.'
+    else:
+        tipo = 'Nueva compra'
+        explicacion = 'Entró una compra en la tienda.'
+
+    sus = s or inicial
+    detalle_sus = ''
+    if sus is not None:
+        cada = 'al mes' if sus.cada_meses == 1 else f'cada {sus.cada_meses} meses'
+        detalle_sus = (f'{formato_clp(sus.monto)} {cada} con {sus.medio_de_pago}. '
+                       f'Próximo cobro: {sus.proximo_cobro:%d-%m-%Y}.')
+
+    shipment = getattr(order, 'shipment', None)
+    if order.es_retiro:
+        entrega = 'Retiro en tienda'
+    elif shipment is not None:
+        entrega = f'Despacho {shipment.courier} ({formato_clp(shipment.shipping_cost)}) a {shipment.commune}'
+    else:
+        entrega = 'Digital (Aula Virtual)'
+
+    factura = getattr(order, 'invoice', None)
+    if factura is not None and factura.status == 'ISSUED':
+        boleta = f'Emitida, folio {factura.folio}'
+    else:
+        boleta = 'Pendiente (revisar en el panel)'
+
+    membresia = None
+    try:
+        from lms.models import Membership
+        membresia = Membership.objects.filter(user__email__iexact=order.customer_email).first()
+    except Exception:
+        pass
+
+    cliente = order.customer_name or order.customer_email
+    enviar_email(
+        'pedido_interno',
+        asunto=f'{tipo} · {cliente} · {formato_clp(order.total_amount)}',
+        destinatarios=[settings.CONTACT_EMAIL],
+        contexto={
+            'tipo': tipo,
+            'explicacion': explicacion,
+            'numero_pedido': str(order.order_id)[:8].upper(),
+            'fecha': tz.localtime(order.created_at).strftime('%d-%m-%Y %H:%M'),
+            'cliente': cliente,
+            'email': order.customer_email,
+            'telefono': order.customer_phone,
+            'alumno': order.student_name or (membresia.student_name if membresia else ''),
+            'productos': [{'nombre': i.name, 'precio': formato_clp(i.subtotal)} for i in order.items.all()],
+            'descuento': formato_clp(order.discount_amount) if order.discount_amount else '',
+            'cupon': order.coupon.code if order.coupon_id else '',
+            'entrega': entrega,
+            'medio_pago': order.get_pasarela_display() or '—',
+            'boleta': boleta,
+            'total': formato_clp(order.total_amount),
+            'suscripcion': detalle_sus,
+            'link': f'{settings.BACKEND_PUBLIC_URL or settings.FRONTEND_URL}/gestion/pedidos/{order.pk}/detalle/',
+        },
+        reply_to=[order.customer_email],
+    )
+
 
 def _send_order_confirmation(order, tiene_acceso):
     """Correo con el detalle del pedido. El de 'bienvenida'/'acceso_extendido'

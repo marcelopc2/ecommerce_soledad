@@ -1,0 +1,23 @@
+{{ tipo }}
+
+{{ explicacion }}
+
+Pedido:    #{{ numero_pedido }} · {{ fecha }}
+Cliente:   {{ cliente }}
+Email:     {{ email }}
+Teléfono:  {{ telefono|default:"—" }}
+Alumno:    {{ alumno|default:"—" }}
+
+{% for p in productos %}{{ p.nombre }}: {{ p.precio }}
+{% endfor %}{% if descuento %}Cupón {{ cupon }}: -{{ descuento }}
+{% endif %}Entrega:        {{ entrega }}
+Medio de pago:  {{ medio_pago }}
+Boleta:         {{ boleta }}
+Total:          {{ total }}
+{% if suscripcion %}
+Suscripción: {{ suscripcion }}
+{% endif %}
+Ver el pedido en el panel: {{ link }}
+
+--
+Si respondes a este correo, la respuesta le llega a {{ cliente }}.

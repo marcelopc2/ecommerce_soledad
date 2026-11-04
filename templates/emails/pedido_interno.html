@@ -1,0 +1,87 @@
+{% extends 'emails/base.html' %}
+
+{% comment %}
+  Este correo NO va al cliente: llega a la bandeja de la tienda con cada compra
+  y cada renovación, como el "Nuevo pedido" que mandaba WooCommerce. Es la
+  forma de enterarse de una venta sin tener el panel abierto.
+{% endcomment %}
+
+{% block asunto %}{{ tipo }} · {{ cliente }}{% endblock %}
+{% block preheader %}{{ tipo }} de {{ cliente }} por {{ total }}.{% endblock %}
+{% block titulo %}{{ tipo }}{% endblock %}
+
+{% block contenido %}
+  <p style="margin:0 0 16px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.7; color:#314158;">
+    {{ explicacion }}
+  </p>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="margin:0 0 20px; border:1px solid #ece5f4; border-radius:10px; border-collapse:separate;">
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Pedido</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:bold; color:#2f0053; border-bottom:1px solid #f4f1f7;">#{{ numero_pedido }} · {{ fecha }}</td>
+    </tr>
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Cliente</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">{{ cliente }}</td>
+    </tr>
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Email</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; border-bottom:1px solid #f4f1f7;">
+        <a href="mailto:{{ email }}" style="color:#8200db; text-decoration:none;">{{ email }}</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Teléfono</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">{{ telefono|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095;">Alumno</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158;">{{ alumno|default:"—" }}</td>
+    </tr>
+  </table>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="margin:0 0 20px; border:1px solid #ece5f4; border-radius:10px; border-collapse:separate;">
+    {% for p in productos %}
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">{{ p.nombre }}</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">{{ p.precio }}</td>
+    </tr>
+    {% endfor %}
+    {% if descuento %}
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Cupón {{ cupon }}</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">−{{ descuento }}</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Entrega</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">{{ entrega }}</td>
+    </tr>
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Medio de pago</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">{{ medio_pago }}</td>
+    </tr>
+    <tr>
+      <td style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#8a8095; border-bottom:1px solid #f4f1f7;">Boleta</td>
+      <td align="right" style="padding:12px 18px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#314158; border-bottom:1px solid #f4f1f7;">{{ boleta }}</td>
+    </tr>
+    <tr>
+      <td style="padding:14px 18px; font-family:Arial,Helvetica,sans-serif; font-size:15px; font-weight:bold; color:#2f0053;">Total</td>
+      <td align="right" style="padding:14px 18px; font-family:Arial,Helvetica,sans-serif; font-size:18px; font-weight:bold; color:#2f0053;">{{ total }}</td>
+    </tr>
+  </table>
+
+  {% if suscripcion %}
+  <p style="margin:0 0 20px; font-family:Arial,Helvetica,sans-serif; font-size:14px; line-height:1.7; color:#314158;">
+    <strong>Suscripción:</strong> {{ suscripcion }}
+  </p>
+  {% endif %}
+
+  {% include 'emails/_boton.html' with texto='Ver el pedido en el panel' url=link %}
+
+  <p style="margin:20px 0 0; font-family:Arial,Helvetica,sans-serif; font-size:13px; line-height:1.7; color:#8a8095;">
+    Si respondes a este correo, la respuesta le llega a {{ cliente }}.
+  </p>
+{% endblock %}
