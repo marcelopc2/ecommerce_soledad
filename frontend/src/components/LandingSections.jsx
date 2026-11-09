@@ -57,12 +57,16 @@ export function Contacto() {
   const t = useTextos()
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', telefono: '', comentarios: '' })
   const [estado, setEstado] = useState('idle') // idle | enviando | ok | error
+  // Antispam sin captcha (ver catalog/antispam.py): cuándo se abrió el
+  // formulario, y un campo trampa que una persona nunca ve.
+  const [abierto] = useState(() => Date.now())
+  const [trampa, setTrampa] = useState('')
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
 
   const enviar = (e) => {
     e.preventDefault()
     setEstado('enviando')
-    api.post('/catalog/contacto/', form)
+    api.post('/catalog/contacto/', { ...form, t: abierto, sitio_web: trampa })
       .then(() => {
         setEstado('ok')
         setForm({ nombre: '', apellido: '', email: '', telefono: '', comentarios: '' })
@@ -88,6 +92,11 @@ export function Contacto() {
         </div>
         <form className="lp-contacto-form" onSubmit={enviar}>
           <p>{t.contacto_texto}</p>
+          {/* Campo trampa: fuera de la pantalla y fuera del tabulador. Los
+              robots llenan todos los campos; una persona no lo ve. */}
+          <input type="text" name="sitio_web" value={trampa} onChange={e => setTrampa(e.target.value)}
+                 tabIndex={-1} autoComplete="off" aria-hidden="true"
+                 style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
           <div className="lp-form-row">
             <input placeholder="Nombre" value={form.nombre} onChange={set('nombre')} required />
             <input placeholder="Apellido" value={form.apellido} onChange={set('apellido')} />

@@ -120,8 +120,15 @@ class ContactView(APIView):
     throttle_scope = 'contact'  # anti spam de correos
 
     def post(self, request):
+        from .antispam import motivo_de_spam
+        spam = motivo_de_spam(request.data)
         serializer = ContactSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            # Al robot se le responde como si hubiera funcionado: un error le
+            # enseña qué cambiar para pasar el filtro.
+            if spam:
+                return Response({'ok': True})
+            serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         nombre_completo = f"{data['nombre']} {data.get('apellido', '')}".strip()
 
@@ -131,7 +138,11 @@ class ContactView(APIView):
         MensajeContacto.objects.create(
             nombre=nombre_completo[:200], email=data['email'], telefono=(data.get('telefono') or '')[:40],
             mensaje=data.get('comentarios') or '', pagina=(request.META.get('HTTP_REFERER') or '')[:300],
+            es_spam=bool(spam), motivo_spam=spam[:80],
         )
+        if spam:
+            log.info('Mensaje de contacto marcado como spam (%s): %s', spam, data['email'])
+            return Response({'ok': True})
         from core.alertas import avisar
         avisar(
             f"💬 Mensaje nuevo de {nombre_completo}\n{data['email']}"

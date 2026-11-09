@@ -79,8 +79,8 @@ class Command(BaseCommand):
         from catalog.models import MensajeContacto
         from lms.models import Membership
         nuevos = Membership.objects.filter(created_at__date=self._hoy()).count()
-        mensajes = MensajeContacto.objects.filter(creado__date=self._hoy()).count()
-        sin_leer = MensajeContacto.objects.filter(leido=False).count()
+        mensajes = MensajeContacto.objects.filter(creado__date=self._hoy(), es_spam=False).count()
+        sin_leer = MensajeContacto.objects.filter(leido=False, es_spam=False).count()
         return (f'👨‍👩‍👧 Alumnos nuevos: {nuevos}\n'
                 f'💬 Mensajes de hoy: {mensajes} (sin leer en total: {sin_leer})')
 

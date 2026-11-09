@@ -12,6 +12,7 @@
 <div class="d-flex gap-2 mfilter-group pnl-filtros">
   <a class="mfilter-pill{% if not filtro %} active{% endif %}" href="?">Todos ({{ total }})</a>
   <a class="mfilter-pill purple{% if filtro == 'sin_leer' %} active{% endif %}" href="?ver=sin_leer">{{ sin_leer }} sin leer</a>
+  {% if spam %}<a class="mfilter-pill{% if filtro == 'spam' %} active{% endif %}" href="?ver=spam" title="Mensajes de robots: se guardan pero no avisan a nadie">Spam ({{ spam }})</a>{% endif %}
 </div>
 
 <div class="pnl-card">

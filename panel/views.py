@@ -188,7 +188,7 @@ def dashboard(request):
          'bi-envelope-slash', 'Correos a clientes en pausa',
          'No le llega ningún correo a las familias (compras, claves, avisos). Quítala en Interruptores.',
          reverse('panel:interruptores'), 'red'),
-        (MensajeContacto.objects.filter(leido=False).count(), 'bi-chat-left-text', 'Mensajes sin leer',
+        (MensajeContacto.objects.filter(leido=False, es_spam=False).count(), 'bi-chat-left-text', 'Mensajes sin leer',
          'Llegaron por el formulario de contacto de la portada.', reverse('panel:mensajes') + '?ver=sin_leer', 'purple'),
         (Order.objects.filter(ORDERS_POR_DESPACHAR).count(), 'bi-truck', 'Pedidos por despachar',
          'Pagados con envío que todavía no salen.', reverse('panel:orders') + '?estado=por_despachar', 'yellow'),
@@ -3339,7 +3339,8 @@ def mensajes(request):
     la página anterior. Abrir uno lo marca como leído."""
     from catalog.models import MensajeContacto
     filtro = request.GET.get('ver', '')
-    items = MensajeContacto.objects.all()
+    reales = MensajeContacto.objects.filter(es_spam=False)
+    items = MensajeContacto.objects.filter(es_spam=True) if filtro == 'spam' else reales
     if filtro == 'sin_leer':
         items = items.filter(leido=False)
     q = request.GET.get('q', '').strip()
@@ -3347,8 +3348,9 @@ def mensajes(request):
         items = busqueda.filtrar(items, q, campos=('nombre', 'email', 'mensaje', 'motivo'), telefonos=('telefono',))
     return render(request, 'panel/mensajes.html', {
         'items': items[:300], 'filtro': filtro, 'q': q,
-        'sin_leer': MensajeContacto.objects.filter(leido=False).count(),
-        'total': MensajeContacto.objects.count(),
+        'sin_leer': reales.filter(leido=False).count(),
+        'total': reales.count(),
+        'spam': MensajeContacto.objects.filter(es_spam=True).count(),
         'section': 'mensajes',
     })
 

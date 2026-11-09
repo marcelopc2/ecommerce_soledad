@@ -834,6 +834,10 @@ class MensajeContacto(models.Model):
     wp_id = models.PositiveBigIntegerField(null=True, blank=True, unique=True)
     leido = models.BooleanField(default=False)
     creado = models.DateTimeField(default=timezone.now, db_index=True)
+    #: Marcado por catalog/antispam.py. Se guarda igual (por si es un falso
+    #: positivo), pero no avisa a nadie ni cuenta como "sin leer".
+    es_spam = models.BooleanField(default=False, db_index=True)
+    motivo_spam = models.CharField(max_length=80, blank=True)
 
     class Meta:
         ordering = ['-creado']
