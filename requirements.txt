@@ -21,3 +21,7 @@ gunicorn==23.0.0
 psycopg[binary]==3.2.13
 # Limpia el HTML de los correos masivos que se escriben en el panel.
 nh3==0.3.7
+# Revisa que lo que se sube como imagen a un correo masivo sea de verdad una
+# imagen (panel.views.correo_imagen). Faltaba acá: en el servidor el botón de
+# imagen del editor daba error 500.
+pillow==12.3.0

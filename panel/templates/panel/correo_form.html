@@ -210,28 +210,51 @@
         if (oculto.value) quill.clipboard.dangerouslyPasteHTML(oculto.value)
 
         // Las imágenes se suben al servidor y se ponen por dirección: pegadas
-        // dentro del correo (base64) lo harían pesadísimo y Gmail lo corta.
+        // dentro del correo (base64) lo harían pesadísimo, Gmail lo corta, y
+        // la limpieza de seguridad las borra (por eso "pegaba una foto y no
+        // salía en la prueba").
+        function subirArchivo(archivo) {
+          errorEl.textContent = 'Subiendo imagen…'
+          var datos = new FormData()
+          datos.append('imagen', archivo)
+          fetch(URL_IMAGEN, { method: 'POST', body: datos, headers: { 'X-CSRFToken': csrf() } })
+            .then(function (r) { return r.json() })
+            .then(function (j) {
+              if (j.error) { errorEl.textContent = j.error; return }
+              errorEl.textContent = ''
+              var rango = quill.getSelection(true)
+              quill.insertEmbed(rango ? rango.index : quill.getLength(), 'image', j.url, 'user')
+            })
+            .catch(function () { errorEl.textContent = 'No se pudo subir la imagen.' })
+        }
+
         function subirImagen() {
           var input = document.createElement('input')
           input.type = 'file'
           input.accept = 'image/png,image/jpeg,image/gif,image/webp'
-          input.onchange = function () {
-            if (!input.files[0]) return
-            errorEl.textContent = 'Subiendo imagen…'
-            var datos = new FormData()
-            datos.append('imagen', input.files[0])
-            fetch(URL_IMAGEN, { method: 'POST', body: datos, headers: { 'X-CSRFToken': csrf() } })
-              .then(function (r) { return r.json() })
-              .then(function (j) {
-                if (j.error) { errorEl.textContent = j.error; return }
-                errorEl.textContent = ''
-                var rango = quill.getSelection(true)
-                quill.insertEmbed(rango ? rango.index : quill.getLength(), 'image', j.url, 'user')
-              })
-              .catch(function () { errorEl.textContent = 'No se pudo subir la imagen.' })
-          }
+          input.onchange = function () { if (input.files[0]) subirArchivo(input.files[0]) }
           input.click()
         }
+
+        // Pegar (Ctrl+V) o arrastrar una foto: se sube igual que con el botón,
+        // en vez de que el editor la meta como base64.
+        function imagenesDe(transfer) {
+          return Array.prototype.filter.call((transfer && transfer.files) || [], function (f) {
+            return /^image\//.test(f.type)
+          })
+        }
+        quill.root.addEventListener('paste', function (e) {
+          var imgs = imagenesDe(e.clipboardData)
+          if (!imgs.length) return
+          e.preventDefault(); e.stopPropagation()
+          imgs.forEach(subirArchivo)
+        }, true)
+        quill.root.addEventListener('drop', function (e) {
+          var imgs = imagenesDe(e.dataTransfer)
+          if (!imgs.length) return
+          e.preventDefault(); e.stopPropagation()
+          imgs.forEach(subirArchivo)
+        }, true)
 
         var modo = 'visual'
         document.querySelectorAll('[data-modo]').forEach(function (b) {
