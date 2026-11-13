@@ -193,3 +193,33 @@ class AjustesCorreos(models.Model):
     def obtener(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class CorreoPendiente(models.Model):
+    """Un correo a un cliente que no salió (Gmail no respondió a tiempo).
+
+    Antes se perdía: el 11-11-2026 los dos correos de la renovación de una
+    familia fallaron por una demora momentánea de Gmail y nunca le llegaron.
+    Ahora queda guardado tal cual (asunto, cuerpo, destinatario) y
+    `reintentar_correos` lo vuelve a mandar cada 10 minutos, hasta 6 veces.
+    """
+    destinatarios = models.JSONField()
+    asunto = models.CharField(max_length=300)
+    texto = models.TextField()
+    html = models.TextField()
+    remitente = models.CharField(max_length=300, blank=True)
+    responder_a = models.JSONField(default=list, blank=True)
+    cabeceras = models.JSONField(default=dict, blank=True)
+    plantilla = models.CharField(max_length=80, blank=True)
+    intentos = models.PositiveSmallIntegerField(default=1)
+    ultimo_error = models.CharField(max_length=300, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    enviado_en = models.DateTimeField(null=True, blank=True)
+
+    INTENTOS_MAXIMOS = 6
+
+    class Meta:
+        ordering = ['creado']
+
+    def __str__(self):
+        return f'{self.plantilla} → {", ".join(self.destinatarios)}'

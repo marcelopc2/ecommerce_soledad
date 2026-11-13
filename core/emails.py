@@ -195,14 +195,42 @@ def _armar_y_mandar(plantilla, asunto, destinatarios, contexto, reply_to,
         headers=cabeceras,
     )
     msg.attach_alternative(cuerpo_html, 'text/html')   # parte HTML
-    enviados = msg.send(fail_silently=fail_silently)
-    # Con fail_silently el error de SMTP se traga y send() devuelve 0: sin
-    # esto, si Gmail rechaza la clave dejan de salir TODOS los correos y nadie
-    # se entera. Como error, además, llega por Telegram (core/alertas.py).
-    if fail_silently and not enviados:
-        log.error('CORREO NO SALIÓ: plantilla=%s asunto=%r a %s. Revisar el servidor de correo '
-                  '(¿cambió la clave de la cuenta?)', plantilla, asunto, destinatarios)
+    if not fail_silently:
+        msg.send()
+        return msg
+    try:
+        enviados = msg.send()
+        error = ''
+    except Exception as e:
+        enviados, error = 0, f'{type(e).__name__}: {e}'[:300]
+    # Sin esto, un correo que falla (Gmail demoró, se cayó la conexión) se
+    # perdía. Queda guardado y `reintentar_correos` lo vuelve a mandar cada 10
+    # minutos. Como error, además, llega por Telegram (core/alertas.py).
+    if not enviados:
+        try:
+            from comunicaciones.models import CorreoPendiente
+            CorreoPendiente.objects.create(
+                destinatarios=list(destinatarios), asunto=asunto, texto=cuerpo_txt, html=cuerpo_html,
+                remitente=remitente or '', responder_a=list(reply_to or []),
+                cabeceras=dict(cabeceras or {}), plantilla=plantilla, ultimo_error=error,
+            )
+            reintento = 'Se reintenta solo cada 10 minutos.'
+        except Exception:
+            reintento = 'No se pudo dejar para reintentar.'
+        log.error('CORREO NO SALIÓ: plantilla=%s asunto=%r a %s (%s). %s',
+                  plantilla, asunto, destinatarios, error or 'sin respuesta', reintento)
     return msg
+
+
+def reenviar_pendiente(p):
+    """Vuelve a mandar un CorreoPendiente. Devuelve True si salió."""
+    msg = _CorreoConLogo(
+        subject=p.asunto, body=p.texto,
+        from_email=p.remitente or settings.DEFAULT_FROM_EMAIL,
+        to=p.destinatarios, reply_to=p.responder_a or None, headers=p.cabeceras or None,
+    )
+    msg.attach_alternative(p.html, 'text/html')
+    return bool(msg.send())
 
 
 def formato_clp(valor):
