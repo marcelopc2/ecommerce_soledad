@@ -378,9 +378,15 @@ _STATIC_COMMUNES = [
 
 SHIPIT_ORDERS_BASE = getattr(settings, 'SHIPIT_ORDERS_BASE', 'https://orders.shipit.cl')
 SHIPIT_ACCEPT_VENTAS = 'application/vnd.orders.v1'
-#: Estado con que llega la venta. 1 = "Lista para despachar" (0 sería
-#: borrador). Crear una venta NO crea el envío: eso lo decide la tienda.
-ESTADO_VENTA = 1
+#: Estado con que llega la venta. Tiene que ser 2, que Shipit guarda como
+#: "deliver": así llegaban las del WordPress y así aparecen en Ventas. Con 1
+#: (que la documentación llama "Lista para despachar") Shipit la guarda como
+#: "confirmed", responde OK y le da número... pero NO se ve en Ventas ni se
+#: encuentra por la API (pasó con la primera venta real, 16-11-2026).
+#: Crear una venta NO crea el envío: eso lo decide la tienda.
+ESTADO_VENTA = 2
+#: Lo que Shipit devuelve cuando la venta quedó visible en Ventas.
+ESTADO_VISIBLE = 'deliver'
 
 
 def codigo_courier(shipment):
@@ -410,12 +416,15 @@ def payload_venta(shipment):
                 'status': 'paid',
                 'name': 'ingenioblocks',
                 'created_at': order.created_at.date().isoformat(),
+                'reference_site': 'https://ingenioblocks.com',
             },
             'sizes': {
                 'length': float(shipment.length_cm),
                 'width': float(shipment.width_cm),
                 'height': float(shipment.height_cm),
                 'weight': float(shipment.weight_kg),
+                'volumetric_weight': round(float(shipment.length_cm * shipment.width_cm
+                                                 * shipment.height_cm) / 4000, 2),
             },
             'courier': {
                 'client': codigo_courier(shipment),
@@ -430,6 +439,8 @@ def payload_venta(shipment):
                 'total': int(shipment.shipping_cost or 0),
             },
             'destiny': {
+                'name': 'predeterminado',
+                'kind': 'home_delivery',
                 'street': shipment.address_street,
                 'number': shipment.address_number,
                 'complement': shipment.address_detail,
@@ -469,6 +480,13 @@ def crear_venta_shipit(shipment):
     data = resp.json()
     if isinstance(data, dict) and isinstance(data.get('order'), dict):
         data = data['order']
+    log.info('Shipit creó la venta: id=%s estado=%s', data.get('id'), data.get('state'))
+    estado = data.get('state')
+    if estado and estado != ESTADO_VISIBLE:
+        # Respondió OK, pero así no le aparece a la tienda: mejor un error a
+        # la vista en el panel que un pedido que se cree enviado y no lo está.
+        raise RuntimeError(f"Shipit guardó la venta {data.get('id')} como '{estado}' y no aparece "
+                           "en Ventas. Crear el envío a mano en Shipit y avisar a soporte.")
     return _leer_respuesta_shipit(data)
 
 

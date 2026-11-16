@@ -18,7 +18,7 @@ from shipments.models import AjustesEnvios, Shipment
 from shipments.services import enviar_pedido_a_shipit, payload_venta
 
 User = get_user_model()
-RESPUESTA_OK = {'id': 55501, 'reference': 'abc', 'state': 1}
+RESPUESTA_OK = {'id': 55501, 'reference': 'abc', 'state': 'deliver'}
 
 
 def respuesta(status=200, data=RESPUESTA_OK):
@@ -52,6 +52,7 @@ class VentaShipitTests(TestCase):
         self.assertEqual(o['prices']['total'], 5000)
         self.assertEqual(o['insurance']['ticket_amount'], 79490)
         self.assertNotIn('sandbox', o)
+        self.assertEqual(o['state'], 2)    # con 1 Shipit la esconde (16-11-2026)
 
     @patch('shipments.services.requests.post', return_value=respuesta())
     def test_va_a_ventas_y_nunca_a_envios(self, post):
@@ -124,3 +125,26 @@ class VentaShipitTests(TestCase):
         self.client.post(reverse('panel:order_enviar_shipit', args=[self.order.pk]))
         self.envio.refresh_from_db()
         self.assertEqual(self.envio.status, 'CREATED')
+
+
+@patch.dict('os.environ', {'SHIPIT_EMAIL': 'tienda@ib.cl', 'SHIPIT_TOKEN': 'token-real'})
+class VentaEscondidaTests(TestCase):
+    """16-11-2026: Shipit respondió OK con número a una venta guardada como
+    'confirmed', que no se veía en Ventas. El panel decía "enviado"."""
+    def setUp(self):
+        kit = Product.objects.create(name='Kit', slug='kit-x', price=79490, is_active=True)
+        self.order = Order.objects.create(customer_email='f@x.cl', customer_name='F', total_amount=84490,
+                                          status='PAID')
+        self.order.products.set([kit])
+        Shipment.objects.create(order=self.order, recipient_name='F', recipient_phone='+56912345678',
+                                region='II', commune='ANTOFAGASTA', commune_id=1, address_street='A',
+                                address_number='1', courier='Chilexpress', courier_code='chilexpress',
+                                shipping_cost=5000)
+
+    @patch('shipments.services.requests.post',
+           return_value=respuesta(data={'order': {'id': 11463664, 'state': 'confirmed'}}))
+    def test_si_shipit_la_esconde_queda_como_error(self, post):
+        envio = enviar_pedido_a_shipit(self.order)
+        self.assertEqual(envio.status, 'ERROR')
+        self.assertIn('no aparece en Ventas', envio.error_shipit)
+        self.assertEqual(envio.shipit_reference, '')
