@@ -44,8 +44,9 @@ class VentaShipitTests(TestCase):
     def test_el_formato_es_el_de_ventas(self):
         o = payload_venta(self.envio)['order']
         self.assertLessEqual(len(o['reference']), 15)
-        self.assertEqual(o['plaftform'], 2)            # así, con el error de Shipit
-        self.assertEqual(o['courier'], {'client': 'spread', 'selected': True, 'payble': False})
+        self.assertEqual(o['platform'], 2)             # lo que Shipit valida hoy (16-11-2026)
+        self.assertEqual(o['plaftform'], 2)            # y como lo documentaban, con el error
+        self.assertEqual(o['courier'], {'client': 'spread', 'selected': True, 'payable': False, 'payble': False})
         self.assertEqual(o['seller']['status'], 'paid')
         self.assertEqual(o['destiny']['commune_id'], 308)
         self.assertEqual(o['prices']['total'], 5000)

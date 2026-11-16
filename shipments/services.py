@@ -372,7 +372,9 @@ _STATIC_COMMUNES = [
 #
 # Formato sacado de developers.shipit.cl/v1.0/reference/crear-una-orden. Ojo:
 # `plaftform` y `payble` van escritos así, con esos errores: son los nombres
-# que documenta Shipit.
+# que documenta Shipit. PERO el 16-11-2026 Shipit rechazó la primera venta real
+# con "Platform Plataforma no puede estar en blanco": su sistema ya valida el
+# nombre bien escrito. Se mandan las dos formas (lo que sobra lo ignora).
 
 SHIPIT_ORDERS_BASE = getattr(settings, 'SHIPIT_ORDERS_BASE', 'https://orders.shipit.cl')
 SHIPIT_ACCEPT_VENTAS = 'application/vnd.orders.v1'
@@ -398,6 +400,7 @@ def payload_venta(shipment):
     return {
         'order': {
             'kind': 0,
+            'platform': 2,
             'plaftform': 2,
             'reference': order.order_id.hex[:15],
             'items': max(1, order.products.count()),
@@ -417,6 +420,7 @@ def payload_venta(shipment):
             'courier': {
                 'client': codigo_courier(shipment),
                 'selected': True,
+                'payable': False,
                 'payble': False,
             },
             'prices': {
