@@ -409,7 +409,9 @@ def payload_venta(shipment):
             'kind': 0,
             'platform': 2,
             'plaftform': 2,
-            'reference': order.order_id.hex[:15],
+            # El mismo número que ven la tienda (panel, correo del pedido) y el
+            # cliente, con # como llegaban las del WordPress (#63702).
+            'reference': f'#{str(order.order_id)[:8]}',
             'items': max(1, order.products.count()),
             'state': ESTADO_VENTA,
             'seller': {
