@@ -18,7 +18,7 @@ from shipments.models import AjustesEnvios, Shipment
 from shipments.services import enviar_pedido_a_shipit, payload_venta
 
 User = get_user_model()
-RESPUESTA_OK = {'id': 55501, 'reference': 'abc', 'state': 'deliver'}
+RESPUESTA_OK = {'id': 55501, 'reference': 'abc', 'state': 'confirmed', 'valid': True}
 
 
 def respuesta(status=200, data=RESPUESTA_OK):
@@ -52,7 +52,9 @@ class VentaShipitTests(TestCase):
         self.assertEqual(o['prices']['total'], 5000)
         self.assertEqual(o['insurance']['ticket_amount'], 79490)
         self.assertNotIn('sandbox', o)
-        self.assertEqual(o['state'], 2)    # con 1 Shipit la esconde (16-11-2026)
+        self.assertEqual(o['state'], 1)    # 2 es "Enviada": la tienda no puede despacharla
+        self.assertIn('volumetric_weight', o['sizes'])   # sin esto Shipit la deja inválida y escondida
+        self.assertEqual(o['destiny']['name'], 'predeterminado')
 
     @patch('shipments.services.requests.post', return_value=respuesta())
     def test_va_a_ventas_y_nunca_a_envios(self, post):
@@ -142,9 +144,16 @@ class VentaEscondidaTests(TestCase):
                                 shipping_cost=5000)
 
     @patch('shipments.services.requests.post',
-           return_value=respuesta(data={'order': {'id': 11463664, 'state': 'confirmed'}}))
-    def test_si_shipit_la_esconde_queda_como_error(self, post):
+           return_value=respuesta(data={'order': {'id': 11463664, 'state': 'confirmed', 'valid': False}}))
+    def test_si_shipit_la_deja_invalida_queda_como_error(self, post):
         envio = enviar_pedido_a_shipit(self.order)
         self.assertEqual(envio.status, 'ERROR')
-        self.assertIn('no aparece en Ventas', envio.error_shipit)
+        self.assertIn('no aparece', envio.error_shipit)
+        self.assertEqual(envio.shipit_reference, '')
+
+    @patch('shipments.services.requests.post',
+           return_value=respuesta(data={'order': {'id': 11463698, 'state': 'deliver', 'valid': True}}))
+    def test_si_queda_como_enviada_queda_como_error(self, post):
+        envio = enviar_pedido_a_shipit(self.order)
+        self.assertEqual(envio.status, 'ERROR')
         self.assertEqual(envio.shipit_reference, '')

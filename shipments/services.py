@@ -378,15 +378,16 @@ _STATIC_COMMUNES = [
 
 SHIPIT_ORDERS_BASE = getattr(settings, 'SHIPIT_ORDERS_BASE', 'https://orders.shipit.cl')
 SHIPIT_ACCEPT_VENTAS = 'application/vnd.orders.v1'
-#: Estado con que llega la venta. Tiene que ser 2, que Shipit guarda como
-#: "deliver": así llegaban las del WordPress y así aparecen en Ventas. Con 1
-#: (que la documentación llama "Lista para despachar") Shipit la guarda como
-#: "confirmed", responde OK y le da número... pero NO se ve en Ventas ni se
-#: encuentra por la API (pasó con la primera venta real, 16-11-2026).
+#: Estado con que llega la venta: 1 = "Lista para despachar" (Shipit la
+#: guarda como "confirmed"). NO usar 2: es "Enviada" y la tienda no puede
+#: crear el envío desde ahí (solo eliminarla).
+#: Ojo (16-11-2026): si faltan datos (peso volumétrico, nombre/tipo del
+#: destino) Shipit responde OK y le da número, pero la venta queda inválida y
+#: escondida: no sale en Ventas. Por eso se revisa `valid` en la respuesta.
 #: Crear una venta NO crea el envío: eso lo decide la tienda.
-ESTADO_VENTA = 2
-#: Lo que Shipit devuelve cuando la venta quedó visible en Ventas.
-ESTADO_VISIBLE = 'deliver'
+ESTADO_VENTA = 1
+#: Lo que Shipit devuelve cuando la venta quedó lista para despachar.
+ESTADO_VISIBLE = 'confirmed'
 
 
 def codigo_courier(shipment):
@@ -482,11 +483,12 @@ def crear_venta_shipit(shipment):
         data = data['order']
     log.info('Shipit creó la venta: id=%s estado=%s', data.get('id'), data.get('state'))
     estado = data.get('state')
-    if estado and estado != ESTADO_VISIBLE:
+    if data.get('valid') is False or (estado and estado != ESTADO_VISIBLE):
         # Respondió OK, pero así no le aparece a la tienda: mejor un error a
         # la vista en el panel que un pedido que se cree enviado y no lo está.
-        raise RuntimeError(f"Shipit guardó la venta {data.get('id')} como '{estado}' y no aparece "
-                           "en Ventas. Crear el envío a mano en Shipit y avisar a soporte.")
+        raise RuntimeError(f"Shipit guardó la venta {data.get('id')} como '{estado}'"
+                           f"{' e inválida' if data.get('valid') is False else ''} y no aparece "
+                           "lista en Ventas. Crear el envío a mano en Shipit y avisar a soporte.")
     return _leer_respuesta_shipit(data)
 
 
