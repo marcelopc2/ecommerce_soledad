@@ -245,7 +245,7 @@ def _build_boleta_payload(order):
             'Referencia': [{
                 'NroLinRef': 1,
                 'RazonRef': 'Orden de compra N°%s - Fecha %s' % (
-                    str(order.order_id)[:8], order.created_at.date().isoformat(),
+                    order.numero_pedido, order.created_at.date().isoformat(),
                 ),
             }],
         },

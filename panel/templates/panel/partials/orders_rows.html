@@ -3,7 +3,7 @@
   <tr>
     <td>
       <div class="cell-title">{{ o.customer_email }}</div>
-      <div class="cell-sub mono">#{{ o.order_id|stringformat:'s'|slice:':8' }}</div>
+      <div class="cell-sub mono">#{{ o.numero_pedido }}</div>
       {% comment %}
         El retiro se marca en la lista y no solo dentro del pedido: es lo que
         evita que alguien despache por error algo que el cliente va a venir a

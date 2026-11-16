@@ -30,6 +30,13 @@ def _entregar_compra(order):
     La orden ya está en PAID y guardada antes de llegar acá, así que un fallo
     de estos deja la venta registrada y recuperable a mano desde el panel.
     """
+    # Primero el n.º de pedido: lo usan la boleta, los correos y Shipit.
+    try:
+        from payments.models import asignar_numero
+        asignar_numero(order)
+    except Exception:
+        log.exception('No se pudo numerar la orden %s', order.order_id)
+
     try:
         issue_invoice_for_order(order)
     except Exception:
@@ -118,7 +125,7 @@ def _avisar_a_la_tienda(order):
         contexto={
             'tipo': tipo,
             'explicacion': explicacion,
-            'numero_pedido': str(order.order_id)[:8].upper(),
+            'numero_pedido': order.numero_pedido,
             'fecha': tz.localtime(order.created_at).strftime('%d-%m-%Y %H:%M'),
             'cliente': cliente,
             'email': order.customer_email,
@@ -161,7 +168,7 @@ def _send_order_confirmation(order, tiene_acceso):
         asunto='Confirmación de tu compra · Ingenio Blocks',
         destinatarios=[order.customer_email],
         contexto={
-            'numero_pedido': str(order.order_id)[:8],
+            'numero_pedido': order.numero_pedido,
             'productos': productos,
             'envio_costo': formato_clp(shipment.shipping_cost) if tiene_envio else '',
             'envio_courier': shipment.courier if tiene_envio else '',

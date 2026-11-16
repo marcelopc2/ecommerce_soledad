@@ -409,9 +409,8 @@ def payload_venta(shipment):
             'kind': 0,
             'platform': 2,
             'plaftform': 2,
-            # El mismo número que ven la tienda (panel, correo del pedido) y el
-            # cliente, con # como llegaban las del WordPress (#63702).
-            'reference': f'#{str(order.order_id)[:8]}',
+            # El n.º de pedido, como llegaban las del WordPress (#63702).
+            'reference': f'#{order.numero_pedido}',
             'items': max(1, order.products.count()),
             'state': ESTADO_VENTA,
             'seller': {
@@ -454,7 +453,7 @@ def payload_venta(shipment):
                 'phone': shipment.recipient_phone,
             },
             'insurance': {
-                'ticket_number': str(order.order_id)[:8],
+                'ticket_number': order.numero_pedido,
                 'ticket_amount': productos,
                 'detail': ', '.join(i.name for i in order.items.all())[:200],
                 'extra': False,
@@ -599,6 +598,6 @@ def send_pickup_ready_email(order, punto):
             'horario': punto.horario,
             'instrucciones': punto.instrucciones,
             'mapa_url': punto.mapa_url,
-            'pedido': f'#{str(order.order_id)[:8]}',
+            'pedido': f'#{order.numero_pedido}',
         },
     )

@@ -1263,6 +1263,7 @@ def orders(request):
             Q(customer_email__icontains=q)
             | Q(order_id__icontains=q.lstrip('#'))
             | Q(invoice__folio__icontains=q)
+            | (Q(numero=int(q.lstrip('#'))) if q.lstrip('#').isdigit() and len(q.lstrip('#')) <= 9 else Q(pk__in=[]))
         )
 
     counts = {
@@ -2473,7 +2474,7 @@ def order_delete(request, pk):
             usuario.delete()      # arrastra membresía, avance y diplomas
             arrastrados.append(f'la cuenta de alumno {correo}')
 
-    identificador = str(order.order_id)[:8]
+    identificador = order.numero_pedido
     correo = order.customer_email
     order.delete()
 
@@ -3315,9 +3316,10 @@ def buscar(request):
              reverse('panel:membership_detail', args=[m.pk])) for m in alumnos]))
         pedidos = Order.objects.filter(
             Q(customer_email__icontains=q) | Q(order_id__icontains=q.lstrip('#'))
+            | (Q(numero=int(q.lstrip('#'))) if q.lstrip('#').isdigit() and len(q.lstrip('#')) <= 9 else Q(pk__in=[]))
         ).order_by('-created_at')[:5]
         grupos.append(('Pedidos', 'bi-bag-check', [
-            (f'#{str(o.order_id)[:8]} · ${o.total_amount:,.0f}'.replace(',', '.'),
+            (f'#{o.numero_pedido} · ${o.total_amount:,.0f}'.replace(',', '.'),
              f'{o.customer_email} · {timezone.localtime(o.created_at):%d-%m-%Y}',
              reverse('panel:order_detail', args=[o.pk])) for o in pedidos]))
         grupos.append(('Productos', 'bi-box-seam', [

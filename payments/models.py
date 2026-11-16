@@ -18,6 +18,11 @@ class Order(models.Model):
 
     # Identificador único para Webpay (buy_order)
     order_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    #: N.º de pedido correlativo, como en WooCommerce (#63705, #63706...). Se
+    #: da al pagarse (ver asignar_numero), así no quedan huecos por los pagos
+    #: abandonados. Sigue la numeración del WordPress, que terminó en 63704.
+    numero = models.PositiveIntegerField('N.º de pedido', null=True, blank=True, unique=True)
     
     # Usuario (opcional por ahora, lo asociaremos cuando armemos el LMS)
     # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
@@ -119,6 +124,12 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order {self.order_id} - {self.status}"
+
+    @property
+    def numero_pedido(self):
+        """Lo que se muestra como número de pedido: el correlativo, o el
+        código corto para los que aún no se pagan."""
+        return str(self.numero) if self.numero else str(self.order_id)[:8]
 
     @property
     def es_retiro(self):
@@ -451,3 +462,33 @@ class AjustesCobros(models.Model):
     def obtener(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+#: Último número de pedido del WordPress (wp_wc_orders, 31-10-2026).
+ULTIMO_NUMERO_WORDPRESS = 63704
+
+
+class ContadorPedidos(models.Model):
+    """El último n.º de pedido entregado. Una sola fila."""
+    ultimo = models.PositiveIntegerField(default=ULTIMO_NUMERO_WORDPRESS)
+
+    class Meta:
+        verbose_name = 'contador de pedidos'
+
+
+def asignar_numero(order):
+    """Le da a una orden pagada el siguiente n.º de pedido (si no tiene)."""
+    from django.db import transaction
+    if order.numero:
+        return order.numero
+    with transaction.atomic():
+        contador, _ = ContadorPedidos.objects.select_for_update().get_or_create(pk=1)
+        actual = Order.objects.select_for_update().only('numero').get(pk=order.pk)
+        if actual.numero:
+            order.numero = actual.numero
+            return order.numero
+        contador.ultimo += 1
+        contador.save(update_fields=['ultimo'])
+        Order.objects.filter(pk=order.pk).update(numero=contador.ultimo)
+    order.numero = contador.ultimo
+    return order.numero
