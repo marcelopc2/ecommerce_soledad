@@ -11,7 +11,22 @@
 {% block content %}
 <div class="row g-4">
   <div class="col-lg-7">
+    {% if envio.estado == 'PROGRAMADO' %}
+    <div class="pnl-card"><div class="card-pad">
+      <div class="form-section-title"><i class="bi bi-clock"></i> Programado</div>
+      <p class="mb-1">Sale solo el <strong>{{ envio.programado_para|date:'l d-m-Y' }} a las {{ envio.programado_para|date:'H:i' }}</strong>
+        (en {{ envio.programado_para|timeuntil }}).</p>
+      <p class="pnl-campo-ayuda">A {{ envio.get_audiencia_display|lower }}. La lista de personas se arma
+        al momento de salir. Para cambiar algo, cancela la programación: vuelve a borrador.</p>
+      <form method="post" action="{% url 'panel:correo_desprogramar' envio.pk %}"
+            hx-confirm="¿Cancelar la programación? El correo vuelve a borrador y no sale.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-ghost"><i class="bi bi-x-circle me-1"></i> Cancelar programación</button>
+      </form>
+    </div></div>
+    {% else %}
     {% include 'panel/partials/correo_progreso.html' %}
+    {% endif %}
   </div>
   <div class="col-lg-5">
     <div class="pnl-card"><div class="card-pad">
@@ -19,7 +34,8 @@
       <dl class="small mb-0">
         <dt>A quién</dt><dd>{{ envio.get_audiencia_display }}</dd>
         <dt>Enviado por</dt><dd>{{ envio.creado_por.email|default:'—' }}</dd>
-        <dt>Empezó</dt><dd>{{ envio.encolado_en|date:'d-m-Y H:i' }}</dd>
+        {% if envio.programado_para %}<dt>Programado para</dt><dd>{{ envio.programado_para|date:'d-m-Y H:i' }}</dd>{% endif %}
+        {% if envio.encolado_en %}<dt>Empezó</dt><dd>{{ envio.encolado_en|date:'d-m-Y H:i' }}</dd>{% endif %}
         {% if envio.terminado_en %}<dt>Terminó</dt><dd>{{ envio.terminado_en|date:'d-m-Y H:i' }}</dd>{% endif %}
         <dt>Prueba</dt><dd>{{ envio.prueba_enviada_en|date:'d-m-Y H:i'|default:'—' }}</dd>
       </dl>

@@ -35,6 +35,7 @@ urlpatterns = [
     path('correos/<int:pk>/prueba/', views.correo_prueba, name='correo_prueba'),
     path('correos/<int:pk>/enviar/', views.correo_confirmar, name='correo_confirmar'),
     path('correos/<int:pk>/cancelar/', views.correo_cancelar, name='correo_cancelar'),
+    path('correos/<int:pk>/desprogramar/', views.correo_desprogramar, name='correo_desprogramar'),
     path('correos/<int:pk>/eliminar/', views.correo_eliminar, name='correo_eliminar'),
     path('correos/imagen/', views.correo_imagen, name='correo_imagen'),
     path('suscripciones/', views.suscripciones, name='suscripciones'),

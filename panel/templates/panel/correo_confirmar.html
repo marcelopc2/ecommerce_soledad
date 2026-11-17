@@ -33,10 +33,49 @@
           <strong>{{ numeros.a_enviar }}</strong>
         </label>
         <input type="text" inputmode="numeric" autocomplete="off" name="confirmacion" id="confirmacion"
-               class="form-control mb-2" style="max-width:180px" autofocus>
+               class="form-control mb-3" style="max-width:180px" autofocus>
+
+        <div class="form-label">¿Cuándo sale?</div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="accion" value="ahora" id="accion-ahora"
+                 {% if accion != 'programar' %}checked{% endif %}>
+          <label class="form-check-label" for="accion-ahora">Ahora</label>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="radio" name="accion" value="programar" id="accion-programar"
+                 {% if accion == 'programar' %}checked{% endif %}>
+          <label class="form-check-label" for="accion-programar">Programar para otro día y hora</label>
+        </div>
+        <div id="cuando-caja" class="mb-2 ms-4" {% if accion != 'programar' %}hidden{% endif %}>
+          <input type="datetime-local" name="cuando" id="cuando" value="{{ cuando }}" min="{{ minimo }}"
+                 class="form-control" style="max-width:240px">
+          <div class="pnl-campo-ayuda mt-1">
+            Hora de Chile. Hasta esa hora lo puedes cancelar. La lista de personas se arma
+            al momento de salir: no le llega a quien se dé de baja antes.
+          </div>
+        </div>
+
         {% if error %}<div class="text-danger small mb-2">{{ error }}</div>{% endif %}
-        <button type="submit" class="btn btn-brand mt-2"><i class="bi bi-send me-1"></i> Enviar a {{ numeros.a_enviar }} personas</button>
+        <button type="submit" class="btn btn-brand mt-2" id="boton-confirmar">
+          <i class="bi bi-send me-1"></i>
+          <span id="texto-confirmar">{% if accion == 'programar' %}Programar para {{ numeros.a_enviar }} personas{% else %}Enviar a {{ numeros.a_enviar }} personas{% endif %}</span>
+        </button>
       </form>
+      <script>
+        (function () {
+          var caja = document.getElementById('cuando-caja');
+          var texto = document.getElementById('texto-confirmar');
+          var n = '{{ numeros.a_enviar }}';
+          function actualizar() {
+            var prog = document.getElementById('accion-programar').checked;
+            caja.hidden = !prog;
+            texto.textContent = prog ? 'Programar para ' + n + ' personas' : 'Enviar a ' + n + ' personas';
+          }
+          document.querySelectorAll('input[name=accion]').forEach(function (r) {
+            r.addEventListener('change', actualizar);
+          });
+        })();
+      </script>
     {% endif %}
   </div></div>
 </div></div>

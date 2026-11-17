@@ -8,6 +8,8 @@ comunicaciones/envio.py.
     manage.py enviar_masivos --lote 10 --pausa 3
 
 Si no hay nada en cola no hace nada, así que puede quedar corriendo siempre.
+También suelta los correos programados cuya hora llegó (y avisa por Telegram
+cuando empiezan y terminan de salir).
 Con el freno de correos puesto (servidor de pruebas) tampoco: el panel ni
 siquiera deja encolar, pero si algo quedara en cola, no sale.
 """
@@ -16,7 +18,9 @@ import logging
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from comunicaciones.envio import procesar
+from comunicaciones.envio import procesar, soltar_programados
+from comunicaciones.models import DestinatarioMasivo, EnvioMasivo
+from core.alertas import avisar
 
 log = logging.getLogger('ingenioblocks.pagos')
 
@@ -38,9 +42,26 @@ class Command(BaseCommand):
             self.stdout.write('Freno de correos puesto: no se manda nada.')
             return
 
+        for programado, problema in soltar_programados():
+            if problema:
+                log.warning('Correo programado "%s" no salió: %s', programado.asunto, problema)
+                avisar(f'⚠️ El correo programado «{programado.asunto}» no salió: {problema} '
+                       'Quedó como borrador en el panel.')
+            else:
+                n = programado.destinatarios.filter(estado=DestinatarioMasivo.PENDIENTE).count()
+                log.info('Correo programado "%s" empezó a salir a %s personas', programado.asunto, n)
+                avisar(f'📨 Empezó a salir el correo programado «{programado.asunto}» a {n} personas.')
+
         envio, cuenta = procesar(lote=op['lote'], pausa=op['pausa'])
         if envio is None:
             return
+        envio.refresh_from_db()
+        if envio.programado_para and envio.estado == EnvioMasivo.TERMINADO:
+            c = envio.contadores()
+            avisar(f'✅ Terminó de salir el correo programado «{envio.asunto}»: '
+                   f'{c[DestinatarioMasivo.ENVIADO]} enviados'
+                   + (f', {c[DestinatarioMasivo.FALLIDO]} fallaron' if c[DestinatarioMasivo.FALLIDO] else '')
+                   + '.')
         resumen = ', '.join('%s %d' % (k.lower(), v) for k, v in cuenta.items()) or 'sin cambios'
         self.stdout.write('"%s": %s' % (envio.asunto, resumen))
         log.info('enviar_masivos "%s": %s', envio.asunto, resumen)

@@ -2672,7 +2672,7 @@ def order_picked_up(request, pk):
 def correos(request):
     envios = list(EnvioMasivo.objects.select_related('creado_por')[:50])
     for e in envios:
-        e.cuenta = None if e.editable else e.contadores()
+        e.cuenta = None if e.editable or e.estado == EnvioMasivo.PROGRAMADO else e.contadores()
     return render(request, 'panel/correos.html', {
         'envios': envios,
         'bajas': BajaDeCorreo.objects.all()[:300],
@@ -2787,6 +2787,19 @@ def correo_confirmar(request, pk):
             error = 'No hay nadie a quien enviarle este correo.'
         elif escrito != str(numeros['a_enviar']):
             error = 'Escribe el número exacto de personas: %d.' % numeros['a_enviar']
+        elif request.POST.get('accion') == 'programar':
+            cuando = _leer_fecha_hora(request.POST.get('cuando', ''))
+            if cuando is None:
+                error = 'Elige el día y la hora en que quieres que salga.'
+            else:
+                try:
+                    masivos.programar(envio, cuando)
+                except masivos.NoSePuedeEnviar as e:
+                    error = str(e)
+                else:
+                    messages.success(request, 'Listo: el correo sale solo el %s. Hasta entonces '
+                                              'puedes cancelarlo.' % timezone.localtime(cuando).strftime('%d-%m-%Y a las %H:%M'))
+                    return redirect('panel:correo_detalle', pk=envio.pk)
         else:
             try:
                 masivos.encolar(envio)
@@ -2799,8 +2812,19 @@ def correo_confirmar(request, pk):
 
     return render(request, 'panel/correo_confirmar.html', {
         'envio': envio, 'numeros': numeros, 'motivo': motivo, 'error': error,
+        'cuando': request.POST.get('cuando', ''), 'accion': request.POST.get('accion', ''),
+        'minimo': timezone.localtime(timezone.now() + masivos.PROGRAMAR_DESDE).strftime('%Y-%m-%dT%H:%M'),
         'section': 'correos',
     })
+
+
+def _leer_fecha_hora(texto):
+    """'2026-11-20T10:00' (lo que manda <input type=datetime-local>) en hora de Chile."""
+    from datetime import datetime
+    try:
+        return timezone.make_aware(datetime.strptime(texto.strip(), '%Y-%m-%dT%H:%M'))
+    except (ValueError, TypeError):
+        return None
 
 
 @staff_required
@@ -2831,6 +2855,18 @@ def correo_cancelar(request, pk):
     if cambio:
         messages.success(request, 'Envío detenido. Los que ya habían salido no se '
                                   'pueden recoger; al resto no le llega.')
+    return redirect('panel:correo_detalle', pk=envio.pk)
+
+
+@staff_required
+@require_POST
+def correo_desprogramar(request, pk):
+    """Un programado que todavía no sale vuelve a borrador, para editarlo o mandarlo después."""
+    envio = get_object_or_404(EnvioMasivo, pk=pk)
+    if masivos.desprogramar(envio):
+        messages.success(request, 'Listo: ya no sale solo. Quedó como borrador.')
+        return redirect('panel:correo_edit', pk=envio.pk)
+    messages.error(request, 'Ya no se puede: el correo empezó a salir.')
     return redirect('panel:correo_detalle', pk=envio.pk)
 
 

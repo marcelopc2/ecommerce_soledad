@@ -48,6 +48,7 @@
             {% if e.estado == 'BORRADOR' %}
               {% if e.prueba_al_dia %}<span class="badge-soft purple">Probado, listo</span>
               {% else %}<span class="badge-soft gray">Borrador</span>{% endif %}
+            {% elif e.estado == 'PROGRAMADO' %}<span class="badge-soft purple"><i class="bi bi-clock me-1"></i>Programado · {{ e.programado_para|date:'d-m H:i' }}</span>
             {% elif e.estado == 'EN_COLA' %}<span class="badge-soft yellow">Enviándose</span>
             {% elif e.estado == 'TERMINADO' %}<span class="badge-soft green">Enviado</span>
             {% else %}<span class="badge-soft red">Cancelado</span>{% endif %}
@@ -58,7 +59,7 @@
               {% if e.cuenta.FALLIDO %}<div class="cell-sub text-danger">{{ e.cuenta.FALLIDO }} fallaron</div>{% endif %}
             {% else %}<span class="cell-sub">—</span>{% endif %}
           </td>
-          <td class="cell-sub">{{ e.encolado_en|default:e.creado_en|date:'d-m-Y H:i' }}</td>
+          <td class="cell-sub">{% if e.estado == 'PROGRAMADO' %}{{ e.programado_para|date:'d-m-Y H:i' }}{% else %}{{ e.encolado_en|default:e.creado_en|date:'d-m-Y H:i' }}{% endif %}</td>
           <td class="text-end">
             {% if e.editable %}
               <a href="{% url 'panel:correo_edit' e.pk %}" class="btn btn-sm btn-ghost">Seguir</a>

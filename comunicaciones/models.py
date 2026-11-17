@@ -48,11 +48,13 @@ class EnvioMasivo(models.Model):
     "¿le llegó a tal persona?" sin adivinar.
     """
     BORRADOR = 'BORRADOR'
+    PROGRAMADO = 'PROGRAMADO'
     EN_COLA = 'EN_COLA'
     TERMINADO = 'TERMINADO'
     CANCELADO = 'CANCELADO'
     ESTADOS = [
         (BORRADOR, 'Borrador'),
+        (PROGRAMADO, 'Programado'),
         (EN_COLA, 'Enviándose'),
         (TERMINADO, 'Enviado'),
         (CANCELADO, 'Cancelado'),
@@ -101,6 +103,9 @@ class EnvioMasivo(models.Model):
     prueba_huella = models.CharField(max_length=64, blank=True)
 
     encolado_en = models.DateTimeField(null=True, blank=True)
+    #: Si se programó: a qué hora sale. Se conserva después de salir, para
+    #: saber que fue programado (y avisar por Telegram cuando termina).
+    programado_para = models.DateTimeField(null=True, blank=True)
     terminado_en = models.DateTimeField(null=True, blank=True)
 
     class Meta:

@@ -182,6 +182,69 @@ def encolar(envio):
     return envio
 
 
+#: Programar con al menos este margen, y no más allá de este plazo.
+PROGRAMAR_DESDE = timedelta(minutes=5)
+PROGRAMAR_HASTA = timedelta(days=90)
+
+
+def programar(envio, cuando):
+    """Deja el correo para que salga solo a la hora `cuando`.
+
+    Pide lo mismo que "Enviar ahora" (prueba al día, correos sin pausa...).
+    Mientras está programado no se puede editar: para cambiarlo hay que
+    desprogramarlo, y al volver a borrador, cualquier cambio exige otra prueba.
+    La lista de personas NO se arma acá sino al salir (ver soltar_programados).
+    """
+    motivo = motivo_para_no_enviar(envio)
+    if motivo:
+        raise NoSePuedeEnviar(motivo)
+    ahora = timezone.now()
+    if cuando < ahora + PROGRAMAR_DESDE:
+        raise NoSePuedeEnviar('La hora tiene que ser al menos 5 minutos más adelante.')
+    if cuando > ahora + PROGRAMAR_HASTA:
+        raise NoSePuedeEnviar('Se puede programar hasta 90 días hacia adelante.')
+    with transaction.atomic():
+        envio = EnvioMasivo.objects.select_for_update().get(pk=envio.pk)
+        if envio.estado != EnvioMasivo.BORRADOR:
+            raise NoSePuedeEnviar('Este correo ya se envió o ya estaba programado.')
+        envio.estado = EnvioMasivo.PROGRAMADO
+        envio.programado_para = cuando
+        envio.save(update_fields=['estado', 'programado_para', 'actualizado_en'])
+    return envio
+
+
+def desprogramar(envio):
+    """Lo vuelve a borrador (si todavía no salió). Devuelve si se pudo."""
+    return bool(EnvioMasivo.objects.filter(pk=envio.pk, estado=EnvioMasivo.PROGRAMADO).update(
+        estado=EnvioMasivo.BORRADOR, programado_para=None, actualizado_en=timezone.now()))
+
+
+def soltar_programados():
+    """Encola los programados cuya hora ya llegó. Devuelve [(envio, problema)].
+
+    Lo llama enviar_masivos cada minuto, y solo si los correos a clientes no
+    están en pausa: con la pausa puesta, el programado espera, no se pierde.
+    Pasa por encolar(), así que se revisan otra vez todas las condiciones y la
+    lista de personas se arma recién ahora (sin los que se dieron de baja).
+    Si algo impide que salga, vuelve a borrador y se avisa.
+    """
+    resultado = []
+    listos = EnvioMasivo.objects.filter(estado=EnvioMasivo.PROGRAMADO,
+                                        programado_para__lte=timezone.now()).order_by('programado_para', 'id')
+    for envio in listos:
+        # Solo si nadie lo desprogramó en este instante.
+        if not EnvioMasivo.objects.filter(pk=envio.pk, estado=EnvioMasivo.PROGRAMADO).update(
+                estado=EnvioMasivo.BORRADOR):
+            continue
+        envio.refresh_from_db()
+        try:
+            resultado.append((encolar(envio), None))
+        except NoSePuedeEnviar as e:
+            EnvioMasivo.objects.filter(pk=envio.pk).update(programado_para=None)
+            resultado.append((envio, str(e)))
+    return resultado
+
+
 def _rescatar_interrumpidos():
     limite = timezone.now() - INTERRUMPIDO_TRAS
     return DestinatarioMasivo.objects.filter(
