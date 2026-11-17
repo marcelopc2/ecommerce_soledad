@@ -2701,6 +2701,12 @@ def correo_form(request, pk=None):
             if obj.audiencia == EnvioMasivo.PRUEBA:
                 return correo_prueba(request, obj.pk)
             return redirect('panel:correo_confirmar', pk=obj.pk)
+        if request.POST.get('accion') == 'programar':
+            if obj.audiencia == EnvioMasivo.PRUEBA:
+                messages.info(request, 'Guardado. Para programarlo, elige a quién va (no «Prueba»): '
+                                       'la prueba sale al tiro, no se programa.')
+                return redirect('panel:correo_edit', pk=obj.pk)
+            return redirect(reverse('panel:correo_confirmar', args=[obj.pk]) + '?programar=1')
         if obj.prueba_enviada_en and not obj.prueba_al_dia:
             messages.info(request, 'Guardado. Como cambiaste el correo, mándate '
                                    'una prueba nueva antes de enviarlo a todos.')
@@ -2812,7 +2818,8 @@ def correo_confirmar(request, pk):
 
     return render(request, 'panel/correo_confirmar.html', {
         'envio': envio, 'numeros': numeros, 'motivo': motivo, 'error': error,
-        'cuando': request.POST.get('cuando', ''), 'accion': request.POST.get('accion', ''),
+        'cuando': request.POST.get('cuando', ''),
+        'accion': request.POST.get('accion') or ('programar' if request.GET.get('programar') else ''),
         'minimo': timezone.localtime(timezone.now() + masivos.PROGRAMAR_DESDE).strftime('%Y-%m-%dT%H:%M'),
         'section': 'correos',
     })

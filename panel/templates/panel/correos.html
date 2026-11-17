@@ -63,6 +63,13 @@
           <td class="text-end">
             {% if e.editable %}
               <a href="{% url 'panel:correo_edit' e.pk %}" class="btn btn-sm btn-ghost">Seguir</a>
+              <form method="post" action="{% url 'panel:correo_eliminar' e.pk %}" class="d-inline"
+                    hx-confirm="¿Borrar el borrador «{{ e.asunto }}»? No se puede deshacer.">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-ghost text-danger" title="Borrar borrador" aria-label="Borrar borrador">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             {% else %}
               <a href="{% url 'panel:correo_detalle' e.pk %}" class="btn btn-sm btn-ghost">Ver</a>
             {% endif %}

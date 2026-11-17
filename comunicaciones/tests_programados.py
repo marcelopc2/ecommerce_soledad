@@ -180,3 +180,29 @@ class PanelProgramarTests(TestCase):
         e.refresh_from_db()
         self.assertEqual(e.estado, EnvioMasivo.BORRADOR)
         self.assertFalse(DestinatarioMasivo.objects.exists())
+
+    def test_boton_programar_del_editor_lleva_a_programar(self):
+        e = _probado()
+        r = self.client.post(reverse('panel:correo_edit', args=[e.pk]), {
+            'asunto': e.asunto, 'cuerpo_html': '<p>Hola.</p>', 'audiencia': 'TODOS',
+            'boton_texto': '', 'boton_url': '', 'accion': 'programar'})
+        self.assertRedirects(r, reverse('panel:correo_confirmar', args=[e.pk]) + '?programar=1',
+                             fetch_redirect_response=False)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_programar_una_prueba_no_manda_nada(self):
+        e = _probado()
+        r = self.client.post(reverse('panel:correo_edit', args=[e.pk]), {
+            'asunto': e.asunto, 'cuerpo_html': '<p>Hola.</p>', 'audiencia': 'PRUEBA',
+            'boton_texto': '', 'boton_url': '', 'accion': 'programar'})
+        self.assertRedirects(r, reverse('panel:correo_edit', args=[e.pk]), fetch_redirect_response=False)
+        self.assertEqual(len(mail.outbox), 0)
+        e.refresh_from_db()
+        self.assertEqual(e.estado, EnvioMasivo.BORRADOR)
+
+    def test_la_lista_deja_borrar_borradores(self):
+        e = _probado()
+        r = self.client.get(reverse('panel:correos'))
+        self.assertContains(r, reverse('panel:correo_eliminar', args=[e.pk]))
+        self.client.post(reverse('panel:correo_eliminar', args=[e.pk]))
+        self.assertFalse(EnvioMasivo.objects.filter(pk=e.pk).exists())

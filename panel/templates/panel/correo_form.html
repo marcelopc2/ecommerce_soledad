@@ -93,6 +93,13 @@
           <button type="submit" name="accion" value="enviar" class="btn btn-ghost">
             <i class="bi bi-send me-1"></i> Guardar y enviar
           </button>
+          <button type="submit" name="accion" value="programar" class="btn btn-ghost">
+            <i class="bi bi-clock me-1"></i> Guardar y programar
+          </button>
+        </div>
+        <div class="pnl-campo-ayuda mt-2">
+          Para enviarlo o programarlo a los clientes, primero mándatelo como <strong>Prueba</strong>
+          y después elige a quién va.
         </div>
         {% if envio.prueba_enviada_en and not envio.prueba_al_dia %}
           <div class="alert alert-warning py-2 small mt-3 mb-0">
