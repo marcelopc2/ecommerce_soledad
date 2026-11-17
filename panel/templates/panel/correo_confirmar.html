@@ -1,82 +1,114 @@
 {% extends 'panel/base.html' %}
 
-{% block title %}Enviar a todos{% endblock %}
+{% block title %}{% if es_prueba %}Programar la prueba{% else %}Enviar a los clientes{% endif %}{% endblock %}
 {% block crumb %}Correos{% endblock %}
-{% block heading %}Enviar a todos{% endblock %}
+{% block heading %}{% if es_prueba %}Programar la prueba{% else %}Enviar a los clientes{% endif %}{% endblock %}
 
 {% block actions %}
 <a href="{% url 'panel:correo_edit' envio.pk %}" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Volver al correo</a>
 {% endblock %}
 
 {% block content %}
-<div class="row"><div class="col-lg-7">
+<div class="row"><div class="col-lg-7 col-xl-6">
   <div class="pnl-card"><div class="card-pad">
     {% if motivo %}
       <div class="form-section-title"><i class="bi bi-lock"></i> Todavía no se puede enviar</div>
       <p class="mb-0">{{ motivo }}</p>
+
     {% else %}
-      <div class="form-section-title"><i class="bi bi-exclamation-triangle"></i> Último paso</div>
-      <p>Vas a enviar <strong>«{{ envio.asunto }}»</strong> a
-        <strong>{{ numeros.a_enviar }} persona{{ numeros.a_enviar|pluralize }}</strong>
-        ({{ envio.get_audiencia_display|lower }}).
-        {% if numeros.de_baja %}Otras {{ numeros.de_baja }} se dieron de baja y no lo reciben.{% endif %}
-      </p>
-      <p class="pnl-campo-ayuda">
-        Un correo enviado no se puede recoger. Si viste algo raro en la prueba,
-        vuelve y corrígelo primero.
-      </p>
+      <div class="confirmar-resumen mb-4">
+        <div class="cell-sub">Correo</div>
+        <div class="fw-bold mb-2">«{{ envio.asunto }}»</div>
+        <div class="cell-sub">A quién</div>
+        <div>
+          {% if es_prueba %}
+            Solo al equipo ({{ numeros.a_enviar }} administrador{{ numeros.a_enviar|pluralize:"es" }}), como prueba.
+          {% else %}
+            <strong>{{ numeros.a_enviar }} persona{{ numeros.a_enviar|pluralize }}</strong> · {{ envio.get_audiencia_display|lower }}
+            {% if numeros.de_baja %}<div class="cell-sub">Otras {{ numeros.de_baja }} se dieron de baja y no lo reciben.</div>{% endif %}
+          {% endif %}
+        </div>
+      </div>
 
       <form method="post" novalidate>
         {% csrf_token %}
-        <label class="form-label" for="confirmacion">
-          Para confirmar, escribe cuántas personas lo van a recibir:
-          <strong>{{ numeros.a_enviar }}</strong>
-        </label>
-        <input type="text" inputmode="numeric" autocomplete="off" name="confirmacion" id="confirmacion"
-               class="form-control mb-3" style="max-width:180px" autofocus>
 
-        <div class="form-label">¿Cuándo sale?</div>
-        <div class="form-check">
-          <input class="form-check-input" type="radio" name="accion" value="ahora" id="accion-ahora"
-                 {% if accion != 'programar' %}checked{% endif %}>
-          <label class="form-check-label" for="accion-ahora">Ahora</label>
-        </div>
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="radio" name="accion" value="programar" id="accion-programar"
-                 {% if accion == 'programar' %}checked{% endif %}>
-          <label class="form-check-label" for="accion-programar">Programar para otro día y hora</label>
-        </div>
-        <div id="cuando-caja" class="mb-2 ms-4" {% if accion != 'programar' %}hidden{% endif %}>
+        {% if es_prueba %}
+          <input type="hidden" name="accion" value="programar">
+        {% else %}
+          <div class="form-label">¿Cuándo sale?</div>
+          <div class="confirmar-opciones mb-3">
+            <label class="confirmar-opcion">
+              <input class="form-check-input" type="radio" name="accion" value="ahora"
+                     {% if accion != 'programar' %}checked{% endif %}>
+              <span><strong>Ahora</strong><span class="cell-sub d-block">Empieza a salir en un minuto, de a poco.</span></span>
+            </label>
+            <label class="confirmar-opcion">
+              <input class="form-check-input" type="radio" name="accion" value="programar"
+                     {% if accion == 'programar' %}checked{% endif %}>
+              <span><strong>Programar</strong><span class="cell-sub d-block">Elige el día y la hora.</span></span>
+            </label>
+          </div>
+        {% endif %}
+
+        <div id="cuando-caja" class="mb-3" {% if not es_prueba and accion != 'programar' %}hidden{% endif %}>
+          <label class="form-label" for="cuando">Día y hora (hora de Chile)</label>
           <input type="datetime-local" name="cuando" id="cuando" value="{{ cuando }}" min="{{ minimo }}"
                  class="form-control" style="max-width:240px">
           <div class="pnl-campo-ayuda mt-1">
-            Hora de Chile. Hasta esa hora lo puedes cancelar. La lista de personas se arma
-            al momento de salir: no le llega a quien se dé de baja antes.
+            Hasta esa hora lo puedes cancelar.{% if not es_prueba %} La lista de personas se arma al
+            momento de salir: no le llega a quien se dé de baja antes.{% endif %}
           </div>
         </div>
 
-        {% if error %}<div class="text-danger small mb-2">{{ error }}</div>{% endif %}
-        <button type="submit" class="btn btn-brand mt-2" id="boton-confirmar">
-          <i class="bi bi-send me-1"></i>
-          <span id="texto-confirmar">{% if accion == 'programar' %}Programar para {{ numeros.a_enviar }} personas{% else %}Enviar a {{ numeros.a_enviar }} personas{% endif %}</span>
+        {% if not es_prueba %}
+          <div class="pnl-campo-ayuda mb-2">
+            Un correo enviado no se puede recoger. Si viste algo raro en la prueba, vuelve y corrígelo primero.
+          </div>
+          <label class="form-label" for="confirmacion">
+            Para confirmar, escribe cuántas personas lo van a recibir: <strong>{{ numeros.a_enviar }}</strong>
+          </label>
+          <input type="text" inputmode="numeric" autocomplete="off" name="confirmacion" id="confirmacion"
+                 class="form-control mb-3" style="max-width:180px" autofocus>
+        {% endif %}
+
+        {% if error %}<div class="alert alert-danger py-2 small">{{ error }}</div>{% endif %}
+
+        <button type="submit" class="btn btn-brand">
+          <i class="bi {% if es_prueba or accion == 'programar' %}bi-clock{% else %}bi-send{% endif %} me-1" id="icono-confirmar"></i>
+          <span id="texto-confirmar">{% if es_prueba %}Programar la prueba{% elif accion == 'programar' %}Programar para {{ numeros.a_enviar }} personas{% else %}Enviar a {{ numeros.a_enviar }} personas{% endif %}</span>
         </button>
       </form>
+      {% if not es_prueba %}
       <script>
         (function () {
-          var caja = document.getElementById('cuando-caja');
-          var texto = document.getElementById('texto-confirmar');
-          var n = '{{ numeros.a_enviar }}';
+          var caja = document.getElementById('cuando-caja')
+          var texto = document.getElementById('texto-confirmar')
+          var icono = document.getElementById('icono-confirmar')
+          var n = '{{ numeros.a_enviar }}'
           function actualizar() {
-            var prog = document.getElementById('accion-programar').checked;
-            caja.hidden = !prog;
-            texto.textContent = prog ? 'Programar para ' + n + ' personas' : 'Enviar a ' + n + ' personas';
+            var r = document.querySelector('input[name=accion]:checked')
+            var prog = r && r.value === 'programar'
+            caja.hidden = !prog
+            texto.textContent = prog ? 'Programar para ' + n + ' personas' : 'Enviar a ' + n + ' personas'
+            icono.className = 'bi ' + (prog ? 'bi-clock' : 'bi-send') + ' me-1'
           }
           document.querySelectorAll('input[name=accion]').forEach(function (r) {
-            r.addEventListener('change', actualizar);
-          });
-        })();
+            r.addEventListener('change', actualizar)
+          })
+        })()
       </script>
+      {% endif %}
     {% endif %}
   </div></div>
 </div></div>
+<style>
+  .confirmar-resumen { background:#f8f4fe; border-radius:12px; padding:14px 16px; }
+  .confirmar-opciones { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .confirmar-opcion { display:flex; gap:10px; align-items:flex-start; border:1px solid #e2d9ef;
+    border-radius:12px; padding:12px 14px; cursor:pointer; margin:0; }
+  .confirmar-opcion:has(input:checked) { border-color:#8200db; background:#faf6ff; }
+  .confirmar-opcion .form-check-input { margin-top:3px; flex-shrink:0; }
+  @media (max-width:480px) { .confirmar-opciones { grid-template-columns:1fr; } }
+</style>
 {% endblock %}

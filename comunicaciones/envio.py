@@ -195,9 +195,14 @@ def programar(envio, cuando):
     desprogramarlo, y al volver a borrador, cualquier cambio exige otra prueba.
     La lista de personas NO se arma acá sino al salir (ver soltar_programados).
     """
-    motivo = motivo_para_no_enviar(envio)
-    if motivo:
-        raise NoSePuedeEnviar(motivo)
+    if envio.audiencia == EnvioMasivo.PRUEBA:
+        # Una prueba programada sale solo al equipo: no pide nada más.
+        if not envio.editable:
+            raise NoSePuedeEnviar('Este correo ya se envió o ya estaba programado.')
+    else:
+        motivo = motivo_para_no_enviar(envio)
+        if motivo:
+            raise NoSePuedeEnviar(motivo)
     ahora = timezone.now()
     if cuando < ahora + PROGRAMAR_DESDE:
         raise NoSePuedeEnviar('La hora tiene que ser al menos 5 minutos más adelante.')
@@ -219,7 +224,7 @@ def desprogramar(envio):
         estado=EnvioMasivo.BORRADOR, programado_para=None, actualizado_en=timezone.now()))
 
 
-def soltar_programados():
+def soltar_programados(solo_pruebas=False):
     """Encola los programados cuya hora ya llegó. Devuelve [(envio, problema)].
 
     Lo llama enviar_masivos cada minuto, y solo si los correos a clientes no
@@ -227,11 +232,28 @@ def soltar_programados():
     Pasa por encolar(), así que se revisan otra vez todas las condiciones y la
     lista de personas se arma recién ahora (sin los que se dieron de baja).
     Si algo impide que salga, vuelve a borrador y se avisa.
+
+    Una PRUEBA programada sale al equipo (como el botón de prueba) y el correo
+    queda otra vez en borrador, ya probado. Esas salen aunque esté la pausa
+    de correos a clientes (`solo_pruebas`), igual que la prueba manual.
     """
     resultado = []
     listos = EnvioMasivo.objects.filter(estado=EnvioMasivo.PROGRAMADO,
                                         programado_para__lte=timezone.now()).order_by('programado_para', 'id')
+    if solo_pruebas:
+        listos = listos.filter(audiencia=EnvioMasivo.PRUEBA)
     for envio in listos:
+        if envio.audiencia == EnvioMasivo.PRUEBA:
+            if not EnvioMasivo.objects.filter(pk=envio.pk, estado=EnvioMasivo.PROGRAMADO).update(
+                    estado=EnvioMasivo.BORRADOR, programado_para=None):
+                continue
+            envio.refresh_from_db()
+            try:
+                envio.llegaron = enviar_prueba(envio)
+                resultado.append((envio, None))
+            except Exception as e:
+                resultado.append((envio, f'la prueba no se pudo enviar ({type(e).__name__}).'))
+            continue
         # Solo si nadie lo desprogramó en este instante.
         if not EnvioMasivo.objects.filter(pk=envio.pk, estado=EnvioMasivo.PROGRAMADO).update(
                 estado=EnvioMasivo.BORRADOR):

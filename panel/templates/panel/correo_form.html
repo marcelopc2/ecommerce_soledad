@@ -64,7 +64,8 @@
 
     <div class="col-xl-4">
       <div class="pnl-card correo-lateral"><div class="card-pad">
-        <div class="mb-3">
+        <div class="form-section-title"><i class="bi bi-hand-index"></i> Botón del correo <span class="cell-sub fw-normal">(opcional)</span></div>
+        <div class="mb-2">
           <label class="form-label">{{ form.boton_texto.label }}</label>
           {{ form.boton_texto }}
           {% for e in form.boton_texto.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
@@ -74,13 +75,28 @@
           {{ form.boton_url }}
           {% for e in form.boton_url.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
         </div>
-        <div class="pnl-campo-ayuda mb-4">El botón es opcional. Si lo pones, llena las dos cosas.</div>
+        <div class="pnl-campo-ayuda">Si lo pones, llena las dos cosas.</div>
 
-        <label class="form-label">{{ form.audiencia.label }}</label>
+        <hr class="my-4">
+
+        <div class="form-section-title"><i class="bi bi-send"></i> Enviar</div>
+        {# En qué va la prueba: es lo que decide si se puede mandar a los clientes. #}
+        {% if envio.prueba_al_dia %}
+          <div class="correo-estado ok"><i class="bi bi-check-circle-fill"></i>
+            Probado el {{ envio.prueba_enviada_en|date:'d-m-Y H:i' }}. Ya puedes mandarlo a los clientes.</div>
+        {% elif envio.prueba_enviada_en %}
+          <div class="correo-estado aviso"><i class="bi bi-exclamation-triangle-fill"></i>
+            Lo cambiaste después de la prueba: mándate otra antes de enviarlo a los clientes.</div>
+        {% else %}
+          <div class="correo-estado"><i class="bi bi-1-circle-fill"></i>
+            Primero mándate una prueba (opción «Prueba») y revísala. Después elige a quién va.</div>
+        {% endif %}
+
+        <label class="form-label mt-3">{{ form.audiencia.label }}</label>
         {% for o in opciones_audiencia %}
           <div class="form-check mb-1">
             <input class="form-check-input" type="radio" name="audiencia" id="aud-{{ o.valor }}"
-                   value="{{ o.valor }}" {% if form.audiencia.value == o.valor %}checked{% endif %}>
+                   value="{{ o.valor }}" data-n="{{ o.a_enviar }}" {% if form.audiencia.value == o.valor %}checked{% endif %}>
             <label class="form-check-label" for="aud-{{ o.valor }}">
               {{ o.etiqueta }} — <strong>{{ o.a_enviar }}</strong> persona{{ o.a_enviar|pluralize }}
               {% if o.de_baja %}<span class="cell-sub">({{ o.de_baja }} se dieron de baja y no lo reciben)</span>{% endif %}
@@ -88,38 +104,37 @@
           </div>
         {% endfor %}
 
-        <div class="d-flex gap-2 mt-4 flex-wrap">
-          <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i> Guardar</button>
-          <button type="submit" name="accion" value="enviar" class="btn btn-ghost">
-            <i class="bi bi-send me-1"></i> Guardar y enviar
-          </button>
-          <button type="submit" name="accion" value="programar" class="btn btn-ghost">
-            <i class="bi bi-clock me-1"></i> Guardar y programar
-          </button>
-        </div>
-        <div class="pnl-campo-ayuda mt-2">
-          Para enviarlo o programarlo a los clientes, primero mándatelo como <strong>Prueba</strong>
-          y después elige a quién va.
-        </div>
-        {% if envio.prueba_enviada_en and not envio.prueba_al_dia %}
-          <div class="alert alert-warning py-2 small mt-3 mb-0">
-            <i class="bi bi-exclamation-triangle me-1"></i>
-            Cambiaste el correo después de la última prueba: envíalo de nuevo como Prueba antes de mandarlo a los clientes.
+        {% comment %}
+          El orden en el código importa: con Enter en el asunto el navegador
+          aprieta el PRIMER botón del formulario, y ese tiene que ser "Guardar
+          borrador", nunca uno que envíe. Lo visual se ordena con order-*.
+        {% endcomment %}
+        <div class="d-flex flex-column gap-2 mt-4">
+          <div class="order-3 d-flex justify-content-between align-items-center border-top pt-3 mt-2">
+            <button type="submit" class="btn btn-ghost btn-sm"><i class="bi bi-floppy me-1"></i> Guardar borrador</button>
+            {% if envio %}
+              <button type="submit" form="correo-eliminar" class="btn btn-sm btn-link text-danger text-decoration-none">
+                <i class="bi bi-trash me-1"></i>Borrar
+              </button>
+            {% endif %}
           </div>
-        {% elif envio.prueba_al_dia %}
-          <div class="small text-success mt-3"><i class="bi bi-check-circle me-1"></i>
-            Prueba enviada el {{ envio.prueba_enviada_en|date:'d-m-Y H:i' }} con este contenido.</div>
-        {% endif %}
+          <button type="submit" name="accion" value="enviar" class="btn btn-brand w-100 order-1" id="btn-enviar">
+            <i class="bi bi-send me-1"></i> <span>Enviar</span>
+          </button>
+          <button type="submit" name="accion" value="programar" class="btn btn-ghost w-100 order-2" id="btn-programar">
+            <i class="bi bi-clock me-1"></i> <span>Programar…</span>
+          </button>
+        </div>
       </div></div>
     </div>
   </div>
 </form>
 
 {% if envio %}
-  <form method="post" action="{% url 'panel:correo_eliminar' envio.pk %}" class="mt-3"
+  {# El botón "Borrar" vive en el panel lateral (atributo form=). #}
+  <form method="post" action="{% url 'panel:correo_eliminar' envio.pk %}" id="correo-eliminar" hidden
         hx-confirm="¿Borrar este borrador? No se puede deshacer.">
     {% csrf_token %}
-    <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash me-1"></i>Borrar borrador</button>
   </form>
 {% endif %}
 
@@ -147,6 +162,13 @@
   .correo-editor-wrap .ql-editor p { margin-bottom:14px; }
   .correo-html { min-height:calc(100vh - 260px); font-size:12.5px; }
   @media (min-width:1200px) { .correo-lateral { position:sticky; top:16px; } }
+  .correo-estado { display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.45;
+    padding:10px 12px; border-radius:10px; background:#f6f2fb; color:#4a3b5c; }
+  .correo-estado i { color:#8200db; margin-top:1px; }
+  .correo-estado.ok { background:#eefaf3; color:#1f5b3a; }
+  .correo-estado.ok i { color:#1f9d55; }
+  .correo-estado.aviso { background:#fff7e6; color:#6b4a00; }
+  .correo-estado.aviso i { color:#d18b00; }
   .correo-editor-wrap .ql-editor h2 { color:#2f0053; font-size:21px; }
   .correo-editor-wrap .ql-editor h3 { color:#8200db; font-size:17px; }
   .correo-editor-wrap .ql-editor a { color:#8200db; font-weight:bold; }
@@ -326,6 +348,33 @@
         sincronizar()
       })
     }
+
+    // Los botones dicen qué va a pasar según a quién va el correo.
+    function rotular() {
+      var r = document.querySelector('#correo-form input[name=audiencia]:checked')
+      var enviar = document.querySelector('#btn-enviar span')
+      var programar = document.querySelector('#btn-programar span')
+      if (!r || !enviar || !programar) return
+      if (r.value === 'PRUEBA') {
+        enviar.textContent = 'Enviar prueba ahora'
+        programar.textContent = 'Programar la prueba…'
+      } else {
+        var n = r.dataset.n
+        enviar.textContent = 'Enviar a ' + n + ' persona' + (n === '1' ? '' : 's') + '…'
+        programar.textContent = 'Programar envío…'
+      }
+    }
+    function iniciarRotulos() {
+      document.querySelectorAll('#correo-form input[name=audiencia]').forEach(function (r) {
+        if (r.dataset.rotulo) return
+        r.dataset.rotulo = '1'
+        r.addEventListener('change', rotular)
+      })
+      rotular()
+    }
+    document.addEventListener('DOMContentLoaded', iniciarRotulos)
+    document.body.addEventListener('htmx:afterSettle', iniciarRotulos)
+    iniciarRotulos()
 
     document.addEventListener('DOMContentLoaded', iniciar)
     document.body.addEventListener('htmx:afterSettle', iniciar)

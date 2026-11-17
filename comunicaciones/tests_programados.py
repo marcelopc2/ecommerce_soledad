@@ -82,6 +82,20 @@ class ProgramarTests(TestCase):
         self.assertNotIn('alumno0@correo.cl', enviados)
         self.assertIn('nuevo@correo.cl', enviados)
 
+    def test_prueba_programada_llega_solo_al_equipo_y_queda_probada(self):
+        _equipo = User.objects.create_user(username='jefa@ib.cl', email='jefa@ib.cl', is_staff=True)
+        e = EnvioMasivo.objects.create(asunto='Ensayo', cuerpo='Hola.', audiencia=EnvioMasivo.PRUEBA)
+        masivos.programar(e, timezone.now() + timedelta(hours=1))
+        _llego_la_hora(e)
+        with mock.patch('comunicaciones.freno.correos_a_clientes', return_value=False):
+            self.correr()                                 # sale aunque esté la pausa, como la prueba manual
+        self.assertEqual([m.to for m in mail.outbox], [['jefa@ib.cl']])
+        self.assertTrue(mail.outbox[0].subject.startswith('[PRUEBA]'))
+        e.refresh_from_db()
+        self.assertEqual(e.estado, EnvioMasivo.BORRADOR)
+        self.assertTrue(e.prueba_al_dia)
+        self.assertIn('prueba programada', self.avisar.call_args.args[0])
+
     def test_con_la_pausa_puesta_espera_y_no_se_pierde(self):
         e = masivos.programar(_probado(), timezone.now() + timedelta(hours=2))
         _llego_la_hora(e)
@@ -190,15 +204,24 @@ class PanelProgramarTests(TestCase):
                              fetch_redirect_response=False)
         self.assertEqual(len(mail.outbox), 0)
 
-    def test_programar_una_prueba_no_manda_nada(self):
-        e = _probado()
-        r = self.client.post(reverse('panel:correo_edit', args=[e.pk]), {
-            'asunto': e.asunto, 'cuerpo_html': '<p>Hola.</p>', 'audiencia': 'PRUEBA',
-            'boton_texto': '', 'boton_url': '', 'accion': 'programar'})
-        self.assertRedirects(r, reverse('panel:correo_edit', args=[e.pk]), fetch_redirect_response=False)
-        self.assertEqual(len(mail.outbox), 0)
+    def test_se_puede_programar_una_prueba(self):
+        e = EnvioMasivo.objects.create(asunto='Ensayo', cuerpo='Hola.', audiencia=EnvioMasivo.PRUEBA)
+        cuando = (timezone.localtime() + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M')
+        r = self.client.post(reverse('panel:correo_confirmar', args=[e.pk]), {'cuando': cuando, 'accion': 'programar'})
+        self.assertRedirects(r, reverse('panel:correo_detalle', args=[e.pk]), fetch_redirect_response=False)
         e.refresh_from_db()
-        self.assertEqual(e.estado, EnvioMasivo.BORRADOR)
+        self.assertEqual(e.estado, EnvioMasivo.PROGRAMADO)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_el_editor_tiene_guardar_como_primer_boton(self):
+        """Con Enter en el asunto se aprieta el primer botón: nunca uno que envíe."""
+        import re
+        e = _probado()
+        html = self.client.get(reverse('panel:correo_edit', args=[e.pk])).content.decode()
+        form = html[html.index('id="correo-form"'):]
+        primero = re.search(r'<button type="submit"[^>]*>', form).group(0)
+        self.assertNotIn('accion', primero)
+        self.assertNotIn('form=', primero)
 
     def test_la_lista_deja_borrar_borradores(self):
         e = _probado()

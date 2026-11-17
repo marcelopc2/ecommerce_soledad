@@ -38,12 +38,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **op):
         from comunicaciones.freno import correos_a_clientes
-        if not correos_a_clientes():
-            self.stdout.write('Freno de correos puesto: no se manda nada.')
-            return
+        freno = not correos_a_clientes()
 
-        for programado, problema in soltar_programados():
-            if problema:
+        # Con el freno puesto solo salen las pruebas programadas (al equipo).
+        for programado, problema in soltar_programados(solo_pruebas=freno):
+            if programado.audiencia == EnvioMasivo.PRUEBA and not problema:
+                n = len(getattr(programado, 'llegaron', []))
+                avisar(f'🧪 Salió la prueba programada «{programado.asunto}» a {n} del equipo.')
+            elif problema:
                 log.warning('Correo programado "%s" no salió: %s', programado.asunto, problema)
                 avisar(f'⚠️ El correo programado «{programado.asunto}» no salió: {problema} '
                        'Quedó como borrador en el panel.')
@@ -51,6 +53,10 @@ class Command(BaseCommand):
                 n = programado.destinatarios.filter(estado=DestinatarioMasivo.PENDIENTE).count()
                 log.info('Correo programado "%s" empezó a salir a %s personas', programado.asunto, n)
                 avisar(f'📨 Empezó a salir el correo programado «{programado.asunto}» a {n} personas.')
+
+        if freno:
+            self.stdout.write('Freno de correos puesto: no se manda nada a clientes.')
+            return
 
         envio, cuenta = procesar(lote=op['lote'], pausa=op['pausa'])
         if envio is None:

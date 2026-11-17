@@ -2702,10 +2702,6 @@ def correo_form(request, pk=None):
                 return correo_prueba(request, obj.pk)
             return redirect('panel:correo_confirmar', pk=obj.pk)
         if request.POST.get('accion') == 'programar':
-            if obj.audiencia == EnvioMasivo.PRUEBA:
-                messages.info(request, 'Guardado. Para programarlo, elige a quién va (no «Prueba»): '
-                                       'la prueba sale al tiro, no se programa.')
-                return redirect('panel:correo_edit', pk=obj.pk)
             return redirect(reverse('panel:correo_confirmar', args=[obj.pk]) + '?programar=1')
         if obj.prueba_enviada_en and not obj.prueba_al_dia:
             messages.info(request, 'Guardado. Como cambiaste el correo, mándate '
@@ -2783,17 +2779,20 @@ def correo_confirmar(request, pk):
     if not envio.editable:
         return redirect('panel:correo_detalle', pk=envio.pk)
 
-    motivo = masivos.motivo_para_no_enviar(envio)
+    # Una prueba no se "envía a todos" (eso es el botón de prueba), pero sí
+    # se puede programar: sale a esa hora solo al equipo.
+    es_prueba = envio.audiencia == EnvioMasivo.PRUEBA
+    motivo = None if es_prueba else masivos.motivo_para_no_enviar(envio)
     numeros = masivos.cuantos(envio.audiencia)
     error = None
 
     if request.method == 'POST' and not motivo:
         escrito = request.POST.get('confirmacion', '').strip().replace('.', '')
-        if numeros['a_enviar'] == 0:
+        if not es_prueba and numeros['a_enviar'] == 0:
             error = 'No hay nadie a quien enviarle este correo.'
-        elif escrito != str(numeros['a_enviar']):
+        elif not es_prueba and escrito != str(numeros['a_enviar']):
             error = 'Escribe el número exacto de personas: %d.' % numeros['a_enviar']
-        elif request.POST.get('accion') == 'programar':
+        elif es_prueba or request.POST.get('accion') == 'programar':
             cuando = _leer_fecha_hora(request.POST.get('cuando', ''))
             if cuando is None:
                 error = 'Elige el día y la hora en que quieres que salga.'
@@ -2817,7 +2816,7 @@ def correo_confirmar(request, pk):
             return redirect('panel:correo_detalle', pk=envio.pk)
 
     return render(request, 'panel/correo_confirmar.html', {
-        'envio': envio, 'numeros': numeros, 'motivo': motivo, 'error': error,
+        'envio': envio, 'numeros': numeros, 'motivo': motivo, 'error': error, 'es_prueba': es_prueba,
         'cuando': request.POST.get('cuando', ''),
         'accion': request.POST.get('accion') or ('programar' if request.GET.get('programar') else ''),
         'minimo': timezone.localtime(timezone.now() + masivos.PROGRAMAR_DESDE).strftime('%Y-%m-%dT%H:%M'),
