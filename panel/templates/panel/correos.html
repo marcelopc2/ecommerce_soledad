@@ -46,7 +46,8 @@
           <td>{{ e.get_audiencia_display }}</td>
           <td>
             {% if e.estado == 'BORRADOR' %}
-              {% if e.prueba_al_dia %}<span class="badge-soft purple">Probado, listo</span>
+              {% if e.prueba_al_dia %}<span class="badge-soft purple">Borrador · probado</span>
+              {% elif e.prueba_enviada_en %}<span class="badge-soft yellow">Borrador · cambió tras la prueba</span>
               {% else %}<span class="badge-soft gray">Borrador</span>{% endif %}
             {% elif e.estado == 'PROGRAMADO' %}<span class="badge-soft purple"><i class="bi bi-clock me-1"></i>Programado · {{ e.programado_para|date:'d-m H:i' }}</span>
             {% elif e.estado == 'EN_COLA' %}<span class="badge-soft yellow">Enviándose</span>
@@ -54,12 +55,21 @@
             {% else %}<span class="badge-soft red">Cancelado</span>{% endif %}
           </td>
           <td>
-            {% if e.cuenta %}
+            {% if e.estado == 'BORRADOR' %}
+              {% if e.prueba_enviada_en %}Prueba enviada al equipo
+                <div class="cell-sub">{% if e.audiencia == 'PRUEBA' %}No va a clientes{% else %}Aún no sale a clientes{% endif %}</div>
+              {% else %}<span class="cell-sub">Sin enviar</span>{% endif %}
+            {% elif e.cuenta %}
               {{ e.cuenta.ENVIADO }} de {{ e.cuenta.total }}
               {% if e.cuenta.FALLIDO %}<div class="cell-sub text-danger">{{ e.cuenta.FALLIDO }} fallaron</div>{% endif %}
             {% else %}<span class="cell-sub">—</span>{% endif %}
           </td>
-          <td class="cell-sub">{% if e.estado == 'PROGRAMADO' %}{{ e.programado_para|date:'d-m-Y H:i' }}{% else %}{{ e.encolado_en|default:e.creado_en|date:'d-m-Y H:i' }}{% endif %}</td>
+          <td class="cell-sub">
+            {% if e.estado == 'PROGRAMADO' %}{{ e.programado_para|date:'d-m-Y H:i' }}<div>sale</div>
+            {% elif e.estado == 'BORRADOR' and e.prueba_enviada_en %}{{ e.prueba_enviada_en|date:'d-m-Y H:i' }}<div>prueba</div>
+            {% elif e.estado == 'BORRADOR' %}{{ e.creado_en|date:'d-m-Y H:i' }}<div>creado</div>
+            {% else %}{{ e.encolado_en|default:e.creado_en|date:'d-m-Y H:i' }}{% endif %}
+          </td>
           <td class="text-end">
             {% if e.editable %}
               <a href="{% url 'panel:correo_edit' e.pk %}" class="btn btn-sm btn-ghost">Seguir</a>

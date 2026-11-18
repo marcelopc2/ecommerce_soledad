@@ -229,3 +229,11 @@ class PanelProgramarTests(TestCase):
         self.assertContains(r, reverse('panel:correo_eliminar', args=[e.pk]))
         self.client.post(reverse('panel:correo_eliminar', args=[e.pk]))
         self.assertFalse(EnvioMasivo.objects.filter(pk=e.pk).exists())
+
+    def test_la_lista_dice_que_la_prueba_ya_salio(self):
+        e = EnvioMasivo.objects.create(asunto='Ensayo', cuerpo='Hola.', audiencia=EnvioMasivo.PRUEBA)
+        masivos.enviar_prueba(e)
+        r = self.client.get(reverse('panel:correos'))
+        self.assertContains(r, 'Prueba enviada al equipo')
+        self.assertContains(r, 'No va a clientes')
+        self.assertContains(r, 'Borrador · probado')
