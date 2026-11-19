@@ -103,15 +103,9 @@
               <tr>
                 <td>
                   <div class="cell-title">{{ m.user.email }}</div>
-                  <div class="cell-sub">Vence {{ m.expires_at|date:'d M Y' }}</div>
+                  <div class="cell-sub">{% if m.is_paused %}En pausa desde {{ m.paused_at|date:'d M Y' }}{% elif m.sin_vencimiento %}Sin vencimiento{% else %}Vence {{ m.expires_at|date:'d M Y' }}{% endif %}</div>
                 </td>
-                <td class="text-end">
-                  {% if m.is_active %}
-                    <span class="badge-soft green"><i class="bi bi-check-circle-fill"></i> Activa</span>
-                  {% else %}
-                    <span class="badge-soft red"><i class="bi bi-clock-history"></i> Vencida</span>
-                  {% endif %}
-                </td>
+                <td class="text-end">{% include 'panel/partials/membership_status_badge.html' with m=m %}</td>
               </tr>
             {% endfor %}
           </tbody>

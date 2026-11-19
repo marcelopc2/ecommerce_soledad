@@ -437,3 +437,22 @@ class PantallaDeCategoriasTests(TestCase):
         respuesta = self.client.get(reverse('panel:courses'))
         self.assertContains(respuesta, 'General')
         self.assertContains(respuesta, 'Sin categoría')
+
+
+class AlumnosRecientesDelInicioTests(TestCase):
+    """La lista de Inicio decía «Vencida» a una cuenta pausada: miraba solo si
+    tenía acceso, y una pausada no lo tiene."""
+
+    def test_una_pausada_dice_pausada(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from lms.models import Membership
+        admin = User.objects.create_user(username='a@ib.cl', email='a@ib.cl', is_staff=True)
+        alumna = User.objects.create_user(username='cecy@correo.cl', email='cecy@correo.cl')
+        m = Membership.objects.create(user=alumna, expires_at=timezone.now() + timedelta(days=180))
+        m.pause()
+        self.client.force_login(admin)
+        r = self.client.get(reverse('panel:dashboard'))
+        self.assertContains(r, 'Pausada')
+        self.assertContains(r, 'En pausa desde')
+        self.assertNotContains(r, '> Vencida')
