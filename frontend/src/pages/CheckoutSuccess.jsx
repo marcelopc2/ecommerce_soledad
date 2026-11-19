@@ -1,8 +1,10 @@
+import { useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 import logo from '../assets/landing/logo-ingenioblocks.svg'
 import './landing.css'
 import './resultado.css'
+import { avisarCompra } from '../lib/metaPixel'
 
 const IconCheck = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"
@@ -18,6 +20,9 @@ export default function CheckoutSuccess() {
   // Suscripción de Mercado Pago autorizada cuyo primer cobro todavía se
   // está procesando: el acceso y el correo llegan apenas Mercado Pago lo apruebe.
   const confirmando = params.get('confirmando') === '1'
+
+  // Píxel de Meta: la compra, con el monto que dejó anotado el checkout.
+  useEffect(() => { avisarCompra(orden) }, [orden])
 
   return (
     <div className="lp">

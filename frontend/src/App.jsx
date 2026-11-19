@@ -21,6 +21,7 @@ import AvisoPreview from './components/AvisoPreview'
 import BandaSoporte from './components/BandaSoporte'
 import { enVistaPrevia } from './textos'
 import Soporte from './pages/Soporte'
+import { evento as eventoMeta } from './lib/metaPixel'
 
 // Al cambiar de ruta la página nueva parte arriba (sin animar el salto,
 // para no interferir con el scroll suave de las anclas de la landing).
@@ -87,12 +88,22 @@ function ContarVisita() {
   return null
 }
 
+// Una vista de página para el píxel de Meta en cada cambio de ruta: es una
+// página de una sola carga, así que el PageView del código base de Meta
+// contaría solo la primera. Fuera del dominio real no hace nada (lib/metaPixel.js).
+function PixelMeta() {
+  const { pathname } = useLocation()
+  useEffect(() => { eventoMeta('PageView') }, [pathname])
+  return null
+}
+
 function App() {
   return (
     <>
       <ScrollToTop />
       <OcultarPreloaderSiNoEsLanding />
       <ContarVisita />
+      <PixelMeta />
       {/* Solo se ve en las direcciones de prueba; se apaga solo el día que el
           dominio definitivo apunte acá. Ver AvisoPreview.jsx. */}
       <AvisoPreview />

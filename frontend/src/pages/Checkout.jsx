@@ -7,6 +7,7 @@ import logo from '../assets/landing/logo-ingenioblocks.svg'
 import './landing.css'
 import './checkout.css'
 import Cargando from '../components/Cargando'
+import { evento as eventoMeta, anotarCompra } from '../lib/metaPixel'
 
 const clp = (n) => '$' + parseInt(n, 10).toLocaleString('es-CL')
 
@@ -119,6 +120,16 @@ export default function Checkout() {
   useEffect(() => {
     if (user?.email) setContact(c => (c.email ? c : { ...c, email: user.email }))
   }, [user])
+
+  // Píxel de Meta: alguien abrió el pago de un producto.
+  useEffect(() => {
+    if (!product) return
+    eventoMeta('InitiateCheckout', {
+      value: parseInt(product.effective_price ?? product.price, 10), currency: 'CLP',
+      content_ids: [String(product.id)], content_name: product.name,
+      content_type: 'product', num_items: 1,
+    })
+  }, [product?.id])   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (product && requiereEnvio) {
@@ -287,6 +298,12 @@ export default function Checkout() {
     // campos para que se vean los errores en vez de rebotar en el servidor.
     if (!puedePagar) { marcarTodo(); return }
     setPaying(true)
+    // Para el píxel de Meta: la página de "¡Listo!" avisa la compra con este monto.
+    anotarCompra({
+      value: total, currency: 'CLP',
+      content_ids: [String(product.id)], content_name: product.name,
+      content_type: 'product', num_items: 1,
+    })
     const payload = {
       product_ids: [product.id],
       email: contact.email,
